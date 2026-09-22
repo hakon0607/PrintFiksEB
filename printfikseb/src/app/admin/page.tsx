@@ -43,12 +43,7 @@ export default function AdminOversikt() {
     {
       href: '/admin/galleri',
       tittel: 'Legg til modeller',
-      tekst: 'Last opp bilde, sett pris og få et ID-nummer automatisk.',
-    },
-    {
-      href: '/admin/ai',
-      tittel: 'Hent modell fra nettet',
-      tekst: 'Lim inn en MakerWorld-lenke, så lager AI-en produktsiden for deg.',
+      tekst: 'Last opp bilder, sett pris – eller hent en modell fra MakerWorld med AI.',
     },
     {
       href: '/admin/tekster',

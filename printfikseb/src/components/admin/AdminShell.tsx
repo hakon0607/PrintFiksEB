@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { Login } from './Login';
 import { PublishBar } from './PublishBar';
+import { Tilstede } from './Tilstede';
 
 const meny = [
   { href: '/admin', label: 'Oversikt', ikon: 'M4 12h6V4H4zM14 20h6v-8h-6zM14 8h6V4h-6zM4 20h6v-4H4z' },
@@ -18,19 +19,10 @@ const meny = [
   },
   { href: '/admin/priser', label: 'Priser', ikon: 'M12 3v18M7 7h7.5a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8' },
   { href: '/admin/galleri', label: 'Galleri', ikon: 'M4 5h16v14H4zM4 15l4.5-4.5L13 15l3-3 4 4' },
-  {
-    href: '/admin/ai',
-    label: 'AI og import',
-    ikon: 'M12 3v2m0 14v2M5.6 5.6l1.4 1.4m10 10 1.4 1.4M3 12h2m14 0h2M5.6 18.4 7 17m10-10 1.4-1.4M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
-  },
-  {
-    href: '/admin/eksempler',
-    label: 'Hva vi kan fikse',
-    ikon: 'M14.7 6.3a4 4 0 0 1 5.3 5.3l-8.5 8.5-4.2 1 1-4.2zM4 4l4 4',
-  },
   { href: '/admin/tekster', label: 'Tekster', ikon: 'M5 6h14M5 12h14M5 18h9' },
   { href: '/admin/sporsmal', label: 'Spørsmål og svar', ikon: 'M9.5 9a2.5 2.5 0 1 1 3.3 2.4c-.8.3-1.3 1-1.3 1.9v.2M12 17h.01' },
   { href: '/admin/ansatte', label: 'Ansatte', ikon: 'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 19v-1.5a3.5 3.5 0 0 0-2.6-3.4' },
+  { href: '/admin/profil', label: 'Min profil', ikon: 'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-1A3.5 3.5 0 0 0 8 17.5V19M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7' },
   { href: '/admin/innstillinger', label: 'Kontakt og levering', ikon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15a2 2 0 1 1 0-4 1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6 2 2 0 1 1 13 3a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.6 1.6 0 0 0 21 9a2 2 0 1 1 0 4' },
 ];
 
@@ -74,18 +66,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link href="/" className="btn-ghost btn-sm hidden sm:inline-flex">
+          <div className="flex items-center gap-3">
+            <Tilstede />
+            <Link href="/" className="btn-ghost btn-sm hidden lg:inline-flex">
               Se nettsiden
             </Link>
-            <div className="hidden items-center gap-2 rounded-full bg-ink-50 py-1 pl-3 pr-1 sm:flex">
-              <span className="text-xs font-semibold text-ink-600">
-                {profile?.name || user.email}
-              </span>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-[11px] font-bold text-white">
-                {(profile?.name || user.email || '?').slice(0, 1).toUpperCase()}
-              </span>
-            </div>
+            <Link
+              href="/admin/profil"
+              className="hidden items-center gap-2 rounded-full bg-ink-50 px-3 py-1.5 text-xs font-semibold text-ink-600 transition-colors hover:bg-ink-100 xl:flex"
+            >
+              {profile?.name || user.email}
+            </Link>
             <button type="button" onClick={signOut} className="btn-ghost btn-sm">
               Logg ut
             </button>

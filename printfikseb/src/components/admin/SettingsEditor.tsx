@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { lyttPaTabell } from '@/lib/realtime';
 import { useAdmin } from './AdminProvider';
 import { FeltRedigerer, StatusMerke, type Felt } from './TableEditor';
 import type { Setting } from '@/lib/types';
@@ -34,6 +35,17 @@ export function SettingsEditor({
   useEffect(() => {
     hent();
   }, [hent]);
+
+  // Skriver noen andre en tekst, dukker den opp her med en gang
+  useEffect(() => {
+    if (!supabase) return;
+    return lyttPaTabell(supabase, 'settings', ({ ny }) => {
+      if (!ny?.key) return;
+      setRader((prev) =>
+        prev.map((r) => (r.key === ny.key ? { ...r, ...(ny as unknown as Setting) } : r))
+      );
+    });
+  }, [supabase]);
 
   if (laster) {
     return (
@@ -76,7 +88,20 @@ function InnstillingFelt({ rad }: { rad: Setting }) {
   const { supabase } = useAdmin();
   const [verdi, setVerdi] = useState(rad.value);
   const [status, setStatus] = useState<'' | 'lagrer' | 'lagret' | 'feil'>('');
+  const [fraAndre, setFraAndre] = useState(false);
   const timerRef = useRef<number | null>(null);
+  const skriverRef = useRef(false);
+
+  // Endret noen andre denne teksten, oppdater feltet – med mindre du skriver i det nå
+  useEffect(() => {
+    if (skriverRef.current) return;
+    if (rad.value === verdi) return;
+    setVerdi(rad.value);
+    setFraAndre(true);
+    const t = window.setTimeout(() => setFraAndre(false), 2600);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rad.value]);
 
   const lagre = useCallback(
     async (ny: string) => {
@@ -90,6 +115,7 @@ function InnstillingFelt({ rad }: { rad: Setting }) {
         setStatus('feil');
         return;
       }
+      skriverRef.current = false;
       setStatus('lagret');
       window.setTimeout(() => setStatus(''), 1600);
     },
@@ -98,6 +124,7 @@ function InnstillingFelt({ rad }: { rad: Setting }) {
 
   function endre(ny: unknown, straks = false) {
     const tekst = typeof ny === 'boolean' ? (ny ? 'ja' : 'nei') : String(ny ?? '');
+    skriverRef.current = true;
     setVerdi(tekst);
     if (timerRef.current) window.clearTimeout(timerRef.current);
     if (straks) {
@@ -121,7 +148,12 @@ function InnstillingFelt({ rad }: { rad: Setting }) {
     <div className={bred ? 'sm:col-span-2' : ''}>
       <div className="relative">
         <FeltRedigerer felt={felt} verdi={verdi} onEndre={endre} />
-        <span className="absolute right-0 top-0">
+        <span className="absolute right-0 top-0 flex items-center gap-1.5">
+          {fraAndre && (
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+              Endret av en annen
+            </span>
+          )}
           <StatusMerke status={status} />
         </span>
       </div>

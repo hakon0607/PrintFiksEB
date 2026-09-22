@@ -52,6 +52,8 @@ export type Product = {
   name: string;
   description: string | null;
   details?: string | null;
+  tagline?: string | null;
+  highlights?: string[] | null;
   images?: string[] | null;
   source_url?: string | null;
   price: number;

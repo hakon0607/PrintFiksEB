@@ -1,8 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { TableEditor } from '@/components/admin/TableEditor';
+import { AiOgImport } from '@/components/admin/AiOgImport';
 
 export default function GalleriAdmin() {
+  const [nokkel, setNokkel] = useState(0);
+
   return (
     <div className="space-y-6">
       <div>
@@ -14,7 +18,10 @@ export default function GalleriAdmin() {
         </p>
       </div>
 
+      <AiOgImport onImportert={() => setNokkel((n) => n + 1)} />
+
       <TableEditor
+        key={nokkel}
         table="products"
         tittel="Modeller i galleriet"
         beskrivelse="Trykk på en modell for å endre den. Bryteren til høyre skjuler modellen fra nettsiden uten å slette den."
@@ -25,6 +32,8 @@ export default function GalleriAdmin() {
           name: 'Ny modell',
           description: '',
           details: '',
+          tagline: '',
+          highlights: [],
           price: 100,
           image_url: '',
           images: [],
@@ -37,6 +46,13 @@ export default function GalleriAdmin() {
           { key: 'image_url', label: 'Hovedbilde', type: 'image', help: 'Dette bildet vises på kortet i galleriet.' },
           { key: 'images', label: 'Flere bilder', type: 'images' },
           { key: 'name', label: 'Navn', type: 'text', placeholder: 'F.eks. Saksholder' },
+          {
+            key: 'tagline',
+            label: 'Undertittel',
+            type: 'text',
+            placeholder: 'Én kort setning som selger poenget',
+            help: 'Vises rett under navnet på produktsiden.',
+          },
           { key: 'price', label: 'Pris', type: 'price', suffix: 'kr' },
           {
             key: 'code',
@@ -65,6 +81,13 @@ export default function GalleriAdmin() {
             type: 'longtext',
             help: 'Vises når kunden klikker seg inn på modellen. Tom linje mellom avsnitt.',
             placeholder: 'Fortell mer: hva passer den til, hvordan er den laget, hva bør kunden vite?',
+          },
+          {
+            key: 'highlights',
+            label: 'Kulepunkter',
+            type: 'lines',
+            help: 'Ett punkt per linje. Vises med haker på produktsiden.',
+            placeholder: 'Passer på pulten\nFerdig montert fra printeren\nTåler daglig bruk',
           },
           {
             key: 'source_url',

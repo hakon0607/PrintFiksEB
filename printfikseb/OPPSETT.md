@@ -110,8 +110,8 @@ Alt på nettsiden styres fra `/admin`. **Alt lagres automatisk** – dere ser
 | **Oversikt** | Se hvor mye dere har lagt inn |
 | **Oppgaver** | Deres egen planlegging: hva skal gjøres, hvem gjør det, når er fristen |
 | **Priser** | Pris per gram, startpris, tillegg, levering og størrelsene kundene velger mellom |
-| **Galleri** | Legg inn ferdige modeller med bilde og pris. ID-nummer lages automatisk. Flere bilder og full beskrivelse vises når kunden klikker seg inn |
-| **AI og import** | Legg inn AI-nøkkelen, og hent ferdige modeller fra MakerWorld |
+| **Galleri** | Modeller med bilder, undertittel, kulepunkter og full beskrivelse. Her ligger også «Hent modell med AI» |
+| **Min profil** | Ditt eget navn, bilde, hva du gjør – og bytt passord |
 | **Hva vi kan fikse** | Eksemplene som vises på siden om hva 3D-printing kan brukes til |
 | **Tekster** | Overskriften på forsiden, «om oss»-teksten og alt annet folk leser |
 | **Spørsmål og svar** | Svar på det kundene spør om ofte |
@@ -128,16 +128,37 @@ Knappene øverst filtrerer: **Alle**, **Mine**, **Ufordelt** eller én person.
 Denne siden ser bare dere – den vises aldri på nettsiden, og den trenger ikke
 publiseres.
 
+### Alle jobber samtidig
+
+Adminpanelet er i sanntid. Skriver én av dere i en tekst, ser de andre det med
+en gang – dere trenger ikke laste siden på nytt. Står noen i samme rad, står det
+«Ola redigerer» ved siden av.
+
+Øverst til høyre ser dere hvem i gruppa som er pålogget akkurat nå (hold musa
+over for å se hvilken side de er på), og hvor mange besøkende som er inne på
+nettsiden i øyeblikket.
+
+### Endre profil og roller
+
+Alle kan endre sitt eget navn, bilde og hva de gjør under **Min profil**, og
+bytte passord der. Eieren kan i tillegg endre navn og rolle på alle andre under
+**Ansatte** – også gjøre noen andre til eier. Det må alltid finnes minst én eier.
+
 ### AI-nøkkel og import fra MakerWorld
 
-Under **AI og import** kan eieren lime inn en OpenAI-nøkkel. Den lagres trygt på
+Under **Galleri** → «Hent modell med AI» kan eieren lime inn en OpenAI-nøkkel. Den lagres trygt på
 serveren til noen sletter den, og alle i gruppa kan bruke funksjonene uten å ha
 nøkkelen selv – ingen får se den igjen etterpå.
 
 Når nøkkelen er på plass kan dere lime inn en lenke til en modell på MakerWorld
-(eller Printables og Thingiverse). Nettsiden henter bilder og informasjon, lar
-AI skrive en norsk beskrivelse, foreslår en pris og legger modellen i galleriet.
-Den er **skjult** til dere har sett over teksten og skrudd den på.
+(eller Printables og Thingiverse). Nettsiden henter bilder og informasjon, lar AI
+skrive en ferdig norsk produktside – navn, undertittel, kulepunkter og full
+beskrivelse – og foreslår en pen pris (49, 99, 149 …). Modellen legges i
+galleriet **skjult** til dere har sett over den.
+
+Noen sider (blant annet MakerWorld) blokkerer automatisk henting. Da får dere
+opp et skjema der dere limer inn tittel og tekst selv, og bildene med **Ctrl+V**
+(høyreklikk på bildet → «Kopier bilde»). AI-en skriver resten.
 
 Husk å sjekke lisensen på modellen før dere selger den videre.
 

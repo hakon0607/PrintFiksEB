@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { lyttPaTabell } from '@/lib/realtime';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import type { Profile } from '@/lib/types';
@@ -33,6 +34,11 @@ export function Innlogginger() {
   useEffect(() => {
     hent();
   }, [hent]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    return lyttPaTabell(supabase, 'profiles', () => hent());
+  }, [supabase, hent]);
 
   async function token() {
     if (!supabase) return '';
@@ -72,6 +78,21 @@ export function Innlogginger() {
     setEpost('');
     setNavn('');
     setJobber(false);
+    hent();
+  }
+
+  async function endreAnsatt(id: string, patch: { role?: string; name?: string }) {
+    setFeil('');
+    const res = await fetch('/api/ansatte', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` },
+      body: JSON.stringify({ id, ...patch }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setFeil(data.error || 'Klarte ikke å lagre endringen.');
+      return;
+    }
     hent();
   }
 
@@ -262,21 +283,54 @@ export function Innlogginger() {
           <li className="py-6 text-sm text-ink-400">Henter…</li>
         ) : (
           profiler.map((p) => (
-            <li key={p.id} className="flex items-center gap-4 py-4">
+            <li key={p.id} className="flex flex-wrap items-center gap-3 py-4 sm:gap-4">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
                 {(p.name || p.email || '?').slice(0, 1).toUpperCase()}
               </span>
+
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-ink-900">{p.name || p.email}</p>
-                <p className="truncate text-xs text-ink-500">{p.email}</p>
+                {erEier ? (
+                  <input
+                    defaultValue={p.name ?? ''}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if (v && v !== (p.name ?? '')) endreAnsatt(p.id, { name: v });
+                    }}
+                    className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm font-semibold text-ink-900 transition-colors hover:border-ink-200 focus:border-brand-400 focus:bg-white focus:outline-none"
+                    aria-label={`Navn på ${p.email}`}
+                  />
+                ) : (
+                  <p className="truncate px-2 text-sm font-semibold text-ink-900">
+                    {p.name || p.email}
+                  </p>
+                )}
+                <p className="truncate px-2 text-xs text-ink-500">{p.email}</p>
               </div>
-              <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                  p.role === 'eier' ? 'bg-brand-50 text-brand-700' : 'bg-ink-100 text-ink-600'
-                }`}
-              >
-                {p.role === 'eier' ? 'Eier' : 'Ansatt'}
-              </span>
+
+              {erEier ? (
+                <select
+                  value={p.role === 'eier' ? 'eier' : 'medlem'}
+                  onChange={(e) => endreAnsatt(p.id, { role: e.target.value })}
+                  className="shrink-0 rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs font-bold text-ink-700 focus:border-brand-400 focus:outline-none"
+                  aria-label={`Rolle for ${p.email}`}
+                >
+                  <option value="medlem">Ansatt</option>
+                  <option value="eier">Eier</option>
+                </select>
+              ) : (
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    p.role === 'eier' ? 'bg-brand-50 text-brand-700' : 'bg-ink-100 text-ink-600'
+                  }`}
+                >
+                  {p.role === 'eier' ? 'Eier' : 'Ansatt'}
+                </span>
+              )}
+
+              {p.id === user?.id && (
+                <span className="shrink-0 text-[11px] font-semibold text-ink-400">deg</span>
+              )}
+
               {erEier && p.id !== user?.id && (
                 <button
                   type="button"

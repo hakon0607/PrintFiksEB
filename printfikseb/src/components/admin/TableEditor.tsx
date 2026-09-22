@@ -1,15 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { ImageUpload } from './ImageUpload';
 import { ImageListUpload } from './ImageListUpload';
+import { lyttPaTabell } from '@/lib/realtime';
 
 export type Felt = {
   key: string;
   label: string;
-  type: 'text' | 'longtext' | 'number' | 'price' | 'bool' | 'image' | 'images' | 'color' | 'select';
+  type: 'text' | 'longtext' | 'number' | 'price' | 'bool' | 'image' | 'images' | 'color' | 'select' | 'lines';
   valg?: { verdi: string; tekst: string }[];
   placeholder?: string;
   help?: string;
@@ -45,11 +46,19 @@ export function TableEditor({
   harAktiv = true,
   tomTekst,
 }: Props) {
-  const { supabase } = useAdmin();
+  const { supabase, profile, user } = useAdmin();
   const [rader, setRader] = useState<Rad[]>([]);
   const [laster, setLaster] = useState(true);
   const [feil, setFeil] = useState('');
   const [apen, setApen] = useState<string | null>(null);
+  const [andreRedigerer, setAndreRedigerer] = useState<Record<string, string>>({});
+  const travle = useRef<Set<string>>(new Set());
+  const kanalRef = useRef<ReturnType<NonNullable<typeof supabase>['channel']> | null>(null);
+
+  const mittNavn = useMemo(
+    () => profile?.name || user?.email?.split('@')[0] || 'Noen',
+    [profile, user]
+  );
 
   const hent = useCallback(async () => {
     if (!supabase) return;
@@ -65,6 +74,79 @@ export function TableEditor({
   useEffect(() => {
     hent();
   }, [hent]);
+
+  // Endringer fra de andre dukker opp med en gang
+  useEffect(() => {
+    if (!supabase) return;
+    return lyttPaTabell(supabase, table, ({ type, ny, gammel }) => {
+      const id = String((ny?.id ?? gammel?.id) ?? '');
+      if (!id) return;
+
+      if (type === 'DELETE') {
+        setRader((prev) => prev.filter((r) => r.id !== id));
+        return;
+      }
+      if (travle.current.has(id)) return; // noen her holder på å skrive i denne
+
+      setRader((prev) => {
+        const finnes = prev.some((r) => r.id === id);
+        if (!finnes) return [...prev, ny as Rad];
+        return prev.map((r) => (r.id === id ? { ...r, ...(ny as Rad) } : r));
+      });
+    });
+  }, [supabase, table]);
+
+  // «Ola redigerer denne» mens noen andre står i et felt
+  useEffect(() => {
+    if (!supabase) return;
+    const kanal = supabase.channel(`redigering:${table}`);
+    kanalRef.current = kanal;
+
+    kanal
+      .on('broadcast', { event: 'fokus' }, ({ payload }) => {
+        const p = payload as { radId: string; navn: string; bruker: string };
+        if (p.bruker === user?.id) return;
+        setAndreRedigerer((prev) => ({ ...prev, [p.radId]: p.navn }));
+        window.setTimeout(() => {
+          setAndreRedigerer((prev) => {
+            const kopi = { ...prev };
+            if (kopi[p.radId] === p.navn) delete kopi[p.radId];
+            return kopi;
+          });
+        }, 15000);
+      })
+      .on('broadcast', { event: 'slutt' }, ({ payload }) => {
+        const p = payload as { radId: string; bruker: string };
+        if (p.bruker === user?.id) return;
+        setAndreRedigerer((prev) => {
+          const kopi = { ...prev };
+          delete kopi[p.radId];
+          return kopi;
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(kanal);
+      kanalRef.current = null;
+    };
+  }, [supabase, table, user?.id]);
+
+  const meldFokus = useCallback(
+    (radId: string, aktiv: boolean) => {
+      kanalRef.current?.send({
+        type: 'broadcast',
+        event: aktiv ? 'fokus' : 'slutt',
+        payload: { radId, navn: mittNavn, bruker: user?.id ?? '' },
+      });
+    },
+    [mittNavn, user?.id]
+  );
+
+  const settTravel = useCallback((radId: string, travel: boolean) => {
+    if (travel) travle.current.add(radId);
+    else travle.current.delete(radId);
+  }, []);
 
   async function leggTil() {
     if (!supabase) return;
@@ -166,6 +248,9 @@ export function TableEditor({
                   onSlett={() => slett(rad.id)}
                   onFlytt={(r) => flytt(rad.id, r)}
                   onLokal={(patch) => oppdaterLokalt(rad.id, patch)}
+                  redigeresAv={andreRedigerer[rad.id]}
+                  onFokus={(aktiv) => meldFokus(rad.id, aktiv)}
+                  onTravel={(travel) => settTravel(rad.id, travel)}
                 />
               </motion.li>
             ))}
@@ -190,6 +275,9 @@ function RadRedigerer({
   onSlett,
   onFlytt,
   onLokal,
+  redigeresAv,
+  onFokus,
+  onTravel,
 }: {
   table: string;
   rad: Rad;
@@ -204,6 +292,9 @@ function RadRedigerer({
   onSlett: () => void;
   onFlytt: (retning: -1 | 1) => void;
   onLokal: (patch: Record<string, unknown>) => void;
+  redigeresAv?: string;
+  onFokus: (aktiv: boolean) => void;
+  onTravel: (travel: boolean) => void;
 }) {
   const { supabase } = useAdmin();
   const [status, setStatus] = useState<'' | 'lagrer' | 'lagret' | 'feil'>('');
@@ -214,6 +305,7 @@ function RadRedigerer({
       if (!supabase) return;
       setStatus('lagrer');
       const { error } = await supabase.from(table).update(patch).eq('id', rad.id);
+      onTravel(false);
       if (error) {
         setStatus('feil');
         return;
@@ -221,11 +313,12 @@ function RadRedigerer({
       setStatus('lagret');
       window.setTimeout(() => setStatus(''), 1600);
     },
-    [supabase, table, rad.id]
+    [supabase, table, rad.id, onTravel]
   );
 
   function endre(key: string, verdi: unknown, straks = false) {
     onLokal({ [key]: verdi });
+    onTravel(true);
     if (timerRef.current) window.clearTimeout(timerRef.current);
     if (straks) {
       lagre({ [key]: verdi });
@@ -275,6 +368,12 @@ function RadRedigerer({
           {!aktiv && <span className="text-xs text-ink-400">Skjult på nettsiden</span>}
         </button>
 
+        {redigeresAv && (
+          <span className="hidden shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 sm:inline">
+            {redigeresAv} redigerer
+          </span>
+        )}
+
         <StatusMerke status={status} />
 
         {harAktiv && (
@@ -320,7 +419,11 @@ function RadRedigerer({
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden border-t border-ink-100 bg-ink-50/50"
           >
-            <div className="grid gap-4 p-5 sm:grid-cols-2">
+            <div
+              className="grid gap-4 p-5 sm:grid-cols-2"
+              onFocusCapture={() => onFokus(true)}
+              onBlurCapture={() => onFokus(false)}
+            >
               {felter.map((felt) => (
                 <div
                   key={felt.key}
@@ -328,7 +431,8 @@ function RadRedigerer({
                     felt.bred ||
                     felt.type === 'longtext' ||
                     felt.type === 'image' ||
-                    felt.type === 'images'
+                    felt.type === 'images' ||
+                    felt.type === 'lines'
                       ? 'sm:col-span-2'
                       : ''
                   }
@@ -388,6 +492,34 @@ export function FeltRedigerer({
         value={(Array.isArray(verdi) ? verdi : []) as string[]}
         onChange={(urls) => onEndre(urls, true)}
       />
+    );
+  }
+
+  if (felt.type === 'lines') {
+    const linjer = Array.isArray(verdi) ? (verdi as string[]) : [];
+    return (
+      <div>
+        <label className="label" htmlFor={id}>
+          {felt.label}
+        </label>
+        <textarea
+          id={id}
+          rows={4}
+          defaultValue={linjer.join('\n')}
+          placeholder={felt.placeholder}
+          onBlur={(e) =>
+            onEndre(
+              e.target.value
+                .split('\n')
+                .map((l) => l.trim())
+                .filter(Boolean),
+              true
+            )
+          }
+          className="field resize-y"
+        />
+        <p className="hint">{felt.help ?? 'Ett punkt per linje.'}</p>
+      </div>
     );
   }
 

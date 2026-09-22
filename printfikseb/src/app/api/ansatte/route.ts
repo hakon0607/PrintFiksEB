@@ -152,6 +152,53 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true, mode, password: passord, userId });
 }
 
+/** Endrer rolle eller navn på en ansatt. Kun eier. */
+export async function PATCH(request: Request) {
+  const sjekk = await krevEier(request);
+  if (sjekk.feil) return sjekk.feil;
+  const service = sjekk.service!;
+
+  let body: { id?: string; role?: string; name?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Ugyldig forespørsel.' }, { status: 400 });
+  }
+
+  const id = (body.id || '').trim();
+  if (!id) return NextResponse.json({ error: 'Mangler bruker.' }, { status: 400 });
+
+  const patch: Record<string, string> = {};
+  if (body.role === 'eier' || body.role === 'medlem') patch.role = body.role;
+  if (typeof body.name === 'string' && body.name.trim()) patch.name = body.name.trim();
+  if (!Object.keys(patch).length) {
+    return NextResponse.json({ error: 'Ingenting å endre.' }, { status: 400 });
+  }
+
+  // Det må alltid finnes minst én eier
+  if (patch.role === 'medlem') {
+    const { count } = await service
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'eier');
+    if ((count ?? 0) <= 1) {
+      return NextResponse.json(
+        { error: 'Det må være minst én eier. Gjør noen andre til eier først.' },
+        { status: 400 }
+      );
+    }
+  }
+
+  const { error } = await service.from('profiles').update(patch).eq('id', id);
+  if (error) return NextResponse.json({ error: 'Klarte ikke å lagre endringen.' }, { status: 500 });
+
+  if (patch.name) {
+    await service.from('team_members').update({ name: patch.name }).eq('user_id', id);
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function DELETE(request: Request) {
   const sjekk = await krevEier(request);
   if (sjekk.feil) return sjekk.feil;

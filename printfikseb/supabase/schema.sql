@@ -132,6 +132,8 @@ create table if not exists public.products (
 alter table public.products add column if not exists images text[] not null default '{}';
 alter table public.products add column if not exists details text default '';
 alter table public.products add column if not exists source_url text default '';
+alter table public.products add column if not exists tagline text default '';
+alter table public.products add column if not exists highlights text[] not null default '{}';
 
 -- Gir hver ny modell et tilfeldig 5-sifret ID-nummer hvis dere ikke fyller det ut
 create or replace function public.set_product_code()
@@ -383,6 +385,28 @@ create policy "bilder_oppdater" on storage.objects
 drop policy if exists "bilder_slett" on storage.objects;
 create policy "bilder_slett" on storage.objects
   for delete to authenticated using (bucket_id = 'bilder');
+
+
+-- ============================================================
+-- SANNTID – gjør at endringer dukker opp hos alle med en gang
+-- ============================================================
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'settings','materials','weight_ranges','extras','delivery_options',
+    'products','team_members','faq','examples','tasks','profiles','site_status'
+  ]
+  loop
+    begin
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    exception
+      when duplicate_object then null;
+      when undefined_object then null;
+    end;
+  end loop;
+end $$;
 
 -- ============================================================
 -- STARTVERDIER (kjøres bare hvis tabellen er tom)

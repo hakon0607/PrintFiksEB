@@ -109,6 +109,10 @@ export function ProductDetail({
       <div className="lg:sticky lg:top-24">
         <h1 className="text-balance text-3xl font-bold sm:text-4xl">{product.name}</h1>
 
+        {product.tagline && (
+          <p className="mt-2 text-balance text-lg leading-snug text-ink-500">{product.tagline}</p>
+        )}
+
         <p className="mt-4 text-3xl font-bold text-brand-700">
           {kr(Number(product.price) || 0, currency)}
         </p>
@@ -129,6 +133,27 @@ export function ProductDetail({
                 <p key={i}>{avsnitt.trim()}</p>
               ))}
           </div>
+        )}
+
+        {(product.highlights?.length ?? 0) > 0 && (
+          <ul className="mt-6 space-y-2.5">
+            {product.highlights!.map((h, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-[15px] text-ink-700">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="m5 13 4 4L19 7"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                {h}
+              </li>
+            ))}
+          </ul>
         )}
 
         <dl className="mt-6 grid grid-cols-2 gap-3 text-sm">

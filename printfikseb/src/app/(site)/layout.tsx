@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Nav } from '@/components/Nav';
 import { PreviewBanner } from '@/components/PreviewBanner';
+import { Besokende } from '@/components/Besokende';
 import { Footer } from '@/components/Footer';
 import { getSiteData } from '@/lib/data';
 import { text } from '@/lib/settings';
@@ -17,6 +18,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       >
         Hopp til innhold
       </a>
+      <Besokende />
       <Suspense fallback={null}>
         <PreviewBanner />
       </Suspense>

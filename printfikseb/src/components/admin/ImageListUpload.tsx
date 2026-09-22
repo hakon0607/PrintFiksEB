@@ -21,10 +21,15 @@ export function ImageListUpload({
   const [laster, setLaster] = useState(false);
   const [feil, setFeil] = useState('');
 
+  const [over, setOver] = useState(false);
   const bilder = Array.isArray(value) ? value : [];
 
   async function velg(e: React.ChangeEvent<HTMLInputElement>) {
-    const filer = Array.from(e.target.files ?? []);
+    await lastOpp(Array.from(e.target.files ?? []));
+    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  async function lastOpp(filer: File[]) {
     if (!filer.length || !supabase) return;
 
     setLaster(true);
@@ -51,7 +56,25 @@ export function ImageListUpload({
 
     if (nye.length) onChange([...bilder, ...nye]);
     setLaster(false);
-    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  function limInn(e: React.ClipboardEvent) {
+    const filer = Array.from(e.clipboardData?.files ?? []).filter((f) =>
+      f.type.startsWith('image/')
+    );
+    if (filer.length) {
+      e.preventDefault();
+      lastOpp(filer);
+    }
+  }
+
+  function slipp(e: React.DragEvent) {
+    e.preventDefault();
+    setOver(false);
+    const filer = Array.from(e.dataTransfer?.files ?? []).filter((f) =>
+      f.type.startsWith('image/')
+    );
+    if (filer.length) lastOpp(filer);
   }
 
   function flytt(i: number, retning: -1 | 1) {
@@ -107,15 +130,29 @@ export function ImageListUpload({
         </ul>
       )}
 
-      <button
-        type="button"
+      <div
+        tabIndex={0}
+        onPaste={limInn}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={slipp}
         onClick={() => inputRef.current?.click()}
-        disabled={laster}
-        className="btn-soft btn-sm"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
+        }}
+        role="button"
+        className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-5 py-6 text-center transition-colors focus:outline-none focus:ring-4 focus:ring-brand-100 ${
+          over ? 'border-brand-500 bg-brand-50' : 'border-ink-200 bg-white hover:border-brand-300'
+        }`}
       >
-        {laster ? 'Laster opp…' : bilder.length ? 'Legg til flere bilder' : 'Last opp bilder'}
-      </button>
-      <p className="hint">{help}</p>
+        <span className="text-sm font-semibold text-ink-700">
+          {laster ? 'Laster opp…' : 'Velg bilder, dra dem hit, eller lim inn med Ctrl+V'}
+        </span>
+        <span className="text-xs text-ink-500">{help}</span>
+      </div>
       {feil && <p className="mt-1.5 text-xs font-semibold text-red-600">{feil}</p>}
 
       <input

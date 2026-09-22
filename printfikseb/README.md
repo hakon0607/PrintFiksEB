@@ -17,8 +17,8 @@ Nettsiden til **PrintFiksEB** – elevbedrift ved Skranevatnet skole som driver 
 | `/om-oss` | Om elevbedriften, teamet, betaling, levering og FAQ |
 | `/admin` | Adminpanel der alt på nettsiden kan endres uten å kode |
 | `/admin/oppgaver` | Intern oppgaveliste for planlegging (vises aldri på nettsiden) |
-| `/admin/ai` | AI-nøkkel og import av modeller fra MakerWorld og lignende |
 | `/admin/eksempler` | Eksemplene som vises på «Hva vi kan fikse» |
+| `/admin/profil` | Egen profil: navn, bilde, rolle og passord |
 
 ## Bestillingssiden
 
@@ -75,6 +75,17 @@ adminpanelet kan si fra om det finnes upubliserte endringer.
 `?forhandsvis=1` på hvilken som helst side hopper over hurtigbufferen og viser
 innholdet slik det er akkurat nå, med en gul stripe øverst.
 
+## Sanntid
+
+Adminpanelet bruker Supabase Realtime. Endringer i `settings`, `products`,
+`tasks` og de andre tabellene sendes til alle som er inne, så flere kan jobbe
+samtidig uten å laste på nytt. Et broadcast-kanal per tabell viser «X redigerer»
+på raden noen står i, og et presence-kanal viser hvem i gruppa som er pålogget.
+Offentlige sider melder seg på et eget presence-kanal, så adminpanelet kan vise
+antall besøkende akkurat nå.
+
+Tabellene må ligge i publikasjonen `supabase_realtime` – det gjør `schema.sql`.
+
 ## AI-nøkkel og import
 
 Eieren limer inn en OpenAI-nøkkel under **AI og import** i adminpanelet. Nøkkelen
@@ -83,9 +94,14 @@ ingen til den fra nettleseren. Bare serveren (service role) leser verdien, så
 alle ansatte kan bruke funksjonene uten å se eller ha nøkkelen selv.
 
 `POST /api/import-modell` henter en modellside (MakerWorld, Printables,
-Thingiverse), plukker ut tittel og bilder fra Open Graph-taggene, laster bildene
-opp i Supabase Storage, lar AI skrive norsk tekst og foreslå pris, og lagrer
-modellen **skjult** i galleriet til noen har sett over den.
+Thingiverse) – først direkte, så via en leser-tjeneste hvis siden blokkerer
+roboter. Den plukker ut tittel og bilder, laster bildene opp i Supabase Storage,
+lar AI skrive en hel produktside (navn, undertittel, kulepunkter, full tekst) og
+foreslå en pen pris, og lagrer modellen **skjult** i galleriet.
+
+Blir alt blokkert, svarer endepunktet `{ blokkert: true }`, og adminpanelet går
+over til manuell utfylling: man limer inn tekst og bilder selv, og AI-en skriver
+resten (`manuell: true` i samme endepunkt).
 
 ## Video
 

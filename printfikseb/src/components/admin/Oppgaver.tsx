@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
+import { lyttPaTabell } from '@/lib/realtime';
 import type { Task, TeamMember } from '@/lib/types';
 
 const HASTER = [
@@ -70,6 +71,24 @@ export function Oppgaver() {
   useEffect(() => {
     hent();
   }, [hent]);
+
+  // Legger noen andre til en oppgave eller huker den av, ser du det med en gang
+  useEffect(() => {
+    if (!supabase) return;
+    return lyttPaTabell(supabase, 'tasks', ({ type, ny, gammel }) => {
+      const id = String((ny?.id ?? gammel?.id) ?? '');
+      if (!id) return;
+      if (type === 'DELETE') {
+        setOppgaver((prev) => prev.filter((o) => o.id !== id));
+        return;
+      }
+      setOppgaver((prev) => {
+        const finnes = prev.some((o) => o.id === id);
+        if (!finnes) return [ny as Task, ...prev];
+        return prev.map((o) => (o.id === id ? { ...o, ...(ny as Task) } : o));
+      });
+    });
+  }, [supabase]);
 
   async function leggTil(e: React.FormEvent) {
     e.preventDefault();
