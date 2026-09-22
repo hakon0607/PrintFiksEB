@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getSiteData } from '@/lib/data';
+import { getSiteFor } from '@/lib/data';
 import { num, text, formatPhone, telHref } from '@/lib/settings';
 import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
@@ -16,8 +16,12 @@ export const metadata: Metadata = {
     'PrintFiksEB er en elevbedrift på Skranevatnet skole. Her kan du lese om oss, hvordan du bestiller, hva det koster og hvordan du betaler.',
 };
 
-export default async function OmOssSide() {
-  const site = await getSiteData();
+export default async function OmOssSide({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
+  const site = await getSiteFor(searchParams);
   const s = site.settings;
   const telefon = text(s, 'kontakt_telefon', '41381608');
   const vipps = text(s, 'vipps_nummer', telefon);

@@ -51,6 +51,20 @@ og kunden må godkjenne før produksjonen starter.
 - Leveringstid: 2–4 virkedager
 - Reparasjon: pris etter avtale
 
+## Publisering
+
+Nettsiden viser den **publiserte** versjonen av innholdet. Endringer i `/admin`
+lagres med en gang i databasen, men blir først synlige for besøkende når noen
+trykker **«Publiser endringene»** i publiseringsstripen øverst i adminpanelet.
+
+Teknisk: innholdet hentes gjennom `unstable_cache` med taggen `printfikseb-innhold`.
+`POST /api/publiser` kaller `revalidateTag()` og setter `site_status.sist_publisert`.
+Databasetriggere oppdaterer `site_status.sist_endret` ved enhver endring, så
+adminpanelet kan si fra om det finnes upubliserte endringer.
+
+`?forhandsvis=1` på hvilken som helst side hopper over hurtigbufferen og viser
+innholdet slik det er akkurat nå, med en gul stripe øverst.
+
 ## Teknisk
 
 - **Next.js 14** (App Router) + **TypeScript**

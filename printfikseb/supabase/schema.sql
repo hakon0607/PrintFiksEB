@@ -196,6 +196,62 @@ create table if not exists public.faq (
   sort     int not null default 100
 );
 
+
+-- ------------------------------------------------------------
+-- 11. Publiseringsstatus
+--     Holder styr på når noe sist ble endret og sist ble publisert,
+--     slik at adminpanelet kan si fra om det finnes upubliserte endringer.
+-- ------------------------------------------------------------
+create table if not exists public.site_status (
+  id              int primary key default 1,
+  sist_endret     timestamptz not null default now(),
+  sist_publisert  timestamptz,
+  publisert_av    text,
+  constraint site_status_kun_en_rad check (id = 1)
+);
+
+insert into public.site_status (id, sist_endret, sist_publisert)
+values (1, now(), now())
+on conflict (id) do nothing;
+
+-- Merker at noe er endret, hver gang innhold legges til, endres eller slettes
+create or replace function public.marker_endring()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.site_status set sist_endret = now() where id = 1;
+  return null;
+end;
+$$;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'settings','materials','weight_ranges','extras',
+    'delivery_options','products','team_members','faq'
+  ]
+  loop
+    execute format('drop trigger if exists marker_endring_trigger on public.%I', t);
+    execute format(
+      'create trigger marker_endring_trigger after insert or update or delete on public.%I
+         for each statement execute function public.marker_endring()', t);
+  end loop;
+end $$;
+
+alter table public.site_status enable row level security;
+
+drop policy if exists "status_les" on public.site_status;
+create policy "status_les" on public.site_status
+  for select to authenticated using (true);
+
+drop policy if exists "status_skriv" on public.site_status;
+create policy "status_skriv" on public.site_status
+  for all to authenticated using (true) with check (true);
+
 -- ============================================================
 -- RLS – alle kan LESE nettsiden, bare innloggede ansatte kan ENDRE
 -- ============================================================

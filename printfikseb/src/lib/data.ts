@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { getPublicServerClient } from './supabase/server';
 import { DEFAULT_SITE, DEFAULT_SETTINGS } from './defaults';
 import type {
@@ -22,8 +23,11 @@ async function safe<T>(promise: PromiseLike<{ data: T[] | null; error: unknown }
   }
 }
 
+/** Navnet på hurtigbufferen som tømmes når dere trykker «Publiser» i /admin. */
+export const SITE_TAG = 'printfikseb-innhold';
+
 /** Henter alt innhold til nettsiden. Faller tilbake til standardverdier hvis databasen ikke svarer. */
-export const getSiteData = cache(async function getSiteData(): Promise<SiteData> {
+async function hentAlt(): Promise<SiteData> {
   const sb = getPublicServerClient();
   if (!sb) return DEFAULT_SITE;
 
@@ -86,7 +90,26 @@ export const getSiteData = cache(async function getSiteData(): Promise<SiteData>
   } catch {
     return DEFAULT_SITE;
   }
-});
+}
+
+/**
+ * Den publiserte versjonen. Innholdet ligger lagret til noen trykker «Publiser»
+ * i adminpanelet – da tømmes denne og nettsiden henter alt på nytt.
+ */
+const hentPublisert = unstable_cache(hentAlt, ['printfikseb-site-data'], { tags: [SITE_TAG] });
+
+/** Innholdet slik det ser ut på den publiserte nettsiden. */
+export const getSiteData = cache(() => hentPublisert());
+
+/** Innholdet slik det ser ut akkurat nå i databasen (brukes til forhåndsvisning). */
+export const getSiteDataFresh = cache(() => hentAlt());
+
+/** Velger publisert eller fersk versjon ut fra ?forhandsvis i adressen. */
+export function getSiteFor(searchParams?: {
+  [key: string]: string | string[] | undefined;
+}): Promise<SiteData> {
+  return searchParams?.forhandsvis ? getSiteDataFresh() : getSiteData();
+}
 
 function normalizeNumbers<T extends Record<string, unknown>>(field: keyof T & string) {
   return (row: T): T => ({ ...row, [field]: Number(row[field] ?? 0) });

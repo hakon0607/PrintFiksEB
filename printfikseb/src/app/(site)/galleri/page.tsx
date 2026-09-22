@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getSiteData } from '@/lib/data';
+import { getSiteFor } from '@/lib/data';
 import { text } from '@/lib/settings';
 import { GalleryGrid } from '@/components/GalleryGrid';
 import { Reveal } from '@/components/Reveal';
@@ -14,8 +14,12 @@ export const metadata: Metadata = {
     'Ferdige 3D-printede modeller du kan kjøpe direkte fra PrintFiksEB. Legg dem i handlelisten og send oss en melding.',
 };
 
-export default async function GalleriSide() {
-  const site = await getSiteData();
+export default async function GalleriSide({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
+  const site = await getSiteFor(searchParams);
   const valuta = text(site.settings, 'pris_valuta', 'kr');
 
   return (

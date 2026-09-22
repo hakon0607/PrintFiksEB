@@ -115,6 +115,21 @@ Alt på nettsiden styres fra `/admin`. **Alt lagres automatisk** – dere ser
 | **Ansatte** | Hvem som vises på «Om oss», og hvem som får logge inn |
 | **Kontakt og levering** | Telefonnummer, Vipps, når folk kan ringe og sende melding, leveringstid og leveringsområde |
 
+### Publisering – viktig!
+
+Alt dere skriver i adminpanelet **lagres automatisk**, men det blir ikke synlig
+for kundene før dere trykker **«Publiser endringene»**.
+
+Øverst i adminpanelet står det alltid hvordan det ligger an:
+
+- **«Nettsiden er oppdatert»** – alt dere har gjort ligger ute.
+- **«Du har endringer som ikke er publisert»** – trykk **Publiser endringene**,
+  så er det ute med en gang.
+
+Knappen **Forhåndsvis** åpner nettsiden med de nyeste endringene i en ny fane,
+uten at kundene ser dem. Da kan dere sjekke at alt ser riktig ut før dere
+publiserer. Forhåndsvisningen har en gul stripe øverst så dere ikke blander dem.
+
 Noen triks:
 
 - **Bryteren til høyre** for hver ting skjuler den fra nettsiden uten å slette den.

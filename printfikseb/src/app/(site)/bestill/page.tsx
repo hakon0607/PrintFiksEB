@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getSiteData } from '@/lib/data';
+import { getSiteFor } from '@/lib/data';
 import { num, text, bool } from '@/lib/settings';
 import { OrderFlow } from '@/components/OrderFlow';
 import { Reveal } from '@/components/Reveal';
@@ -16,9 +16,9 @@ export const metadata: Metadata = {
 export default async function BestillSide({
   searchParams,
 }: {
-  searchParams?: { m?: string; w?: string };
+  searchParams?: { m?: string; w?: string; forhandsvis?: string };
 }) {
-  const site = await getSiteData();
+  const site = await getSiteFor(searchParams);
   const s = site.settings;
 
   return (

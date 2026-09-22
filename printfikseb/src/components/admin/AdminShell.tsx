@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { Login } from './Login';
+import { PublishBar } from './PublishBar';
 
 const meny = [
   { href: '/admin', label: 'Oversikt', ikon: 'M4 12h6V4H4zM14 20h6v-8h-6zM14 8h6V4h-6zM4 20h6v-4H4z' },
@@ -125,7 +126,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
 
-        <main className="min-w-0 flex-1 pb-16">{children}</main>
+        <main className="min-w-0 flex-1 space-y-6 pb-16">
+          <PublishBar />
+          {children}
+        </main>
       </div>
     </div>
   );

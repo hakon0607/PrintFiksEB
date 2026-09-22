@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getSiteData } from '@/lib/data';
+import { getSiteFor } from '@/lib/data';
 import { num, text, bool, formatPhone, telHref } from '@/lib/settings';
 import { SimpleCalculator } from '@/components/SimpleCalculator';
 import { Reveal } from '@/components/Reveal';
@@ -14,8 +14,12 @@ export const metadata: Metadata = {
     'Se hva en 3D-print koster hos PrintFiksEB på et par sekunder. Velg materiale og størrelse, så får du et prisestimat med en gang.',
 };
 
-export default async function KalkulatorSide() {
-  const site = await getSiteData();
+export default async function KalkulatorSide({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
+  const site = await getSiteFor(searchParams);
   const s = site.settings;
   const telefon = text(s, 'kontakt_telefon', '41381608');
   const designPris = site.extras.find((e) => e.scope === 'item')?.price ?? 100;

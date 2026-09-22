@@ -1,4 +1,6 @@
+import { Suspense } from 'react';
 import { Nav } from '@/components/Nav';
+import { PreviewBanner } from '@/components/PreviewBanner';
 import { Footer } from '@/components/Footer';
 import { getSiteData } from '@/lib/data';
 import { text } from '@/lib/settings';
@@ -15,6 +17,9 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       >
         Hopp til innhold
       </a>
+      <Suspense fallback={null}>
+        <PreviewBanner />
+      </Suspense>
       <Nav
         businessName={text(site.settings, 'bedrift_navn', 'PrintFiksEB')}
         phone={text(site.settings, 'kontakt_telefon', '41381608')}

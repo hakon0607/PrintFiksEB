@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getSiteData } from '@/lib/data';
+import { getSiteFor } from '@/lib/data';
 import { num, text, bool, kr, formatPhone, telHref } from '@/lib/settings';
 import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
@@ -8,8 +8,12 @@ import { ProductCard } from '@/components/ProductCard';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Hjem() {
-  const site = await getSiteData();
+export default async function Hjem({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
+  const site = await getSiteFor(searchParams);
   const s = site.settings;
   const valuta = text(s, 'pris_valuta', 'kr');
   const startpris = num(s, 'pris_startpris', 100);
