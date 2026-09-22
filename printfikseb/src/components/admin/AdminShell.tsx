@@ -18,6 +18,16 @@ const meny = [
   },
   { href: '/admin/priser', label: 'Priser', ikon: 'M12 3v18M7 7h7.5a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8' },
   { href: '/admin/galleri', label: 'Galleri', ikon: 'M4 5h16v14H4zM4 15l4.5-4.5L13 15l3-3 4 4' },
+  {
+    href: '/admin/ai',
+    label: 'AI og import',
+    ikon: 'M12 3v2m0 14v2M5.6 5.6l1.4 1.4m10 10 1.4 1.4M3 12h2m14 0h2M5.6 18.4 7 17m10-10 1.4-1.4M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
+  },
+  {
+    href: '/admin/eksempler',
+    label: 'Hva vi kan fikse',
+    ikon: 'M14.7 6.3a4 4 0 0 1 5.3 5.3l-8.5 8.5-4.2 1 1-4.2zM4 4l4 4',
+  },
   { href: '/admin/tekster', label: 'Tekster', ikon: 'M5 6h14M5 12h14M5 18h9' },
   { href: '/admin/sporsmal', label: 'Spørsmål og svar', ikon: 'M9.5 9a2.5 2.5 0 1 1 3.3 2.4c-.8.3-1.3 1-1.3 1.9v.2M12 17h.01' },
   { href: '/admin/ansatte', label: 'Ansatte', ikon: 'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 19v-1.5a3.5 3.5 0 0 0-2.6-3.4' },

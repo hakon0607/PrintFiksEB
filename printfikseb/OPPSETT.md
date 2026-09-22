@@ -110,7 +110,9 @@ Alt på nettsiden styres fra `/admin`. **Alt lagres automatisk** – dere ser
 | **Oversikt** | Se hvor mye dere har lagt inn |
 | **Oppgaver** | Deres egen planlegging: hva skal gjøres, hvem gjør det, når er fristen |
 | **Priser** | Pris per gram, startpris, tillegg, levering og størrelsene kundene velger mellom |
-| **Galleri** | Legg inn ferdige modeller med bilde og pris. ID-nummer lages automatisk |
+| **Galleri** | Legg inn ferdige modeller med bilde og pris. ID-nummer lages automatisk. Flere bilder og full beskrivelse vises når kunden klikker seg inn |
+| **AI og import** | Legg inn AI-nøkkelen, og hent ferdige modeller fra MakerWorld |
+| **Hva vi kan fikse** | Eksemplene som vises på siden om hva 3D-printing kan brukes til |
 | **Tekster** | Overskriften på forsiden, «om oss»-teksten og alt annet folk leser |
 | **Spørsmål og svar** | Svar på det kundene spør om ofte |
 | **Ansatte** | Hvem som vises på «Om oss», og hvem som får logge inn |
@@ -125,6 +127,19 @@ er ferdig, så flytter oppgaven seg ned under «Ferdig».
 Knappene øverst filtrerer: **Alle**, **Mine**, **Ufordelt** eller én person.
 Denne siden ser bare dere – den vises aldri på nettsiden, og den trenger ikke
 publiseres.
+
+### AI-nøkkel og import fra MakerWorld
+
+Under **AI og import** kan eieren lime inn en OpenAI-nøkkel. Den lagres trygt på
+serveren til noen sletter den, og alle i gruppa kan bruke funksjonene uten å ha
+nøkkelen selv – ingen får se den igjen etterpå.
+
+Når nøkkelen er på plass kan dere lime inn en lenke til en modell på MakerWorld
+(eller Printables og Thingiverse). Nettsiden henter bilder og informasjon, lar
+AI skrive en norsk beskrivelse, foreslår en pris og legger modellen i galleriet.
+Den er **skjult** til dere har sett over teksten og skrudd den på.
+
+Husk å sjekke lisensen på modellen før dere selger den videre.
 
 ### Publisering – viktig!
 

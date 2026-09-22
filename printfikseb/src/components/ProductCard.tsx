@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useCart } from '@/lib/cart';
@@ -31,7 +32,11 @@ export function ProductCard({ product, currency = 'kr' }: { product: Product; cu
       transition={{ type: 'spring', stiffness: 260, damping: 22 }}
       className="group flex h-full flex-col overflow-hidden rounded-3xl border border-ink-100 bg-white shadow-soft transition-shadow hover:shadow-lift"
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-brand-50 to-brand-100">
+      <Link
+        href={product.code ? `/galleri/${product.code}` : '/galleri'}
+        className="relative block aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-brand-50 to-brand-100"
+        aria-label={product.name}
+      >
         {product.image_url ? (
           <Image
             src={product.image_url}
@@ -62,11 +67,27 @@ export function ProductCard({ product, currency = 'kr' }: { product: Product; cu
             Populær
           </span>
         )}
-      </div>
+        {(product.images?.length ?? 0) > 0 && (
+          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-ink-600 backdrop-blur">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <rect x="3" y="5" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
+              <path d="M8 3h11a2 2 0 0 1 2 2v11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            {(product.images?.length ?? 0) + 1}
+          </span>
+        )}
+      </Link>
 
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-base font-semibold leading-snug text-ink-900">{product.name}</h3>
+          <h3 className="text-base font-semibold leading-snug text-ink-900">
+            <Link
+              href={product.code ? `/galleri/${product.code}` : '/galleri'}
+              className="transition-colors hover:text-brand-700"
+            >
+              {product.name}
+            </Link>
+          </h3>
           <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-sm font-bold text-brand-700">
             {kr(Number(product.price) || 0, currency)}
           </span>
@@ -90,13 +111,21 @@ export function ProductCard({ product, currency = 'kr' }: { product: Product; cu
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={leggTil}
-          className={`mt-5 w-full ${lagtTil ? 'btn-dark' : 'btn-primary'}`}
-        >
-          {lagtTil ? 'Lagt i handlelisten ✓' : 'Legg i handleliste'}
-        </button>
+        <div className="mt-5 flex gap-2">
+          <Link
+            href={product.code ? `/galleri/${product.code}` : '/galleri'}
+            className="btn-ghost flex-1"
+          >
+            Se mer
+          </Link>
+          <button
+            type="button"
+            onClick={leggTil}
+            className={`flex-1 ${lagtTil ? 'btn-dark' : 'btn-primary'}`}
+          >
+            {lagtTil ? 'Lagt til ✓' : 'Legg til'}
+          </button>
+        </div>
       </div>
     </motion.article>
   );

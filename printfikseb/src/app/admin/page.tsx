@@ -46,6 +46,11 @@ export default function AdminOversikt() {
       tekst: 'Last opp bilde, sett pris og få et ID-nummer automatisk.',
     },
     {
+      href: '/admin/ai',
+      tittel: 'Hent modell fra nettet',
+      tekst: 'Lim inn en MakerWorld-lenke, så lager AI-en produktsiden for deg.',
+    },
+    {
       href: '/admin/tekster',
       tittel: 'Endre tekstene',
       tekst: 'Overskriften på forsiden, «om oss» og alt annet folk leser.',

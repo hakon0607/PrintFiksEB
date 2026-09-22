@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { ImageUpload } from './ImageUpload';
+import { ImageListUpload } from './ImageListUpload';
 
 export type Felt = {
   key: string;
   label: string;
-  type: 'text' | 'longtext' | 'number' | 'price' | 'bool' | 'image' | 'color' | 'select';
+  type: 'text' | 'longtext' | 'number' | 'price' | 'bool' | 'image' | 'images' | 'color' | 'select';
   valg?: { verdi: string; tekst: string }[];
   placeholder?: string;
   help?: string;
@@ -321,7 +322,17 @@ function RadRedigerer({
           >
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               {felter.map((felt) => (
-                <div key={felt.key} className={felt.bred || felt.type === 'longtext' || felt.type === 'image' ? 'sm:col-span-2' : ''}>
+                <div
+                  key={felt.key}
+                  className={
+                    felt.bred ||
+                    felt.type === 'longtext' ||
+                    felt.type === 'image' ||
+                    felt.type === 'images'
+                      ? 'sm:col-span-2'
+                      : ''
+                  }
+                >
                   <FeltRedigerer
                     felt={felt}
                     verdi={rad[felt.key]}
@@ -365,6 +376,17 @@ export function FeltRedigerer({
         help={felt.help}
         value={String(verdi ?? '')}
         onChange={(url) => onEndre(url, true)}
+      />
+    );
+  }
+
+  if (felt.type === 'images') {
+    return (
+      <ImageListUpload
+        label={felt.label}
+        help={felt.help}
+        value={(Array.isArray(verdi) ? verdi : []) as string[]}
+        onChange={(urls) => onEndre(urls, true)}
       />
     );
   }

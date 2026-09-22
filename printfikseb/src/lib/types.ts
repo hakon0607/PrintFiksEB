@@ -51,6 +51,9 @@ export type Product = {
   code: string | null;
   name: string;
   description: string | null;
+  details?: string | null;
+  images?: string[] | null;
+  source_url?: string | null;
   price: number;
   image_url: string | null;
   material: string | null;
@@ -100,6 +103,16 @@ export type Invite = {
   accepted_at: string | null;
 };
 
+export type Example = {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  category: string | null;
+  active: boolean;
+  sort: number;
+};
+
 export type SiteData = {
   settings: Record<string, string>;
   materials: Material[];
@@ -109,6 +122,7 @@ export type SiteData = {
   products: Product[];
   team: TeamMember[];
   faq: Faq[];
+  examples: Example[];
   connected: boolean;
 };
 

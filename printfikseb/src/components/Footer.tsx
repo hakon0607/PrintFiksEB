@@ -45,6 +45,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
             {[
               { href: '/bestill', label: 'Bestill' },
               { href: '/galleri', label: 'Galleri' },
+              { href: '/3d-printing', label: 'Hva vi kan fikse' },
               { href: '/om-oss', label: 'Om oss og FAQ' },
             ].map((l) => (
               <li key={l.href}>

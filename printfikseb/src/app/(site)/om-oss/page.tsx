@@ -225,7 +225,7 @@ export default async function OmOssSide({
         <Reveal>
           <div className="mt-20 flex flex-col items-start gap-5 rounded-[2rem] bg-ink-900 p-8 text-white sm:flex-row sm:items-center sm:justify-between sm:p-10">
             <div>
-              <h2 className="text-2xl font-bold">Lurer du på noe?</h2>
+              <h2 className="text-2xl font-bold text-white">Lurer du på noe?</h2>
               <p className="mt-2 text-sm leading-relaxed text-ink-300">
                 Send oss en melding på {formatPhone(telefon)} når som helst – hele døgnet
                 {epost ? `, eller e-post til ${epost}` : ''}. {ringetid}

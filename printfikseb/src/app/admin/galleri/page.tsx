@@ -24,15 +24,18 @@ export default function GalleriAdmin() {
         nyRad={{
           name: 'Ny modell',
           description: '',
+          details: '',
           price: 100,
           image_url: '',
+          images: [],
           material: 'PLA',
           category: '',
           featured: false,
           active: true,
         }}
         felter={[
-          { key: 'image_url', label: 'Bilde av modellen', type: 'image' },
+          { key: 'image_url', label: 'Hovedbilde', type: 'image', help: 'Dette bildet vises på kortet i galleriet.' },
+          { key: 'images', label: 'Flere bilder', type: 'images' },
           { key: 'name', label: 'Navn', type: 'text', placeholder: 'F.eks. Saksholder' },
           { key: 'price', label: 'Pris', type: 'price', suffix: 'kr' },
           {
@@ -52,9 +55,22 @@ export default function GalleriAdmin() {
           { key: 'weight_g', label: 'Vekt', type: 'number', suffix: 'gram' },
           {
             key: 'description',
-            label: 'Beskrivelse',
+            label: 'Kort beskrivelse',
             type: 'longtext',
-            placeholder: 'Hva er dette, og hva brukes det til?',
+            placeholder: 'Én til to setninger. Vises på kortet i galleriet.',
+          },
+          {
+            key: 'details',
+            label: 'Full beskrivelse',
+            type: 'longtext',
+            help: 'Vises når kunden klikker seg inn på modellen. Tom linje mellom avsnitt.',
+            placeholder: 'Fortell mer: hva passer den til, hvordan er den laget, hva bør kunden vite?',
+          },
+          {
+            key: 'source_url',
+            label: 'Lenke til originalen',
+            type: 'text',
+            help: 'Valgfritt. Fylles ut automatisk hvis modellen hentes fra MakerWorld.',
           },
           {
             key: 'featured',

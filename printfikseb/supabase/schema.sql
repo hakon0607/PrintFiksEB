@@ -128,6 +128,11 @@ create table if not exists public.products (
   created_at  timestamptz not null default now()
 );
 
+-- Ekstra felter på modellene (kjøres også trygt på eksisterende databaser)
+alter table public.products add column if not exists images text[] not null default '{}';
+alter table public.products add column if not exists details text default '';
+alter table public.products add column if not exists source_url text default '';
+
 -- Gir hver ny modell et tilfeldig 5-sifret ID-nummer hvis dere ikke fyller det ut
 create or replace function public.set_product_code()
 returns trigger
@@ -198,7 +203,36 @@ create table if not exists public.faq (
 
 
 -- ------------------------------------------------------------
--- 11. Publiseringsstatus
+-- 11. Hemmeligheter (API-nøkler)
+--     Ingen RLS-policy = ingen kan lese dette fra nettleseren.
+--     Bare serveren (service role) får tak i verdien.
+-- ------------------------------------------------------------
+create table if not exists public.secrets (
+  key         text primary key,
+  value       text not null,
+  updated_at  timestamptz not null default now(),
+  updated_by  text
+);
+
+alter table public.secrets enable row level security;
+-- Med vilje ingen policy her.
+
+-- ------------------------------------------------------------
+-- 12. Eksempler til siden om hva 3D-printing kan fikse
+-- ------------------------------------------------------------
+create table if not exists public.examples (
+  id          uuid primary key default gen_random_uuid(),
+  title       text not null,
+  description text default '',
+  image_url   text default '',
+  category    text default '',
+  active      boolean not null default true,
+  sort        int not null default 100,
+  created_at  timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
+-- 13. Publiseringsstatus
 --     Holder styr på når noe sist ble endret og sist ble publisert,
 --     slik at adminpanelet kan si fra om det finnes upubliserte endringer.
 -- ------------------------------------------------------------
@@ -232,7 +266,7 @@ declare
 begin
   foreach t in array array[
     'settings','materials','weight_ranges','extras',
-    'delivery_options','products','team_members','faq'
+    'delivery_options','products','team_members','faq','examples'
   ]
   loop
     execute format('drop trigger if exists marker_endring_trigger on public.%I', t);
@@ -254,7 +288,7 @@ create policy "status_skriv" on public.site_status
 
 
 -- ------------------------------------------------------------
--- 12. Oppgaver – deres egen planlegging (vises aldri på nettsiden)
+-- 14. Oppgaver – deres egen planlegging (vises aldri på nettsiden)
 -- ------------------------------------------------------------
 create table if not exists public.tasks (
   id              uuid primary key default gen_random_uuid(),
@@ -279,6 +313,7 @@ drop policy if exists "oppgaver_ansatte" on public.tasks;
 create policy "oppgaver_ansatte" on public.tasks
   for all to authenticated using (true) with check (true);
 
+
 -- ============================================================
 -- RLS – alle kan LESE nettsiden, bare innloggede ansatte kan ENDRE
 -- ============================================================
@@ -292,6 +327,7 @@ alter table public.products         enable row level security;
 alter table public.team_members     enable row level security;
 alter table public.invites          enable row level security;
 alter table public.faq              enable row level security;
+alter table public.examples         enable row level security;
 
 do $$
 declare
@@ -299,7 +335,7 @@ declare
 begin
   foreach t in array array[
     'settings','materials','weight_ranges','extras',
-    'delivery_options','products','team_members','faq'
+    'delivery_options','products','team_members','faq','examples'
   ]
   loop
     execute format('drop policy if exists "les_offentlig" on public.%I', t);
@@ -377,7 +413,12 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('tekst_hero_ingress',  'PrintFiksEB er en elevbedrift på Skranevatnet skole. Send oss en idé, et mål eller et ødelagt plastdel – så lager vi det. Du får alltid en pris du må godkjenne før vi starter.', 'Forside – ingress', '', 'longtext', 'Tekster', 20),
   ('tekst_om_oss',        'PrintFiksEB er en elevbedrift drevet av 10. klassinger på Skranevatnet skole. Vi startet fordi vi syntes det var rart at så mye kastes når en liten plastdel ryker – og fordi 3D-printing rett og slett er gøy. I dag printer vi reservedeler, holdere, figurer, gaver og egne design for folk i nærmiljøet.', 'Om oss – tekst', '', 'longtext', 'Tekster', 30),
   ('tekst_reparasjon',    'Har du noe som har knekt? Send oss bilde og mål på SMS, så finner vi ut om vi kan printe en ny del eller lage en løsning. Vi gir alltid pris før vi begynner.', 'Reparasjon – tekst', '', 'longtext', 'Tekster', 40),
-  ('tekst_godkjenning',   'Alle priser på nettsiden er estimat. Du får en endelig pris på melding som du må godkjenne før vi starter å printe.', 'Tekst om prisgodkjenning', '', 'longtext', 'Tekster', 50)
+  ('tekst_godkjenning',   'Alle priser på nettsiden er estimat. Du får en endelig pris på melding som du må godkjenne før vi starter å printe.', 'Tekst om prisgodkjenning', '', 'longtext', 'Tekster', 50),
+  ('tekst_fikse_tittel',  'Du vet ikke hva en 3D-printer kan fikse',  'Hva vi kan fikse – overskrift', '', 'text', 'Tekster', 60),
+  ('tekst_fikse_ingress', 'De fleste tenker på 3D-printing som leker og figurer. Sannheten er at vi lager små plastdeler folk ellers kaster hele produktet for. Her er noen eksempler.', 'Hva vi kan fikse – ingress', '', 'longtext', 'Tekster', 70),
+  ('tekst_fikse_ikke',    'Vi printer i plast, så vi kan ikke lage noe som skal tåle høy varme, bære tung vekt eller brukes i mat over tid. Metall, glass og elektronikk fikser vi heller ikke. Er du usikker? Spør oss – vi sier fra hvis det ikke går.', 'Hva vi IKKE kan gjøre', '', 'longtext', 'Tekster', 80),
+  ('video_url',           '',                                     'Video på «Hva vi kan fikse» (lenke)', 'La stå tom for å bruke videoen som følger med nettsiden.', 'text', 'Tekster', 90),
+  ('ai_modell',           'gpt-4o-mini',                          'AI-modell',               'gpt-4o-mini er billigst og holder fint. gpt-4o gir litt bedre tekst, men koster mer.', 'text', 'Generelt', 90)
 on conflict (key) do nothing;
 
 insert into public.materials (name, price_per_gram, description, color, sort)
@@ -425,5 +466,18 @@ select * from (values
   ('Kan jeg ringe i stedet for å sende melding?', 'Ja! Meldinger kan du sende når som helst, hele døgnet. Telefonen tar vi mellom 15 og 21, mandag til lørdag. Rekker vi ikke å svare, ringer vi tilbake så fort vi har tid.', 90)
 ) as v(question, answer, sort)
 where not exists (select 1 from public.faq);
+
+insert into public.examples (title, description, category, sort)
+select * from (values
+  ('Knekte klips og fester', 'Klipset som holder panelet i bilen, kurven i oppvaskmaskinen eller dekselet på fjernkontrollen. Små plastdeler som gjør at hele tingen blir ubrukelig når de ryker.', 'Reparasjon', 10),
+  ('Knotter og håndtak', 'Knotten på komfyren, håndtaket på skuffen, hjulet på trillekofferten. Vi måler opp og printer en ny.', 'Reparasjon', 20),
+  ('Deler som ikke selges lenger', 'Produsenten har sluttet med modellen, eller vil selge deg en helt ny. Vi lager delen i stedet.', 'Reparasjon', 30),
+  ('Holdere til akkurat din ting', 'Telefonholder til pulten, veggfeste til høyttaleren, stativ til nettbrettet på kjøkkenet. Tilpasset det du faktisk har.', 'Egne design', 40),
+  ('Organisering', 'Skuffeinnsatser, kabelholdere, bokser som passer nøyaktig i hyllen din. Mye bedre enn å lete etter noe som nesten passer.', 'Egne design', 50),
+  ('Gaver og pynt', 'Nøkkelringer med navn, figurer, skilt til døra, julepynt. Fint å gi bort, og billig å lage.', 'Gaver', 60),
+  ('Skoleprosjekter', 'Modeller til presentasjoner, deler til roboter og tekniske prosjekter. Vi hjelper gjerne andre elever.', 'Skole', 70),
+  ('Ting du har tegnet selv', 'Har du en STL-fil eller en tegning med mål? Send den, så printer vi den for deg.', 'Egne design', 80)
+) as v(title, description, category, sort)
+where not exists (select 1 from public.examples);
 
 -- Ferdig!

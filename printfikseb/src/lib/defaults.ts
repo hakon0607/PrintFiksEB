@@ -35,6 +35,13 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
     'PrintFiksEB er en elevbedrift drevet av 10. klassinger på Skranevatnet skole. Vi startet fordi vi syntes det var rart at så mye kastes når en liten plastdel ryker – og fordi 3D-printing rett og slett er gøy. I dag printer vi reservedeler, holdere, figurer, gaver og egne design for folk i nærmiljøet.',
   tekst_reparasjon:
     'Har du noe som har knekt? Send oss bilde og mål på SMS, så finner vi ut om vi kan printe en ny del eller lage en løsning. Vi gir alltid pris før vi begynner.',
+  tekst_fikse_tittel: 'Du vet ikke hva en 3D-printer kan fikse',
+  tekst_fikse_ingress:
+    'De fleste tenker på 3D-printing som leker og figurer. Sannheten er at vi lager små plastdeler folk ellers kaster hele produktet for. Her er noen eksempler.',
+  tekst_fikse_ikke:
+    'Vi printer i plast, så vi kan ikke lage noe som skal tåle høy varme, bære tung vekt eller brukes i mat over tid. Metall, glass og elektronikk fikser vi heller ikke. Er du usikker? Spør oss – vi sier fra hvis det ikke går.',
+  video_url: '',
+  ai_modell: 'gpt-4o-mini',
   tekst_godkjenning:
     'Alle priser på nettsiden er estimat. Du får en endelig pris på melding som du må godkjenne før vi starter å printe.',
 };
@@ -112,6 +119,14 @@ export const DEFAULT_SITE: SiteData = {
   ],
   products: [],
   team: [],
+  examples: [
+    { id: 'e1', title: 'Knekte klips og fester', description: 'Klipset som holder panelet i bilen, kurven i oppvaskmaskinen eller dekselet på fjernkontrollen. Små plastdeler som gjør at hele tingen blir ubrukelig når de ryker.', image_url: '', category: 'Reparasjon', active: true, sort: 10 },
+    { id: 'e2', title: 'Knotter og håndtak', description: 'Knotten på komfyren, håndtaket på skuffen, hjulet på trillekofferten. Vi måler opp og printer en ny.', image_url: '', category: 'Reparasjon', active: true, sort: 20 },
+    { id: 'e3', title: 'Deler som ikke selges lenger', description: 'Produsenten har sluttet med modellen, eller vil selge deg en helt ny. Vi lager delen i stedet.', image_url: '', category: 'Reparasjon', active: true, sort: 30 },
+    { id: 'e4', title: 'Holdere til akkurat din ting', description: 'Telefonholder til pulten, veggfeste til høyttaleren, stativ til nettbrettet på kjøkkenet. Tilpasset det du faktisk har.', image_url: '', category: 'Egne design', active: true, sort: 40 },
+    { id: 'e5', title: 'Organisering', description: 'Skuffeinnsatser, kabelholdere, bokser som passer nøyaktig i hyllen din.', image_url: '', category: 'Egne design', active: true, sort: 50 },
+    { id: 'e6', title: 'Gaver og pynt', description: 'Nøkkelringer med navn, figurer, skilt til døra, julepynt. Fint å gi bort, og billig å lage.', image_url: '', category: 'Gaver', active: true, sort: 60 },
+  ],
   faq: [
     {
       id: 'f1',

@@ -11,10 +11,14 @@ Nettsiden til **PrintFiksEB** – elevbedrift ved Skranevatnet skole som driver 
 |---|---|
 | `/` | Forside med animert hero, tjenester, priser og «slik bestiller du» |
 | `/galleri` | Ferdige modeller med bilde, ID-nummer og fast pris |
+| `/galleri/[id]` | Egen side per modell: flere bilder, full beskrivelse og spesifikasjoner |
+| `/3d-printing` | Hva 3D-printing faktisk kan fikse, med video av en print underveis |
 | `/bestill` | Hele bestillingen: valg til venstre, live priskalkulator og bestillingen til høyre |
 | `/om-oss` | Om elevbedriften, teamet, betaling, levering og FAQ |
 | `/admin` | Adminpanel der alt på nettsiden kan endres uten å kode |
 | `/admin/oppgaver` | Intern oppgaveliste for planlegging (vises aldri på nettsiden) |
+| `/admin/ai` | AI-nøkkel og import av modeller fra MakerWorld og lignende |
+| `/admin/eksempler` | Eksemplene som vises på «Hva vi kan fikse» |
 
 ## Bestillingssiden
 
@@ -70,6 +74,25 @@ adminpanelet kan si fra om det finnes upubliserte endringer.
 
 `?forhandsvis=1` på hvilken som helst side hopper over hurtigbufferen og viser
 innholdet slik det er akkurat nå, med en gul stripe øverst.
+
+## AI-nøkkel og import
+
+Eieren limer inn en OpenAI-nøkkel under **AI og import** i adminpanelet. Nøkkelen
+lagres i tabellen `secrets`, som med vilje ikke har noen RLS-policy – da kommer
+ingen til den fra nettleseren. Bare serveren (service role) leser verdien, så
+alle ansatte kan bruke funksjonene uten å se eller ha nøkkelen selv.
+
+`POST /api/import-modell` henter en modellside (MakerWorld, Printables,
+Thingiverse), plukker ut tittel og bilder fra Open Graph-taggene, laster bildene
+opp i Supabase Storage, lar AI skrive norsk tekst og foreslå pris, og lagrer
+modellen **skjult** i galleriet til noen har sett over den.
+
+## Video
+
+Videoen på `/3d-printing` ligger i `public/video/` som MP4 og WebM, med et
+poster-bilde. Den starter av seg selv når man scroller ned til den, og stopper
+når man scroller forbi. Vil dere bytte den ut uten å røre koden, legg inn en
+lenke under **Tekster → Video** i adminpanelet.
 
 ## Teknisk
 

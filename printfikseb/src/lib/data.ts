@@ -11,6 +11,7 @@ import type {
   Product,
   TeamMember,
   Faq,
+  Example,
 } from './types';
 
 async function safe<T>(promise: PromiseLike<{ data: T[] | null; error: unknown }>, fallback: T[]) {
@@ -32,7 +33,7 @@ async function hentAlt(): Promise<SiteData> {
   if (!sb) return DEFAULT_SITE;
 
   try {
-    const [settingsRes, materials, weightRanges, extras, deliveryOptions, products, team, faq] =
+    const [settingsRes, materials, weightRanges, extras, deliveryOptions, products, team, faq, examples] =
       await Promise.all([
         sb.from('settings').select('key,value').then((r) => r),
         safe<Material>(
@@ -65,6 +66,10 @@ async function hentAlt(): Promise<SiteData> {
           []
         ),
         safe<Faq>(sb.from('faq').select('*').eq('active', true).order('sort') as never, DEFAULT_SITE.faq),
+        safe<Example>(
+          sb.from('examples').select('*').eq('active', true).order('sort') as never,
+          DEFAULT_SITE.examples
+        ),
       ]);
 
     const settings = { ...DEFAULT_SETTINGS };
@@ -85,6 +90,7 @@ async function hentAlt(): Promise<SiteData> {
       products: products.map(normalizeNumbers('price')),
       team,
       faq,
+      examples,
       connected,
     };
   } catch {
