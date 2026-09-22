@@ -16,6 +16,7 @@ export type PrintItem = {
   title: string;
   materialId: string;
   materialName: string;
+  colorName?: string;
   pricePerGram: number;
   weightMode: 'range' | 'exact';
   rangeLabel?: string;

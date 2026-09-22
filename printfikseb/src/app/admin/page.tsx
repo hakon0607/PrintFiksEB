@@ -5,24 +5,27 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAdmin } from '@/components/admin/AdminProvider';
 
-type Tall = { produkter: number; ansatte: number; oppgaver: number; sporsmal: number };
+type Tall = { produkter: number; bestillinger: number; oppgaver: number; sporsmal: number };
 
 export default function AdminOversikt() {
   const { supabase, profile, user } = useAdmin();
-  const [tall, setTall] = useState<Tall>({ produkter: 0, ansatte: 0, oppgaver: 0, sporsmal: 0 });
+  const [tall, setTall] = useState<Tall>({ produkter: 0, bestillinger: 0, oppgaver: 0, sporsmal: 0 });
 
   useEffect(() => {
     if (!supabase) return;
     (async () => {
       const [p, a, o, f] = await Promise.all([
         supabase.from('products').select('id', { count: 'exact', head: true }),
-        supabase.from('team_members').select('id', { count: 'exact', head: true }),
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['ny', 'tilbud', 'godkjent', 'produksjon', 'ferdig']),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('done', false),
         supabase.from('faq').select('id', { count: 'exact', head: true }),
       ]);
       setTall({
         produkter: p.count ?? 0,
-        ansatte: a.count ?? 0,
+        bestillinger: a.count ?? 0,
         oppgaver: o.count ?? 0,
         sporsmal: f.count ?? 0,
       });
@@ -30,6 +33,11 @@ export default function AdminOversikt() {
   }, [supabase]);
 
   const snarveier = [
+    {
+      href: '/admin/bestillinger',
+      tittel: 'Bestillinger',
+      tekst: 'Før opp bestillingene som kommer inn, og hold styr på hva som er levert og betalt.',
+    },
     {
       href: '/admin/printbot',
       tittel: 'Spør PrintBot',
@@ -89,7 +97,7 @@ export default function AdminOversikt() {
         {[
           { t: tall.produkter, d: 'modeller i galleriet' },
           { t: tall.oppgaver, d: 'oppgaver å gjøre' },
-          { t: tall.ansatte, d: 'ansatte' },
+          { t: tall.bestillinger, d: 'bestillinger på gang' },
           { t: tall.sporsmal, d: 'spørsmål og svar' },
         ].map((n, i) => (
           <motion.div

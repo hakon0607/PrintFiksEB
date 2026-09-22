@@ -65,7 +65,7 @@ export function buildOrderMessage(
       const vekt =
         p.weightMode === 'exact' ? `ca. ${p.maxG} g` : `ca. ${p.minG}-${p.maxG} g`;
       lines.push(
-        `- ${p.qty}x 3D-print i ${p.materialName}, ${vekt} - ${span(price.min, price.max, currency)}`
+        `- ${p.qty}x 3D-print i ${p.materialName}${p.colorName ? `, ${p.colorName.toLowerCase()}` : ''}, ${vekt} - ${span(price.min, price.max, currency)}`
       );
       for (const extra of p.extras.filter((e) => e.scope === 'item')) {
         lines.push(

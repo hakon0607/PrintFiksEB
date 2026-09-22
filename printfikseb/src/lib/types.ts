@@ -105,6 +105,14 @@ export type Invite = {
   accepted_at: string | null;
 };
 
+export type Color = {
+  id: string;
+  name: string;
+  hex: string;
+  active: boolean;
+  sort: number;
+};
+
 export type Example = {
   id: string;
   title: string;
@@ -124,6 +132,7 @@ export type SiteData = {
   products: Product[];
   team: TeamMember[];
   faq: Faq[];
+  colors: Color[];
   examples: Example[];
   connected: boolean;
 };
@@ -140,5 +149,23 @@ export type Task = {
   done_by: string | null;
   created_by: string | null;
   sort: number;
+  created_at: string;
+};
+
+export type Order = {
+  id: string;
+  kunde: string;
+  telefon: string | null;
+  adresse: string | null;
+  hva: string;
+  notat: string | null;
+  levering: string | null;
+  pris: number | null;
+  betalt: boolean;
+  betalingsmate: string | null;
+  status: string;
+  ansvarlig: string | null;
+  frist: string | null;
+  opprettet_av: string | null;
   created_at: string;
 };

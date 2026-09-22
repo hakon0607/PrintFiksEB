@@ -16,6 +16,7 @@ Nettsiden til **PrintFiksEB** – elevbedrift ved Skranevatnet skole som driver 
 | `/bestill` | Hele bestillingen: valg til venstre, live priskalkulator og bestillingen til høyre |
 | `/om-oss` | Om elevbedriften, teamet, betaling, levering og FAQ |
 | `/admin` | Adminpanel der alt på nettsiden kan endres uten å kode |
+| `/admin/bestillinger` | Intern bestillingsoversikt med status, frist og betaling |
 | `/admin/oppgaver` | Intern oppgaveliste for planlegging (vises aldri på nettsiden) |
 | `/admin/eksempler` | Eksemplene som vises på «Hva vi kan fikse» |
 | `/admin/profil` | Egen profil: navn, bilde, rolle og passord |
@@ -101,8 +102,8 @@ på noe som ikke finnes. **Serveren skriver aldri til databasen** – godkjenner
 brukeren et forslag, utføres skrivingen i nettleseren med brukerens egen
 innlogging, så RLS gjelder som vanlig.
 
-Forslagstyper: `innstilling`, `materiale`, `oppgave`, `faq` og `produkt`
-(`price`, `active`, `featured`).
+Forslagstyper: `innstilling`, `materiale`, `oppgave`, `bestilling`, `faq` og
+`produkt` (`price`, `active`, `featured`).
 
 ## AI-nøkkel
 

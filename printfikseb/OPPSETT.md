@@ -109,6 +109,7 @@ Alt på nettsiden styres fra `/admin`. **Alt lagres automatisk** – dere ser
 | Side | Hva dere gjør der |
 |---|---|
 | **Oversikt** | Se hvor mye dere har lagt inn |
+| **Bestillinger** | Bestillingene som er kommet inn: hva som skal lages, status, frist og betaling |
 | **PrintBot** | Chat med hjelperen: spør om hjelp, finn fram, eller la den gjøre endringer |
 | **Oppgaver** | Deres egen planlegging: hva skal gjøres, hvem gjør det, når er fristen |
 | **Priser** | Pris per gram, startpris, tillegg, levering og størrelsene kundene velger mellom |
@@ -119,6 +120,23 @@ Alt på nettsiden styres fra `/admin`. **Alt lagres automatisk** – dere ser
 | **Spørsmål og svar** | Svar på det kundene spør om ofte |
 | **Ansatte** | Hvem som vises på «Om oss», og hvem som får logge inn |
 | **Kontakt og levering** | Telefonnummer, Vipps, når folk kan ringe og sende melding, leveringstid og leveringsområde |
+
+### Bestillinger
+
+Når det kommer inn en bestilling på melding eller telefon, fører dere den opp
+under **Bestillinger**. Da ser alle i gruppa hva som er på gang, hvem som gjør
+hva, hva som er levert og hva som er betalt.
+
+Hver bestilling går gjennom disse stegene, og dere trykker dere videre etter
+hvert: **Ny → Pris sendt → Godkjent → Printes → Ferdig → Levert.**
+(Blir det ingenting av, setter dere den til **Avlyst**.)
+
+Øverst ser dere hvor mange som er på gang, hvor mange som venter på betaling, og
+hvor mye som er betalt inn denne måneden – kjekt å ha til regnskapet og
+sluttrapporten. Siden er bare intern; kundene ser den aldri.
+
+PrintBot kan også føre opp en bestilling for dere hvis dere heller vil skrive
+«før opp bestilling fra Emma på en saksholder til 149 kr».
 
 ### Oppgaver
 

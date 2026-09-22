@@ -24,6 +24,12 @@ type Forslag = {
   svar_tekst?: string;
   produkt_id?: string;
   felt?: string;
+  kunde?: string;
+  hva_bestilt?: string;
+  bestilling_pris?: number;
+  bestilling_telefon?: string;
+  bestilling_levering?: string;
+  bestilling_frist?: string | null;
   status?: 'ny' | 'utfort' | 'avslatt' | 'feilet';
 };
 
@@ -36,7 +42,7 @@ type Melding = {
 
 const STARTFORSLAG = [
   'Hvor endrer jeg prisen på PLA?',
-  'Lag en oppgave om å ta bilder av nye modeller',
+  'Før opp en bestilling fra Emma på en saksholder til 149 kr',
   'Hvordan legger jeg ut en ny modell?',
   'Hva må jeg gjøre for at endringene skal vises?',
 ];
@@ -147,6 +153,18 @@ export function PrintBotSamtale({
       const { error } = await supabase
         .from('faq')
         .insert({ question: f.sporsmal, answer: f.svar_tekst ?? '', sort: 100 });
+      feilet = !!error;
+    } else if (f.type === 'bestilling' && f.kunde && f.hva_bestilt) {
+      const { error } = await supabase.from('orders').insert({
+        kunde: f.kunde,
+        hva: f.hva_bestilt,
+        telefon: f.bestilling_telefon ?? '',
+        pris: Number(f.bestilling_pris) || 0,
+        levering: f.bestilling_levering === 'Hjemlevering' ? 'Hjemlevering' : 'Henting',
+        frist: f.bestilling_frist || null,
+        status: 'ny',
+        opprettet_av: profile?.name || user?.email || 'PrintBot',
+      });
       feilet = !!error;
     } else if (f.type === 'produkt' && f.produkt_id && f.felt) {
       const verdi =
@@ -277,6 +295,15 @@ export function PrintBotSamtale({
                           <ul className="space-y-0.5 text-ink-700">
                             <li>Spørsmål: {f.sporsmal}</li>
                             {f.svar_tekst && <li>Svar: {f.svar_tekst}</li>}
+                          </ul>
+                        )}
+                        {f.type === 'bestilling' && (
+                          <ul className="space-y-0.5 text-ink-700">
+                            <li>Kunde: {f.kunde}</li>
+                            <li>Skal lages: {f.hva_bestilt}</li>
+                            {!!f.bestilling_pris && <li>Pris: {f.bestilling_pris} kr</li>}
+                            {f.bestilling_levering && <li>Levering: {f.bestilling_levering}</li>}
+                            {f.bestilling_frist && <li>Frist: {f.bestilling_frist}</li>}
                           </ul>
                         )}
                       </div>

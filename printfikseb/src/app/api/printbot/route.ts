@@ -25,10 +25,17 @@ type Forslag = {
   felt?: string;
   for_verdi?: string;
   ansvarlig_id?: string | null;
+  kunde?: string;
+  hva_bestilt?: string;
+  bestilling_pris?: number;
+  bestilling_telefon?: string;
+  bestilling_levering?: string;
+  bestilling_frist?: string | null;
 };
 
 const SIDER = `
 /admin                 Oversikt – tall og snarveier
+/admin/bestillinger    Bestillinger – bestillinger som er kommet inn, status, hvem som gjør hva, betaling
 /admin/oppgaver        Oppgaver – hva som skal gjøres, hvem som gjør det, frister
 /admin/priser          Priser – pris per gram, startpris, tillegg, levering, størrelser
 /admin/galleri         Galleri – ferdige modeller med bilder, og «Finpuss med AI»
@@ -41,13 +48,18 @@ const SIDER = `
 `.trim();
 
 async function hentKontekst(service: SupabaseClient) {
-  const [settings, materials, products, team, faq, tasks] = await Promise.all([
+  const [settings, materials, products, team, faq, tasks, orders] = await Promise.all([
     service.from('settings').select('key,value,label,gruppe').order('gruppe'),
     service.from('materials').select('id,name,price_per_gram,active').order('sort'),
     service.from('products').select('id,name,price,active,code').order('sort').limit(60),
     service.from('team_members').select('id,name').order('sort'),
     service.from('faq').select('id,question').order('sort'),
     service.from('tasks').select('id,title,done').eq('done', false).limit(30),
+    service
+      .from('orders')
+      .select('id,kunde,hva,status,pris,betalt')
+      .in('status', ['ny', 'tilbud', 'godkjent', 'produksjon', 'ferdig'])
+      .limit(30),
   ]);
 
   return {
@@ -57,6 +69,7 @@ async function hentKontekst(service: SupabaseClient) {
     ansatte: team.data ?? [],
     sporsmal: faq.data ?? [],
     apneOppgaver: tasks.data ?? [],
+    bestillingerPaaGang: orders.data ?? [],
   };
 }
 
@@ -122,6 +135,7 @@ Modeller i galleriet: ${JSON.stringify(kontekst.modeller)}
 Ansatte: ${JSON.stringify(kontekst.ansatte)}
 Spørsmål og svar: ${JSON.stringify(kontekst.sporsmal)}
 Åpne oppgaver: ${JSON.stringify(kontekst.apneOppgaver)}
+Bestillinger på gang: ${JSON.stringify(kontekst.bestillingerPaaGang)}
 
 SVAR ALLTID MED JSON:
 {
@@ -136,11 +150,13 @@ I "forslag" kan du legge inn endringer. Hver av disse typene finnes:
 {"type":"materiale","hva":"Skal jeg sette PETG til 1,20 kr per gram?","materiale_id":"<id>","ny_pris_per_gram":1.2}
 {"type":"oppgave","hva":"Skal jeg lage oppgaven «Ta bilder av nøkkelringene»?","tittel":"Ta bilder av nøkkelringene","ansvarlig_navn":"Håkon","frist":"2026-10-01","hastegrad":"normal"}
 {"type":"faq","hva":"Skal jeg legge til dette spørsmålet?","sporsmal":"Leverer dere til Fana?","svar_tekst":"Ja, mot et lite tillegg."}
+{"type":"bestilling","hva":"Skal jeg føre opp bestillingen fra Emma?","kunde":"Emma","hva_bestilt":"Saksholder i svart PLA, 2 stk","bestilling_pris":149,"bestilling_telefon":"","bestilling_levering":"Henting","bestilling_frist":null}
 {"type":"produkt","hva":"Skal jeg sette prisen på Nøkkelholder til 129 kr?","produkt_id":"<id>","felt":"price","ny_verdi":129}
 
 Regler for forslag:
 - Bruk ekte id-er fra listene over. Finn du ikke id-en, ikke foreslå endringen – spør i stedet.
 - "felt" på produkt kan bare være "price", "active" eller "featured".
+- "bestilling_levering" er "Henting" eller "Hjemlevering".
 - "hastegrad" er "lav", "normal" eller "hoy".
 - "frist" er på formen ÅÅÅÅ-MM-DD, eller null.
 - Er spørsmålet bare et spørsmål, la "forslag" være tom liste.
@@ -233,6 +249,7 @@ Regler for forslag:
       );
     if (f.type === 'oppgave') return !!f.tittel;
     if (f.type === 'faq') return !!f.sporsmal;
+    if (f.type === 'bestilling') return !!f.kunde && !!f.hva_bestilt;
     return false;
   });
 

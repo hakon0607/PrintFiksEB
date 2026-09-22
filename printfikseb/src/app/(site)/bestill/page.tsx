@@ -36,6 +36,7 @@ export default async function BestillSide({
             materials={site.materials}
             weightRanges={site.weightRanges}
             extras={site.extras}
+            colors={site.colors}
             deliveryOptions={site.deliveryOptions}
             startFee={num(s, 'pris_startpris', 100)}
             useStartFee={bool(s, 'pris_startpris_pa', true)}

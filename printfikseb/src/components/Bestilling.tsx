@@ -16,12 +16,13 @@ import { itemPrice, orderTotals } from '@/lib/pricing';
 import { buildOrderMessage, smsHref } from '@/lib/message';
 import { AnimatedNumber } from './AnimatedNumber';
 import { formatPhone, telHref } from '@/lib/settings';
-import type { DeliveryOption, Material, WeightRange, Extra } from '@/lib/types';
+import type { DeliveryOption, Material, WeightRange, Extra, Color } from '@/lib/types';
 
 type Props = {
   materials: Material[];
   weightRanges: WeightRange[];
   extras: Extra[];
+  colors: Color[];
   deliveryOptions: DeliveryOption[];
   startFee: number;
   useStartFee: boolean;
@@ -53,6 +54,7 @@ export function Bestilling(props: Props) {
     materials,
     weightRanges,
     extras,
+    colors,
     deliveryOptions,
     startFee,
     useStartFee,
@@ -84,6 +86,7 @@ export function Bestilling(props: Props) {
       ? forhandsvalgtMaterial
       : (materials[0]?.id ?? '')
   );
+  const [fargeId, setFargeId] = useState(colors[0]?.id ?? '');
   const [vektModus, setVektModus] = useState<'range' | 'exact'>('range');
   const [rangeId, setRangeId] = useState(
     forhandsvalgtStorrelse && weightRanges.some((w) => w.id === forhandsvalgtStorrelse)
@@ -141,6 +144,7 @@ export function Bestilling(props: Props) {
   }, [navn, adresse, tlf, betaling]);
 
   const material = materials.find((m) => m.id === materialId) ?? materials[0];
+  const farge = colors.find((c) => c.id === fargeId) ?? colors[0];
   const range = weightRanges.find((w) => w.id === rangeId) ?? weightRanges[0];
   const perGram = material?.price_per_gram ?? 0;
 
@@ -236,6 +240,7 @@ export function Bestilling(props: Props) {
       title: `3D-print i ${material.name}`,
       materialId: material.id,
       materialName: material.name,
+      colorName: farge?.name,
       pricePerGram: perGram,
       weightMode: vektModus,
       rangeLabel: vektModus === 'range' ? range?.label : undefined,
@@ -355,6 +360,40 @@ export function Bestilling(props: Props) {
                     ))}
                   </div>
                 </div>
+
+                {colors.length > 0 && (
+                  <div>
+                    <span className="label">Farge</span>
+                    <div className="flex flex-wrap gap-2.5">
+                      {colors.map((c) => {
+                        const valgt = c.id === (farge?.id ?? '');
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setFargeId(c.id)}
+                            className={`flex items-center gap-2.5 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                              valgt
+                                ? 'border-brand-500 bg-brand-50 text-brand-700 ring-4 ring-brand-100'
+                                : 'border-ink-200 bg-white text-ink-700 hover:border-brand-300'
+                            }`}
+                          >
+                            <span
+                              className="h-5 w-5 rounded-full border border-ink-200"
+                              style={{ background: c.hex }}
+                              aria-hidden
+                            />
+                            {c.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="hint">
+                      Vil du ha en annen farge? Skriv det i kommentaren, så sjekker vi om vi har
+                      den.
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
@@ -616,7 +655,9 @@ export function Bestilling(props: Props) {
                   <span className="ml-1.5 text-base font-semibold text-ink-400">{currency}</span>
                 </p>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink-500">
-                  {material?.name} · {minG === maxG ? `${maxG} g` : `${minG}–${maxG} g`}
+                  {material?.name}
+                  {farge ? ` · ${farge.name.toLowerCase()}` : ''} ·{' '}
+                  {minG === maxG ? `${maxG} g` : `${minG}–${maxG} g`}
                   {antall > 1 ? ` · ${antall} stk` : ''}
                   {valgteExtraObjekter.length
                     ? ` · ${valgteExtraObjekter.map((e) => e.name).join(', ')}`
@@ -1136,7 +1177,8 @@ function beskrivPrint(item: PrintItem) {
   const vekt = item.minG === item.maxG ? `${item.maxG} g` : `${item.minG}–${item.maxG} g`;
   const extras = item.extras.map((e) => e.name).join(', ');
   const note = item.note ? ` · «${item.note}»` : '';
-  return `${item.materialName} · ${vekt}${extras ? ` · ${extras}` : ''}${note}`;
+  const farge = item.colorName ? ` · ${item.colorName.toLowerCase()}` : '';
+  return `${item.materialName}${farge} · ${vekt}${extras ? ` · ${extras}` : ''}${note}`;
 }
 
 function Rad({ navn, verdi, tone }: { navn: string; verdi: string; tone?: 'muted' }) {

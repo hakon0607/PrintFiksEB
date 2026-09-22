@@ -268,7 +268,7 @@ declare
 begin
   foreach t in array array[
     'settings','materials','weight_ranges','extras',
-    'delivery_options','products','team_members','faq','examples'
+    'delivery_options','products','team_members','faq','examples','colors'
   ]
   loop
     execute format('drop trigger if exists marker_endring_trigger on public.%I', t);
@@ -330,6 +330,7 @@ alter table public.team_members     enable row level security;
 alter table public.invites          enable row level security;
 alter table public.faq              enable row level security;
 alter table public.examples         enable row level security;
+alter table public.colors           enable row level security;
 
 do $$
 declare
@@ -337,7 +338,7 @@ declare
 begin
   foreach t in array array[
     'settings','materials','weight_ranges','extras',
-    'delivery_options','products','team_members','faq','examples'
+    'delivery_options','products','team_members','faq','examples','colors'
   ]
   loop
     execute format('drop policy if exists "les_offentlig" on public.%I', t);
@@ -387,6 +388,49 @@ create policy "bilder_slett" on storage.objects
   for delete to authenticated using (bucket_id = 'bilder');
 
 
+
+-- ------------------------------------------------------------
+-- 15. Bestillinger – deres egen oversikt (vises aldri på nettsiden)
+-- ------------------------------------------------------------
+create table if not exists public.orders (
+  id            uuid primary key default gen_random_uuid(),
+  kunde         text not null default '',
+  telefon       text default '',
+  adresse       text default '',
+  hva           text not null default '',
+  notat         text default '',
+  levering      text default 'Henting',       -- Henting | Hjemlevering
+  pris          numeric(10,2) default 0,
+  betalt        boolean not null default false,
+  betalingsmate text default 'Vipps',          -- Vipps | Kontant
+  status        text not null default 'ny',    -- ny|tilbud|godkjent|produksjon|ferdig|levert|avlyst
+  ansvarlig     uuid references public.team_members(id) on delete set null,
+  frist         date,
+  opprettet_av  text,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+create index if not exists orders_status_idx on public.orders (status, created_at desc);
+
+alter table public.orders enable row level security;
+
+drop policy if exists "bestillinger_ansatte" on public.orders;
+create policy "bestillinger_ansatte" on public.orders
+  for all to authenticated using (true) with check (true);
+
+
+-- ------------------------------------------------------------
+-- 16. Farger kunden kan velge mellom
+-- ------------------------------------------------------------
+create table if not exists public.colors (
+  id      uuid primary key default gen_random_uuid(),
+  name    text not null,
+  hex     text not null default '#14171C',
+  active  boolean not null default true,
+  sort    int not null default 100
+);
+
 -- ============================================================
 -- SANNTID – gjør at endringer dukker opp hos alle med en gang
 -- ============================================================
@@ -396,7 +440,7 @@ declare
 begin
   foreach t in array array[
     'settings','materials','weight_ranges','extras','delivery_options',
-    'products','team_members','faq','examples','tasks','profiles','site_status'
+    'products','team_members','faq','examples','colors','tasks','orders','profiles','site_status'
   ]
   loop
     begin
@@ -503,5 +547,12 @@ select * from (values
   ('Ting du har tegnet selv', 'Har du en STL-fil eller en tegning med mål? Send den, så printer vi den for deg.', 'Egne design', 80)
 ) as v(title, description, category, sort)
 where not exists (select 1 from public.examples);
+
+insert into public.colors (name, hex, sort)
+select * from (values
+  ('Svart', '#14171C', 10),
+  ('Hvit',  '#F5F5F5', 20)
+) as v(name, hex, sort)
+where not exists (select 1 from public.colors);
 
 -- Ferdig!

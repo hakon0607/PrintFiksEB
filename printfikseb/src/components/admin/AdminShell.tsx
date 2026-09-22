@@ -14,6 +14,11 @@ import { PrintBot } from './PrintBot';
 const meny = [
   { href: '/admin', label: 'Oversikt', ikon: 'M4 12h6V4H4zM14 20h6v-8h-6zM14 8h6V4h-6zM4 20h6v-4H4z' },
   {
+    href: '/admin/bestillinger',
+    label: 'Bestillinger',
+    ikon: 'M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM15 2v5h5M9 13l2 2 4-4',
+  },
+  {
     href: '/admin/printbot',
     label: 'PrintBot',
     ikon: 'M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 15.5zM12 3v3M9 11.5h.01M15 11.5h.01M9.5 15h5',

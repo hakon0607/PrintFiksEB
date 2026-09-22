@@ -43,6 +43,19 @@ export default function PriserSide() {
       />
 
       <TableEditor
+        table="colors"
+        tittel="Farger"
+        beskrivelse="Fargene kunden kan velge mellom når de bestiller. Har dere fått inn en ny filament-farge, legg den til her."
+        enhetsnavn="farge"
+        tittelFelt="name"
+        nyRad={{ name: 'Ny farge', hex: '#2559C7', active: true }}
+        felter={[
+          { key: 'name', label: 'Navn', type: 'text', placeholder: 'F.eks. Rød' },
+          { key: 'hex', label: 'Fargen', type: 'color', help: 'Vises som en prikk ved siden av navnet.' },
+        ]}
+      />
+
+      <TableEditor
         table="weight_ranges"
         tittel="Størrelser i kalkulatoren"
         beskrivelse="Disse valgene får kunden hvis de ikke vet nøyaktig vekt. Prisen regnes ut som et intervall mellom «fra» og «til»."

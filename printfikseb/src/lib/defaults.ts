@@ -119,6 +119,10 @@ export const DEFAULT_SITE: SiteData = {
   ],
   products: [],
   team: [],
+  colors: [
+    { id: 'svart', name: 'Svart', hex: '#14171C', active: true, sort: 10 },
+    { id: 'hvit', name: 'Hvit', hex: '#F5F5F5', active: true, sort: 20 },
+  ],
   examples: [
     { id: 'e1', title: 'Knekte klips og fester', description: 'Klipset som holder panelet i bilen, kurven i oppvaskmaskinen eller dekselet på fjernkontrollen. Små plastdeler som gjør at hele tingen blir ubrukelig når de ryker.', image_url: '', category: 'Reparasjon', active: true, sort: 10 },
     { id: 'e2', title: 'Knotter og håndtak', description: 'Knotten på komfyren, håndtaket på skuffen, hjulet på trillekofferten. Vi måler opp og printer en ny.', image_url: '', category: 'Reparasjon', active: true, sort: 20 },
