@@ -15,7 +15,10 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       >
         Hopp til innhold
       </a>
-      <Nav businessName={text(site.settings, 'bedrift_navn', 'PrintFiksEB')} />
+      <Nav
+        businessName={text(site.settings, 'bedrift_navn', 'PrintFiksEB')}
+        phone={text(site.settings, 'kontakt_telefon', '41381608')}
+      />
       <main id="innhold">{children}</main>
       <Footer settings={site.settings} />
     </>

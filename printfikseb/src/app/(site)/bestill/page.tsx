@@ -10,10 +10,14 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'Bestill',
   description:
-    'Se over handlelisten din, fyll inn adresse og levering, og send en ferdig melding til PrintFiksEB.',
+    'Sett sammen bestillingen din hos PrintFiksEB, og send en ferdig melding – eller ring oss. Du får alltid pris før vi starter.',
 };
 
-export default async function BestillSide() {
+export default async function BestillSide({
+  searchParams,
+}: {
+  searchParams?: { m?: string; w?: string };
+}) {
   const site = await getSiteData();
   const s = site.settings;
 
@@ -24,17 +28,24 @@ export default async function BestillSide() {
         <Reveal>
           <span className="eyebrow">Bestilling</span>
           <h1 className="mt-4 max-w-2xl text-balance text-4xl font-bold sm:text-5xl">
-            Nesten ferdig – vi lager meldingen for deg
+            Fortell oss hva du vil ha
           </h1>
           <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-ink-600">
-            Fyll inn navn og hvordan du vil ha varene, så setter vi sammen en ferdig melding. Du
-            trykker bare send.
+            Legg til det vi skal lage, velg hvordan du vil ha det levert, og send oss en ferdig
+            melding. Foretrekker du å snakke med noen? Ring oss – begge deler går like fint.
           </p>
         </Reveal>
 
         <div className="mt-10">
           <OrderFlow
             deliveryOptions={site.deliveryOptions}
+            materials={site.materials}
+            weightRanges={site.weightRanges}
+            extras={site.extras}
+            repairPriceText={text(s, 'pris_reparasjon', 'Pris etter avtale')}
+            repairText={text(s, 'tekst_reparasjon', '')}
+            forhandsvalgtMaterial={searchParams?.m}
+            forhandsvalgtStorrelse={searchParams?.w}
             startFee={num(s, 'pris_startpris', 100)}
             useStartFee={bool(s, 'pris_startpris_pa', true)}
             currency={text(s, 'pris_valuta', 'kr')}
@@ -43,6 +54,9 @@ export default async function BestillSide() {
             businessName={text(s, 'bedrift_navn', 'PrintFiksEB')}
             paymentText={text(s, 'betaling_tekst', '')}
             approvalText={text(s, 'tekst_godkjenning', '')}
+            phoneHours={text(s, 'kontakt_ringetid', '')}
+            messageHours={text(s, 'kontakt_meldingstid', '')}
+            callbackText={text(s, 'kontakt_ringer_tilbake', '')}
             radiusKm={num(s, 'levering_radius_km', 3)}
             daysMin={num(s, 'levering_dager_min', 2)}
             daysMax={num(s, 'levering_dager_maks', 4)}

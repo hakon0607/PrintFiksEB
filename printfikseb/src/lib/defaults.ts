@@ -14,6 +14,9 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   kontakt_epost: '',
   vipps_nummer: '41381608',
   vipps_navn: 'PrintFiksEB',
+  kontakt_meldingstid: 'Meldinger kan du sende når som helst – hele døgnet, alle dager.',
+  kontakt_ringetid: 'Ring mellom 15 og 21, mandag til lørdag.',
+  kontakt_ringer_tilbake: 'Rekker vi ikke å ta telefonen, ringer vi tilbake så fort vi har tid.',
   sosial_instagram: '',
   sosial_snapchat: '',
   pris_startpris: '100',
@@ -141,6 +144,14 @@ export const DEFAULT_SITE: SiteData = {
         'Vanligvis 2–4 virkedager fra du har godkjent prisen. Store eller kompliserte jobber kan ta litt lenger – da sier vi fra.',
       active: true,
       sort: 40,
+    },
+    {
+      id: 'f6',
+      question: 'Kan jeg ringe i stedet for å sende melding?',
+      answer:
+        'Ja! Meldinger kan du sende når som helst, hele døgnet. Telefonen tar vi mellom 15 og 21, mandag til lørdag. Rekker vi ikke å svare, ringer vi tilbake så fort vi har tid.',
+      active: true,
+      sort: 45,
     },
     {
       id: 'f5',

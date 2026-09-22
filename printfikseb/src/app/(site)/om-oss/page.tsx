@@ -25,6 +25,9 @@ export default async function OmOssSide() {
   const dagerMin = num(s, 'levering_dager_min', 2);
   const dagerMaks = num(s, 'levering_dager_maks', 4);
   const radius = num(s, 'levering_radius_km', 3);
+  const ringetid = text(s, 'kontakt_ringetid');
+  const meldingstid = text(s, 'kontakt_meldingstid');
+  const ringerTilbake = text(s, 'kontakt_ringer_tilbake');
 
   return (
     <div className="relative pb-24 pt-12 sm:pt-16">
@@ -167,6 +170,39 @@ export default async function OmOssSide() {
           </Reveal>
         </section>
 
+        {/* Når kan du nå oss */}
+        <section className="mt-20 grid gap-5 lg:grid-cols-2">
+          <Reveal>
+            <div className="h-full rounded-3xl border border-ink-100 bg-white p-7 shadow-soft">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold">Send melding</h2>
+                <span className="chip">Åpent 24/7</span>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-ink-700">{meldingstid}</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink-500">
+                Bruk bestillingssiden, så lager vi meldingen ferdig for deg.
+              </p>
+              <Link href="/bestill" className="btn-primary mt-5">
+                Lag bestillingen min
+              </Link>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.08}>
+            <div className="h-full rounded-3xl border border-ink-100 bg-white p-7 shadow-soft">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold">Ring oss</h2>
+                <span className="chip">15–21, man–lør</span>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-ink-700">{ringetid}</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink-500">{ringerTilbake}</p>
+              <a href={telHref(telefon)} className="btn-dark mt-5">
+                Ring {formatPhone(telefon)}
+              </a>
+            </div>
+          </Reveal>
+        </section>
+
         {/* FAQ */}
         {site.faq.length > 0 && (
           <section className="mt-20">
@@ -188,8 +224,8 @@ export default async function OmOssSide() {
             <div>
               <h2 className="text-2xl font-bold">Lurer du på noe?</h2>
               <p className="mt-2 text-sm leading-relaxed text-ink-300">
-                Send oss en melding på {formatPhone(telefon)}
-                {epost ? ` eller e-post til ${epost}` : ''}. Vi svarer så fort vi kan etter skoletid.
+                Send oss en melding på {formatPhone(telefon)} når som helst – hele døgnet
+                {epost ? `, eller e-post til ${epost}` : ''}. {ringetid}
               </p>
             </div>
             <a href={telHref(telefon)} className="btn-primary shrink-0">

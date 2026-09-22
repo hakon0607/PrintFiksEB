@@ -8,11 +8,19 @@ import { useCart, type CartItem, type PrintItem, type ProductItem, type RepairIt
 import { itemPrice, orderTotals } from '@/lib/pricing';
 import { buildOrderMessage, smsHref } from '@/lib/message';
 import { AnimatedNumber } from './AnimatedNumber';
-import { formatPhone } from '@/lib/settings';
-import type { DeliveryOption } from '@/lib/types';
+import { formatPhone, telHref } from '@/lib/settings';
+import { OrderBuilder } from './OrderBuilder';
+import type { DeliveryOption, Material, WeightRange, Extra } from '@/lib/types';
 
 type Props = {
   deliveryOptions: DeliveryOption[];
+  materials: Material[];
+  weightRanges: WeightRange[];
+  extras: Extra[];
+  repairPriceText: string;
+  repairText: string;
+  forhandsvalgtMaterial?: string;
+  forhandsvalgtStorrelse?: string;
   startFee: number;
   useStartFee: boolean;
   currency: string;
@@ -24,12 +32,22 @@ type Props = {
   daysMin: number;
   daysMax: number;
   vippsNumber: string;
+  phoneHours: string;
+  messageHours: string;
+  callbackText: string;
 };
 
 const FORM_KEY = 'printfikseb_bestillingsskjema_v1';
 
 export function OrderFlow({
   deliveryOptions,
+  materials,
+  weightRanges,
+  extras,
+  repairPriceText,
+  repairText,
+  forhandsvalgtMaterial,
+  forhandsvalgtStorrelse,
   startFee,
   useStartFee,
   currency,
@@ -41,6 +59,9 @@ export function OrderFlow({
   daysMin,
   daysMax,
   vippsNumber,
+  phoneHours,
+  messageHours,
+  callbackText,
 }: Props) {
   const { items, remove, setQty, clear, ready } = useCart();
 
@@ -146,36 +167,45 @@ export function OrderFlow({
     window.setTimeout(() => setKopiert(false), 2400);
   }
 
+  const bygger = (
+    <OrderBuilder
+      materials={materials}
+      weightRanges={weightRanges}
+      extras={extras}
+      currency={currency}
+      repairPriceText={repairPriceText}
+      repairText={repairText}
+      forhandsvalgtMaterial={forhandsvalgtMaterial}
+      forhandsvalgtStorrelse={forhandsvalgtStorrelse}
+    />
+  );
+
   if (!ready) {
     return <div className="h-64 animate-pulse rounded-3xl bg-white/60" />;
   }
 
   if (items.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-ink-200 bg-white/80 px-6 py-20 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M4 6h2l2.2 9.2a2 2 0 0 0 2 1.5h6.9a2 2 0 0 0 1.9-1.4L21 9H7"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <h2 className="mt-5 text-xl font-semibold">Handlelisten er tom</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-500">
-          Legg til det du vil ha fra priskalkulatoren eller galleriet, så lager vi en ferdig melding
-          du bare sender til oss.
-        </p>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link href="/kalkulator" className="btn-primary">
-            Åpne priskalkulatoren
-          </Link>
-          <Link href="/galleri" className="btn-ghost">
-            Se galleriet
-          </Link>
+      <div className="space-y-6">
+        {bygger}
+
+        <div className="rounded-3xl border border-dashed border-ink-200 bg-white/80 px-6 py-12 text-center">
+          <h2 className="text-lg font-semibold">Du har ikke lagt til noe ennå</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-500">
+            Bruk skjemaet over, eller plukk en ferdig modell fra galleriet. Vil du heller snakke med
+            oss, er det bare å ringe.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link href="/galleri" className="btn-ghost">
+              Se galleriet
+            </Link>
+            <a href={telHref(phone)} className="btn-soft">
+              Ring {formatPhone(phone)}
+            </a>
+          </div>
+          <p className="mx-auto mt-5 max-w-md text-xs leading-relaxed text-ink-400">
+            {messageHours} {phoneHours}
+          </p>
         </div>
       </div>
     );
@@ -185,6 +215,8 @@ export function OrderFlow({
     <div className="grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-start">
       {/* ---------- Venstre ---------- */}
       <div className="space-y-5">
+        {bygger}
+
         <section className="card p-6">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-base font-semibold">Dette har du valgt</h2>
@@ -430,15 +462,41 @@ export function OrderFlow({
               Send bestilling på SMS
             </a>
 
-            <button type="button" onClick={kopier} className="btn-ghost mt-3 w-full">
-              {kopiert ? 'Meldingen er kopiert ✓' : 'Kopier meldingen'}
-            </button>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <a href={telHref(phone)} className="btn-ghost w-full">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M6.5 3.5h3l1.5 4-2 1.4a12 12 0 0 0 6.1 6.1l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Ring i stedet
+              </a>
+              <button type="button" onClick={kopier} className="btn-ghost w-full">
+                {kopiert ? 'Kopiert ✓' : 'Kopier meldingen'}
+              </button>
+            </div>
 
             <p className="mt-3 text-center text-xs leading-relaxed text-ink-500">
               SMS-knappen åpner meldingsappen med alt ferdig utfylt til{' '}
-              <span className="font-semibold text-ink-700">{formatPhone(phone)}</span>. På PC kan du
-              kopiere meldingen og sende den slik du vil.
+              <span className="font-semibold text-ink-700">{formatPhone(phone)}</span>. Du kan like
+              gjerne ringe oss og si hva du vil ha – vi noterer det da.
             </p>
+
+            <div className="mt-4 space-y-2 rounded-2xl bg-white p-4 text-xs leading-relaxed text-ink-600">
+              <p className="flex gap-2">
+                <span aria-hidden className="font-bold text-brand-600">24/7</span>
+                <span>{messageHours}</span>
+              </p>
+              <p className="flex gap-2">
+                <span aria-hidden className="font-bold text-brand-600">☎</span>
+                <span>
+                  {phoneHours} {callbackText}
+                </span>
+              </p>
+            </div>
           </div>
         </div>
 
@@ -474,7 +532,7 @@ export function OrderFlow({
         <div className="rounded-3xl border border-brand-200 bg-brand-50/70 p-6 text-sm leading-relaxed text-ink-700">
           <h3 className="font-semibold text-ink-900">Hva skjer nå?</h3>
           <ol className="mt-3 space-y-2">
-            <li>1. Du sender meldingen til oss.</li>
+            <li>1. Du sender meldingen – eller ringer oss på {formatPhone(phone)}.</li>
             <li>2. Vi svarer med endelig pris og stiller spørsmål hvis noe er uklart.</li>
             <li>3. Du godkjenner prisen – først da starter vi.</li>
             <li>

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCart } from '@/lib/cart';
+import { formatPhone, telHref } from '@/lib/settings';
 
 const links = [
   { href: '/', label: 'Hjem' },
@@ -14,7 +15,7 @@ const links = [
   { href: '/om-oss', label: 'Om oss' },
 ];
 
-export function Nav({ businessName }: { businessName: string }) {
+export function Nav({ businessName, phone }: { businessName: string; phone: string }) {
   const pathname = usePathname();
   const { count, ready } = useCart();
   const [scrolled, setScrolled] = useState(false);
@@ -86,6 +87,37 @@ export function Nav({ businessName }: { businessName: string }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <a
+            href={telHref(phone)}
+            className="btn-ghost btn-sm hidden lg:inline-flex"
+            aria-label={`Ring oss på ${formatPhone(phone)}`}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M6.5 3.5h3l1.5 4-2 1.4a12 12 0 0 0 6.1 6.1l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {formatPhone(phone)}
+          </a>
+
+          <a
+            href={telHref(phone)}
+            className="btn-ghost btn-sm lg:hidden"
+            aria-label={`Ring oss på ${formatPhone(phone)}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M6.5 3.5h3l1.5 4-2 1.4a12 12 0 0 0 6.1 6.1l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </a>
+
           <Link href="/bestill" className="btn-primary btn-sm relative">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
@@ -156,6 +188,12 @@ export function Nav({ businessName }: { businessName: string }) {
                   {link.label}
                 </Link>
               ))}
+              <a
+                href={telHref(phone)}
+                className="rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700"
+              >
+                Ring oss på {formatPhone(phone)}
+              </a>
             </div>
           </motion.div>
         )}

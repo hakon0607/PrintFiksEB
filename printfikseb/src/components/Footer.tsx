@@ -11,6 +11,9 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
   const instagram = text(settings, 'sosial_instagram');
   const snapchat = text(settings, 'sosial_snapchat');
   const vippsNr = text(settings, 'vipps_nummer', telefon);
+  const ringetid = text(settings, 'kontakt_ringetid');
+  const meldingstid = text(settings, 'kontakt_meldingstid');
+  const ringerTilbake = text(settings, 'kontakt_ringer_tilbake');
 
   return (
     <footer className="relative mt-24 overflow-hidden bg-ink-900 text-ink-200">
@@ -58,10 +61,17 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
           <h3 className="text-sm font-semibold text-white">Kontakt</h3>
           <ul className="mt-4 space-y-2.5 text-sm text-ink-300">
             <li>
-              <a href={telHref(telefon)} className="link-underline hover:text-white">
+              <a href={telHref(telefon)} className="link-underline text-base font-semibold text-white">
                 {formatPhone(telefon)}
               </a>
-              <span className="block text-xs text-ink-400">Send oss gjerne SMS</span>
+              <span className="mt-1 block text-xs leading-relaxed text-ink-400">
+                <span className="font-semibold text-brand-300">Melding: hele døgnet.</span>{' '}
+                {meldingstid}
+              </span>
+              <span className="mt-1 block text-xs leading-relaxed text-ink-400">
+                <span className="font-semibold text-brand-300">Telefon:</span> {ringetid}{' '}
+                {ringerTilbake}
+              </span>
             </li>
             {epost && (
               <li>

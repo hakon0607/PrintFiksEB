@@ -113,14 +113,16 @@ Alt på nettsiden styres fra `/admin`. **Alt lagres automatisk** – dere ser
 | **Tekster** | Overskriften på forsiden, «om oss»-teksten og alt annet folk leser |
 | **Spørsmål og svar** | Svar på det kundene spør om ofte |
 | **Ansatte** | Hvem som vises på «Om oss», og hvem som får logge inn |
-| **Kontakt og levering** | Telefonnummer, Vipps, leveringstid og leveringsområde |
+| **Kontakt og levering** | Telefonnummer, Vipps, når folk kan ringe og sende melding, leveringstid og leveringsområde |
 
 Noen triks:
 
 - **Bryteren til høyre** for hver ting skjuler den fra nettsiden uten å slette den.
 - **Pilene opp/ned** bestemmer rekkefølgen på nettsiden.
 - Endrer dere telefonnummeret under «Kontakt og levering», endres SMS-knappen
-  på hele nettsiden automatisk.
+  og alle ring-knappene på hele nettsiden automatisk.
+- Ringetidene («Ring mellom 15 og 21, mandag til lørdag») ligger samme sted, og
+  vises på forsiden, i kalkulatoren, på bestillingssiden og i bunnteksten.
 
 ---
 

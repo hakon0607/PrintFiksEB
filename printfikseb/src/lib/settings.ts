@@ -39,7 +39,9 @@ export function formatPhone(phone: string): string {
   return phone;
 }
 
+/** Lager en ordentlig tel:-lenke, f.eks. tel:+4741381608 */
 export function telHref(phone: string): string {
   const digits = phone.replace(/\D/g, '');
-  return digits.startsWith('47') ? `+${digits}` : `+47${digits}`;
+  const nummer = digits.startsWith('47') && digits.length > 8 ? `+${digits}` : `+47${digits}`;
+  return `tel:${nummer}`;
 }

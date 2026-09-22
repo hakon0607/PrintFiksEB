@@ -18,6 +18,9 @@ export default async function Hjem() {
   const dagerMin = num(s, 'levering_dager_min', 2);
   const dagerMaks = num(s, 'levering_dager_maks', 4);
   const telefon = text(s, 'kontakt_telefon', '41381608');
+  const ringetid = text(s, 'kontakt_ringetid');
+  const meldingstid = text(s, 'kontakt_meldingstid');
+  const ringerTilbake = text(s, 'kontakt_ringer_tilbake');
   const hjemlevering =
     site.deliveryOptions.find((d) => d.price > 0) ?? { name: 'Hjemlevering', price: 50 };
   const utvalgte = site.products.filter((p) => p.featured).slice(0, 3);
@@ -66,6 +69,17 @@ export default async function Hjem() {
                 <Link href="/galleri" className="btn-ghost">
                   Se ferdige modeller
                 </Link>
+                <a href={telHref(telefon)} className="btn-ghost">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M6.5 3.5h3l1.5 4-2 1.4a12 12 0 0 0 6.1 6.1l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Ring {formatPhone(telefon)}
+                </a>
               </div>
             </Reveal>
 
@@ -269,7 +283,7 @@ export default async function Hjem() {
               {
                 n: '2',
                 t: 'Send meldingen',
-                d: `Du får en ferdig melding du bare sender til oss på ${formatPhone(telefon)}. Ingen skjema, ingen konto.`,
+                d: `Du får en ferdig melding du bare sender til oss på ${formatPhone(telefon)}. Vil du heller ringe, er det like greit.`,
               },
               {
                 n: '3',
@@ -292,6 +306,75 @@ export default async function Hjem() {
                 </div>
               </StaggerItem>
             ))}
+          </Stagger>
+        </div>
+      </section>
+
+      {/* ---------------- SLIK NÅR DU OSS ---------------- */}
+      <section className="relative py-16 sm:py-20">
+        <Blobs variant="soft" />
+        <div className="container-x">
+          <Reveal>
+            <span className="eyebrow">Kontakt</span>
+            <h2 className="mt-4 max-w-2xl text-balance text-3xl font-bold sm:text-4xl">
+              Bestill slik det passer deg
+            </h2>
+            <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-600">
+              Du velger selv om du vil skrive eller snakke. Begge deler ender samme sted – hos oss.
+            </p>
+          </Reveal>
+
+          <Stagger className="mt-9 grid gap-5 md:grid-cols-2">
+            <StaggerItem className="h-full">
+              <div className="flex h-full flex-col rounded-3xl border border-ink-100 bg-white p-7 shadow-soft">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-glow">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.2-.6L3 21l1.8-5.1A8.2 8.2 0 0 1 3.6 11.5 8.4 8.4 0 0 1 12.6 3a8.4 8.4 0 0 1 8.4 8.5z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold">Send melding</h3>
+                  <span className="chip">Åpent 24/7</span>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-ink-600">{meldingstid}</p>
+                <p className="mt-2 text-sm leading-relaxed text-ink-500">
+                  Nettsiden lager meldingen ferdig for deg – du trykker bare send. Vi svarer så fort
+                  vi ser den.
+                </p>
+                <Link href="/bestill" className="btn-primary mt-6 self-start">
+                  Lag bestillingen min
+                </Link>
+              </div>
+            </StaggerItem>
+
+            <StaggerItem className="h-full">
+              <div className="flex h-full flex-col rounded-3xl border border-ink-100 bg-white p-7 shadow-soft">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-white">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M6.5 3.5h3l1.5 4-2 1.4a12 12 0 0 0 6.1 6.1l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold">Ring oss</h3>
+                  <span className="chip">15–21, man–lør</span>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-ink-600">{ringetid}</p>
+                <p className="mt-2 text-sm leading-relaxed text-ink-500">{ringerTilbake}</p>
+                <a href={telHref(telefon)} className="btn-dark mt-6 self-start">
+                  Ring {formatPhone(telefon)}
+                </a>
+              </div>
+            </StaggerItem>
           </Stagger>
         </div>
       </section>
@@ -354,6 +437,9 @@ export default async function Hjem() {
                     Ring {formatPhone(telefon)}
                   </a>
                 </div>
+                <p className="mt-5 text-xs text-ink-400">
+                  Melding: hele døgnet · Telefon: {ringetid}
+                </p>
               </div>
             </div>
           </Reveal>

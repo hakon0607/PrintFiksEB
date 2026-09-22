@@ -277,6 +277,9 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('kontakt_epost',       '',                                     'E-post',                  'Valgfritt', 'text', 'Kontakt', 20),
   ('vipps_nummer',        '41381608',                             'Vipps-nummer',            '', 'text',     'Kontakt', 30),
   ('vipps_navn',          'PrintFiksEB',                          'Vipps-navn',              '', 'text',     'Kontakt', 40),
+  ('kontakt_meldingstid', 'Meldinger kan du sende når som helst – hele døgnet, alle dager.', 'Når kan folk sende melding?', 'Vises ved SMS-knappen', 'text', 'Kontakt', 42),
+  ('kontakt_ringetid',    'Ring mellom 15 og 21, mandag til lørdag.', 'Når kan folk ringe?',   'Vises ved ring-knappen', 'text', 'Kontakt', 44),
+  ('kontakt_ringer_tilbake', 'Rekker vi ikke å ta telefonen, ringer vi tilbake så fort vi har tid.', 'Hvis dere ikke svarer', '', 'text', 'Kontakt', 46),
   ('sosial_instagram',    '',                                     'Instagram (lenke)',       'Valgfritt', 'text', 'Kontakt', 50),
   ('sosial_snapchat',     '',                                     'Snapchat (brukernavn)',   'Valgfritt', 'text', 'Kontakt', 60),
   ('pris_startpris',      '100',                                  'Startpris (kr)',          'Legges på én gang per bestilling', 'number', 'Priser', 10),
@@ -335,7 +338,8 @@ select * from (values
   ('Hvor lang tid tar det?', 'Vanligvis 2–4 virkedager fra du har godkjent prisen. Store eller kompliserte jobber kan ta litt lenger – da sier vi fra.', 50),
   ('Hvordan betaler jeg?', 'Helst med Vipps. Kontant går også helt fint, men gi beskjed på forhånd så vi har veksel klart.', 60),
   ('Kan dere reparere ting?', 'Ofte ja! Send oss bilde og mål av det som er ødelagt, så sier vi om vi får det til og hva det koster.', 70),
-  ('Leverer dere hjem?', 'Ja, for 50 kr innenfor 3 km fra Skranevatnet skole. Henter du selv er det gratis.', 80)
+  ('Leverer dere hjem?', 'Ja, for 50 kr innenfor 3 km fra Skranevatnet skole. Henter du selv er det gratis.', 80),
+  ('Kan jeg ringe i stedet for å sende melding?', 'Ja! Meldinger kan du sende når som helst, hele døgnet. Telefonen tar vi mellom 15 og 21, mandag til lørdag. Rekker vi ikke å svare, ringer vi tilbake så fort vi har tid.', 90)
 ) as v(question, answer, sort)
 where not exists (select 1 from public.faq);
 

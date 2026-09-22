@@ -10,17 +10,32 @@ Nettsiden til **PrintFiksEB** – elevbedrift ved Skranevatnet skole som driver 
 | Side | Innhold |
 |---|---|
 | `/` | Forside med animert hero, tjenester, priser og «slik bestiller du» |
-| `/kalkulator` | Priskalkulator for 3D-print og reparasjon, med handleliste |
+| `/kalkulator` | Rask «hva koster det»-kalkulator – materiale og størrelse, ingen bestilling |
 | `/galleri` | Ferdige modeller med bilde, ID-nummer og fast pris |
-| `/bestill` | Handleliste → ferdig utfylt SMS til bedriften |
+| `/bestill` | Full konfigurator + handleliste → ferdig utfylt SMS, eller ring oss |
 | `/om-oss` | Om elevbedriften, teamet, betaling, levering og FAQ |
 | `/admin` | Adminpanel der alt på nettsiden kan endres uten å kode |
 
-## Hvordan bestilling fungerer
+## Kalkulator og bestilling er to forskjellige ting
 
-Kunden legger ting i handlelisten, fyller inn navn og levering, og trykker
-**«Send bestilling på SMS»**. Da åpnes meldingsappen med en ferdig melding til
-bedriftens telefonnummer. På PC kan kunden trykke **«Kopier meldingen»** i stedet.
+**`/kalkulator`** er en rask prissjekk: velg materiale og omtrent hvor stor
+modellen er, så vises et estimat. Ingen handleliste, ingen skjema. Knappen
+«Bestill dette» tar valget med videre til bestillingssiden.
+
+**`/bestill`** er den detaljerte delen: her beskriver kunden hva de vil ha,
+velger materiale, størrelse (eller eksakt vekt), antall og tillegg, legger til
+flere ting, og fyller inn levering og kontaktinfo.
+
+## To måter å bestille på
+
+- **Melding – hele døgnet.** Nettsiden setter sammen en ferdig melding, og
+  «Send bestilling på SMS» åpner meldingsappen med alt utfylt. På PC brukes
+  «Kopier meldingen» i stedet.
+- **Telefon – 15–21, mandag til lørdag.** Ring-knapp i menyen, på forsiden, i
+  kalkulatoren, på bestillingssiden og i bunnteksten. Rekker de ikke å svare,
+  ringer de tilbake.
+
+Tidene og teksten rundt dem endres i `/admin` under **Kontakt og levering**.
 
 Prisen som vises er alltid et **estimat**. Bedriften svarer med endelig pris,
 og kunden må godkjenne før produksjonen starter.
