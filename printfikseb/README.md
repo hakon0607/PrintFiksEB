@@ -104,7 +104,18 @@ innlogging, så RLS gjelder som vanlig.
 Forslagstyper: `innstilling`, `materiale`, `oppgave`, `faq` og `produkt`
 (`price`, `active`, `featured`).
 
-## AI-nøkkel og finpussing
+## AI-nøkkel
+
+Nøkkelen hentes i denne rekkefølgen:
+
+1. Raden `openai_api_key` i tabellen `secrets` (lagt inn fra adminpanelet)
+2. Miljøvariabelen `OPENAI_API_KEY` (satt i Vercel)
+
+`secrets` har med vilje ingen RLS-policy, så bare serveren (service role) leser
+den. Adminpanelet får bare vite *om* det finnes en nøkkel, hvor den kommer fra,
+og de første og siste tegnene.
+
+## Finpussing
 
 Eieren limer inn en OpenAI-nøkkel under **AI og import** i adminpanelet. Nøkkelen
 lagres i tabellen `secrets`, som med vilje ikke har noen RLS-policy – da kommer

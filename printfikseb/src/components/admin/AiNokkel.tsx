@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 
-type Status = { finnes: boolean; maskert?: string; oppdatert?: string; av?: string };
+type Status = {
+  finnes: boolean;
+  kilde?: 'admin' | 'vercel' | null;
+  maskert?: string;
+  oppdatert?: string;
+  av?: string;
+};
 
 export function AiNokkel() {
   const { supabase, profile } = useAdmin();
@@ -64,6 +70,8 @@ export function AiNokkel() {
     hentStatus();
   }
 
+  const fraVercel = status?.kilde === 'vercel';
+
   // Er nøkkelen på plass og du ikke er eier, er det ingenting å gjøre her
   if (status?.finnes && !erEier) return null;
 
@@ -95,13 +103,19 @@ export function AiNokkel() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-ink-900">
-            {status?.finnes ? 'AI-nøkkel er lagt inn' : 'AI-nøkkel mangler'}
+            {status?.finnes
+              ? fraVercel
+                ? 'AI-nøkkel ligger i Vercel'
+                : 'AI-nøkkel er lagt inn'
+              : 'AI-nøkkel mangler'}
           </span>
           <span className="mt-0.5 block text-[13px] text-ink-600">
             {status?.finnes
-              ? `${status.maskert}${status.av ? ` · lagt inn av ${status.av}` : ''}`
+              ? fraVercel
+                ? `${status.maskert} · satt opp som miljøvariabel`
+                : `${status.maskert}${status.av ? ` · lagt inn av ${status.av}` : ''}`
               : erEier
-                ? 'Legg den inn én gang, så virker «Finpuss med AI» for alle i gruppa.'
+                ? 'Legg den inn her, eller som OPENAI_API_KEY i Vercel. Begge deler virker.'
                 : 'Be eieren legge den inn, så virker «Finpuss med AI».'}
           </span>
         </span>
@@ -121,7 +135,43 @@ export function AiNokkel() {
             className="overflow-hidden"
           >
             <div className="border-t border-ink-100/70 p-6">
-              {status?.finnes ? (
+              {status?.finnes && fraVercel ? (
+                <div className="space-y-3">
+                  <p className="text-sm leading-relaxed text-ink-600">
+                    Nøkkelen er lagt inn som miljøvariabelen{' '}
+                    <code className="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-xs">
+                      OPENAI_API_KEY
+                    </code>{' '}
+                    i Vercel. Da er alt i orden – dere trenger ikke gjøre noe her.
+                  </p>
+                  <p className="text-xs leading-relaxed text-ink-500">
+                    Vil dere heller kunne bytte nøkkel uten å gå innom Vercel, kan du lime inn en
+                    her. Da er det den som gjelder.
+                  </p>
+                  {erEier && (
+                    <form onSubmit={lagre}>
+                      <div className="flex flex-col gap-2.5 sm:flex-row">
+                        <input
+                          type="password"
+                          value={nokkel}
+                          onChange={(e) => setNokkel(e.target.value)}
+                          placeholder="sk-..."
+                          className="field flex-1 font-mono"
+                          autoComplete="off"
+                          aria-label="OpenAI-nøkkel"
+                        />
+                        <button
+                          type="submit"
+                          disabled={lagrer || !nokkel.trim()}
+                          className="btn-ghost shrink-0"
+                        >
+                          {lagrer ? 'Lagrer…' : 'Bruk denne i stedet'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              ) : status?.finnes ? (
                 erEier && (
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-ink-600">
@@ -161,6 +211,11 @@ export function AiNokkel() {
                   </div>
                   <p className="hint">
                     Hentes på platform.openai.com under «API keys». Del den aldri utenfor bedriften.
+                    Alternativt kan dere legge den inn som{' '}
+                    <code className="rounded bg-ink-100 px-1 py-0.5 font-mono text-[11px]">
+                      OPENAI_API_KEY
+                    </code>{' '}
+                    i Vercel i stedet.
                   </p>
                 </form>
               ) : (

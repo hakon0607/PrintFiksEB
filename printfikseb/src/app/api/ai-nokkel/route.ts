@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { krevInnlogget } from '@/lib/server-auth';
+import { krevInnlogget, hemmelighetKilde } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,19 +15,25 @@ export async function GET(request: Request) {
   const sjekk = await krevInnlogget(request);
   if (sjekk.feil) return sjekk.feil;
 
+  const { kilde, verdi } = await hemmelighetKilde(sjekk.service, NOKKEL);
+  if (!kilde || !verdi) return NextResponse.json({ finnes: false, kilde: null });
+
+  if (kilde === 'vercel') {
+    return NextResponse.json({ finnes: true, kilde: 'vercel', maskert: maskert(verdi) });
+  }
+
   const { data } = await sjekk.service
     .from('secrets')
-    .select('value, updated_at, updated_by')
+    .select('updated_at, updated_by')
     .eq('key', NOKKEL)
     .maybeSingle();
 
-  if (!data?.value) return NextResponse.json({ finnes: false });
-
   return NextResponse.json({
     finnes: true,
-    maskert: maskert(data.value),
-    oppdatert: data.updated_at,
-    av: data.updated_by,
+    kilde: 'admin',
+    maskert: maskert(verdi),
+    oppdatert: data?.updated_at,
+    av: data?.updated_by,
   });
 }
 

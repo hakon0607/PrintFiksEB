@@ -68,12 +68,37 @@ export async function krevInnlogget(request: Request, krevEier = false): Promise
   };
 }
 
-/** Henter en lagret hemmelighet (API-nøkkel). Kun server-side. */
+/** Miljøvariabelen som svarer til en lagret hemmelighet. */
+const MILJOVARIABEL: Record<string, string | undefined> = {
+  openai_api_key: process.env.OPENAI_API_KEY,
+};
+
+/**
+ * Henter en API-nøkkel. Kun server-side.
+ * Er den lagt inn i adminpanelet, brukes den. Ellers brukes miljøvariabelen
+ * fra Vercel, slik at dere kan velge hvilken av delene dere vil.
+ */
 export async function hentHemmelighet(
   service: SupabaseClient,
   key: string
 ): Promise<string | null> {
   const { data, error } = await service.from('secrets').select('value').eq('key', key).maybeSingle();
-  if (error || !data?.value) return null;
-  return data.value;
+  if (!error && data?.value) return data.value;
+
+  const fraMiljo = MILJOVARIABEL[key];
+  return fraMiljo && fraMiljo.trim() ? fraMiljo.trim() : null;
+}
+
+/** Sier hvor nøkkelen kommer fra, uten å avsløre selve nøkkelen. */
+export async function hemmelighetKilde(
+  service: SupabaseClient,
+  key: string
+): Promise<{ kilde: 'admin' | 'vercel' | null; verdi: string | null }> {
+  const { data, error } = await service.from('secrets').select('value').eq('key', key).maybeSingle();
+  if (!error && data?.value) return { kilde: 'admin', verdi: data.value };
+
+  const fraMiljo = MILJOVARIABEL[key];
+  if (fraMiljo && fraMiljo.trim()) return { kilde: 'vercel', verdi: fraMiljo.trim() };
+
+  return { kilde: null, verdi: null };
 }

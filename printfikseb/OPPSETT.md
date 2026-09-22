@@ -75,6 +75,7 @@ Du skal gjøre tre ting:
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public fra steg 1 |
    | `SUPABASE_SERVICE_ROLE_KEY` | service_role fra steg 1 |
    | `NEXT_PUBLIC_SITE_URL` | adressen siden får, f.eks. `https://printfikseb.vercel.app` |
+   | `OPENAI_API_KEY` | *(valgfritt)* AI-nøkkel til «Finpuss med AI» og PrintBot. Kan i stedet legges inn i adminpanelet senere |
 
    > Vet dere ikke adressen ennå? Sett inn noe midlertidig, deploy, og rett den
    > etterpå under **Settings → Environment Variables**. Husk å trykke
@@ -147,9 +148,21 @@ bytte passord der. Eieren kan i tillegg endre navn og rolle på alle andre under
 
 ### AI-nøkkel og «Finpuss med AI»
 
-Øverst på **Galleri**-siden legger eieren inn en OpenAI-nøkkel. Den lagres trygt
-på serveren til noen sletter den, og alle i gruppa kan bruke AI-funksjonene uten
-å ha nøkkelen selv – ingen får se den igjen etterpå.
+Dere kan legge inn OpenAI-nøkkelen på **to måter**. Velg én:
+
+**1. I Vercel (enklest hvis dere uansett er inne der)**
+Settings → Environment Variables → legg til `OPENAI_API_KEY` med nøkkelen som
+verdi, og trykk **Redeploy**. Ferdig. Adminpanelet oppdager den selv og skriver
+«AI-nøkkel ligger i Vercel».
+
+**2. I adminpanelet (enklest i hverdagen)**
+Øverst på **Galleri**-siden limer eieren den inn. Da kan dere bytte nøkkel uten
+å gå innom Vercel, og uten å publisere på nytt.
+
+Legger dere inn en nøkkel i adminpanelet, er det den som gjelder – også hvis det
+ligger én i Vercel fra før. Uansett hvilken dere velger: nøkkelen ligger bare på
+serveren, alle i gruppa kan bruke AI-funksjonene, og ingen får se selve nøkkelen
+igjen.
 
 Slik legger dere inn en modell:
 
