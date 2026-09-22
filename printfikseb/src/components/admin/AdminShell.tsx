@@ -9,9 +9,15 @@ import { useAdmin } from './AdminProvider';
 import { Login } from './Login';
 import { PublishBar } from './PublishBar';
 import { Tilstede } from './Tilstede';
+import { PrintBot } from './PrintBot';
 
 const meny = [
   { href: '/admin', label: 'Oversikt', ikon: 'M4 12h6V4H4zM14 20h6v-8h-6zM14 8h6V4h-6zM4 20h6v-4H4z' },
+  {
+    href: '/admin/printbot',
+    label: 'PrintBot',
+    ikon: 'M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 15.5zM12 3v3M9 11.5h.01M15 11.5h.01M9.5 15h5',
+  },
   {
     href: '/admin/oppgaver',
     label: 'Oppgaver',
@@ -132,11 +138,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
 
-        <main className="min-w-0 flex-1 space-y-6 pb-16">
+        <main className="min-w-0 flex-1 space-y-6 pb-24">
           <PublishBar />
           {children}
         </main>
       </div>
+
+      {pathname !== '/admin/printbot' && <PrintBot />}
     </div>
   );
 }

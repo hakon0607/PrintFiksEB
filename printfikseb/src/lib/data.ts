@@ -55,7 +55,9 @@ async function hentAlt(): Promise<SiteData> {
         safe<Product>(
           sb
             .from('products')
-            .select('*')
+            .select(
+              'id,code,name,description,details,tagline,highlights,price,image_url,images,material,weight_g,category,featured,active,sort,created_at'
+            )
             .eq('active', true)
             .order('sort')
             .order('created_at', { ascending: false }) as never,

@@ -5,12 +5,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { ImageUpload } from './ImageUpload';
 import { ImageListUpload } from './ImageListUpload';
+import { BildeSett } from './BildeSett';
+import { Fremdrift } from './Fremdrift';
 import { lyttPaTabell } from '@/lib/realtime';
 
 export type Felt = {
   key: string;
   label: string;
-  type: 'text' | 'longtext' | 'number' | 'price' | 'bool' | 'image' | 'images' | 'color' | 'select' | 'lines';
+  type: 'text' | 'longtext' | 'number' | 'price' | 'bool' | 'image' | 'images' | 'bildesett' | 'color' | 'select' | 'lines';
   valg?: { verdi: string; tekst: string }[];
   placeholder?: string;
   help?: string;
@@ -32,6 +34,7 @@ type Props = {
   harSortering?: boolean;
   harAktiv?: boolean;
   tomTekst?: string;
+  finpuss?: boolean;
 };
 
 export function TableEditor({
@@ -45,6 +48,7 @@ export function TableEditor({
   harSortering = true,
   harAktiv = true,
   tomTekst,
+  finpuss = false,
 }: Props) {
   const { supabase, profile, user } = useAdmin();
   const [rader, setRader] = useState<Rad[]>([]);
@@ -251,6 +255,7 @@ export function TableEditor({
                   redigeresAv={andreRedigerer[rad.id]}
                   onFokus={(aktiv) => meldFokus(rad.id, aktiv)}
                   onTravel={(travel) => settTravel(rad.id, travel)}
+                  finpuss={finpuss}
                 />
               </motion.li>
             ))}
@@ -278,6 +283,7 @@ function RadRedigerer({
   redigeresAv,
   onFokus,
   onTravel,
+  finpuss,
 }: {
   table: string;
   rad: Rad;
@@ -295,8 +301,13 @@ function RadRedigerer({
   redigeresAv?: string;
   onFokus: (aktiv: boolean) => void;
   onTravel: (travel: boolean) => void;
+  finpuss?: boolean;
 }) {
   const { supabase } = useAdmin();
+  const [finpusser, setFinpusser] = useState(false);
+  const [finpussFerdig, setFinpussFerdig] = useState(false);
+  const [foer, setFoer] = useState<Record<string, unknown> | null>(null);
+  const [finpussFeil, setFinpussFeil] = useState('');
   const [status, setStatus] = useState<'' | 'lagrer' | 'lagret' | 'feil'>('');
   const timerRef = useRef<number | null>(null);
 
@@ -326,6 +337,77 @@ function RadRedigerer({
     }
     setStatus('lagrer');
     timerRef.current = window.setTimeout(() => lagre({ [key]: verdi }), 650);
+  }
+
+  async function finpussNa() {
+    if (!supabase) return;
+    setFinpusser(true);
+    setFinpussFerdig(false);
+    setFinpussFeil('');
+
+    const { data } = await supabase.auth.getSession();
+    const res = await fetch('/api/finpuss', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${data.session?.access_token ?? ''}`,
+      },
+      body: JSON.stringify({
+        felter: {
+          navn: rad.name ?? '',
+          undertittel: rad.tagline ?? '',
+          kort: rad.description ?? '',
+          full: rad.details ?? '',
+          punkter: Array.isArray(rad.highlights) ? rad.highlights : [],
+          kategori: rad.category ?? '',
+          vekt: rad.weight_g ?? null,
+          materiale: rad.material ?? '',
+        },
+      }),
+    });
+
+    const svar = await res.json().catch(() => ({}));
+    if (!res.ok || !svar?.forslag) {
+      setFinpusser(false);
+      setFinpussFeil(svar.error || 'Klarte ikke å finpusse akkurat nå.');
+      return;
+    }
+
+    const f = svar.forslag as Record<string, unknown>;
+    const patch: Record<string, unknown> = {
+      name: f.navn,
+      tagline: f.undertittel,
+      description: f.kort,
+      details: f.full,
+      highlights: f.punkter,
+      category: f.kategori,
+      weight_g: f.vekt,
+      price: f.pris,
+    };
+
+    setFoer({
+      name: rad.name ?? '',
+      tagline: rad.tagline ?? '',
+      description: rad.description ?? '',
+      details: rad.details ?? '',
+      highlights: Array.isArray(rad.highlights) ? rad.highlights : [],
+      category: rad.category ?? '',
+      weight_g: rad.weight_g ?? null,
+      price: rad.price ?? 0,
+    });
+
+    onLokal(patch);
+    await lagre(patch);
+    setFinpussFerdig(true);
+    setFinpusser(false);
+    window.setTimeout(() => setFinpussFerdig(false), 1800);
+  }
+
+  async function angreFinpuss() {
+    if (!foer) return;
+    onLokal(foer);
+    await lagre(foer);
+    setFoer(null);
   }
 
   const tittel = String(rad[tittelFelt] ?? '') || 'Uten navn';
@@ -419,6 +501,58 @@ function RadRedigerer({
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden border-t border-ink-100 bg-ink-50/50"
           >
+            {finpuss && (
+              <div className="space-y-3 border-b border-ink-100 bg-white px-5 py-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={finpussNa}
+                    disabled={finpusser}
+                    className="btn-primary btn-sm"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M12 3.5 13.6 8 18 9.6 13.6 11.2 12 15.7 10.4 11.2 6 9.6 10.4 8zM18.5 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                    {finpusser ? 'Finpusser…' : 'Finpuss med AI'}
+                  </button>
+
+                  {foer && !finpusser && (
+                    <button type="button" onClick={angreFinpuss} className="btn-ghost btn-sm">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path
+                          d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"
+                          stroke="currentColor"
+                          strokeWidth="1.9"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      Angre finpuss
+                    </button>
+                  )}
+
+                  <span className="text-xs text-ink-500">
+                    AI-en rydder teksten og fyller ut det du ikke har skrevet.
+                  </span>
+                </div>
+
+                <Fremdrift
+                  aktiv={finpusser}
+                  ferdig={finpussFerdig}
+                  tekst={finpusser ? 'AI-en skriver…' : 'Ferdig'}
+                />
+
+                {finpussFeil && (
+                  <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700">
+                    {finpussFeil}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div
               className="grid gap-4 p-5 sm:grid-cols-2"
               onFocusCapture={() => onFokus(true)}
@@ -432,6 +566,7 @@ function RadRedigerer({
                     felt.type === 'longtext' ||
                     felt.type === 'image' ||
                     felt.type === 'images' ||
+                    felt.type === 'bildesett' ||
                     felt.type === 'lines'
                       ? 'sm:col-span-2'
                       : ''
@@ -440,7 +575,12 @@ function RadRedigerer({
                   <FeltRedigerer
                     felt={felt}
                     verdi={rad[felt.key]}
+                    rad={rad}
                     onEndre={(v, straks) => endre(felt.key, v, straks)}
+                    onPatch={(patch) => {
+                      onLokal(patch);
+                      lagre(patch);
+                    }}
                   />
                 </div>
               ))}
@@ -465,11 +605,15 @@ function RadRedigerer({
 export function FeltRedigerer({
   felt,
   verdi,
+  rad,
   onEndre,
+  onPatch,
 }: {
   felt: Felt;
   verdi: unknown;
+  rad?: Record<string, unknown>;
   onEndre: (verdi: unknown, straks?: boolean) => void;
+  onPatch?: (patch: Record<string, unknown>) => void;
 }) {
   const id = `${felt.key}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -480,6 +624,17 @@ export function FeltRedigerer({
         help={felt.help}
         value={String(verdi ?? '')}
         onChange={(url) => onEndre(url, true)}
+      />
+    );
+  }
+
+  if (felt.type === 'bildesett') {
+    return (
+      <BildeSett
+        label={felt.label}
+        hoved={String(rad?.image_url ?? '')}
+        andre={(Array.isArray(rad?.images) ? rad?.images : []) as string[]}
+        onChange={(hoved, andre) => onPatch?.({ image_url: hoved, images: andre })}
       />
     );
   }

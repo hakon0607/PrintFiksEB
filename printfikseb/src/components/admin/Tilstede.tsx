@@ -104,8 +104,7 @@ export function Tilstede() {
   const andre = folk.filter((f) => f.id !== user?.id);
 
   return (
-    <div className="flex items-center gap-3">
-      {/* Besøkende på nettsiden */}
+    <div className="flex items-center gap-2.5">
       <div
         className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 sm:flex"
         title="Hvor mange som er inne på nettsiden akkurat nå"
@@ -114,9 +113,14 @@ export function Tilstede() {
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
         </span>
-        <span className="text-xs font-bold text-emerald-700">
-          {besokende} på nettsiden
-        </span>
+        <span className="text-xs font-bold text-emerald-700">{besokende} på nettsiden</span>
+      </div>
+
+      <div
+        className="hidden items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 lg:flex"
+        title={folk.map((f) => f.navn).join(', ')}
+      >
+        <span className="text-xs font-bold text-brand-700">{folk.length} pålogget</span>
       </div>
 
       {/* Hvem i gruppa som er pålogget */}

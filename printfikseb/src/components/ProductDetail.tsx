@@ -193,21 +193,6 @@ export function ProductDetail({
           </Link>
         </div>
 
-        {product.source_url && (
-          <p className="mt-6 text-xs text-ink-400">
-            Modellen er hentet fra{' '}
-            <a
-              href={product.source_url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="underline underline-offset-2 hover:text-ink-600"
-            >
-              originalsiden
-            </a>
-            .
-          </p>
-        )}
-
         <p className="mt-5 text-sm leading-relaxed text-ink-500">
           Vil du ha den i en annen farge eller størrelse? Skriv det i kommentaren når du bestiller,
           så ordner vi det.

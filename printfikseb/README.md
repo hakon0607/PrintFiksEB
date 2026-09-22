@@ -20,6 +20,10 @@ Nettsiden til **PrintFiksEB** – elevbedrift ved Skranevatnet skole som driver 
 | `/admin/eksempler` | Eksemplene som vises på «Hva vi kan fikse» |
 | `/admin/profil` | Egen profil: navn, bilde, rolle og passord |
 
+| `/admin/printbot` | Chat med PrintBot i full størrelse |
+
+PrintBot ligger dessuten som en boble nede til høyre på alle admin-sidene.
+
 ## Bestillingssiden
 
 Alt skjer på `/bestill`. Siden er delt i to: til venstre tre steg man klikker
@@ -86,22 +90,39 @@ antall besøkende akkurat nå.
 
 Tabellene må ligge i publikasjonen `supabase_realtime` – det gjør `schema.sql`.
 
-## AI-nøkkel og import
+## PrintBot
+
+`POST /api/printbot` sender samtalen til AI-en sammen med et øyeblikksbilde av
+innstillinger, materialer, modeller, ansatte og åpne oppgaver. Svaret er JSON med
+`svar`, en eventuell `naviger`-sti og en liste `forslag`.
+
+Serveren finner selv «før»-verdien for hvert forslag og kaster forslag som peker
+på noe som ikke finnes. **Serveren skriver aldri til databasen** – godkjenner
+brukeren et forslag, utføres skrivingen i nettleseren med brukerens egen
+innlogging, så RLS gjelder som vanlig.
+
+Forslagstyper: `innstilling`, `materiale`, `oppgave`, `faq` og `produkt`
+(`price`, `active`, `featured`).
+
+## AI-nøkkel og finpussing
 
 Eieren limer inn en OpenAI-nøkkel under **AI og import** i adminpanelet. Nøkkelen
 lagres i tabellen `secrets`, som med vilje ikke har noen RLS-policy – da kommer
 ingen til den fra nettleseren. Bare serveren (service role) leser verdien, så
 alle ansatte kan bruke funksjonene uten å se eller ha nøkkelen selv.
 
-`POST /api/import-modell` henter en modellside (MakerWorld, Printables,
-Thingiverse) – først direkte, så via en leser-tjeneste hvis siden blokkerer
-roboter. Den plukker ut tittel og bilder, laster bildene opp i Supabase Storage,
-lar AI skrive en hel produktside (navn, undertittel, kulepunkter, full tekst) og
-foreslå en pen pris, og lagrer modellen **skjult** i galleriet.
+Automatisk henting fra MakerWorld er fjernet – de blokkerer servere med
+Cloudflare. I stedet skriver man selv og trykker **Finpuss med AI**.
 
-Blir alt blokkert, svarer endepunktet `{ blokkert: true }`, og adminpanelet går
-over til manuell utfylling: man limer inn tekst og bilder selv, og AI-en skriver
-resten (`manuell: true` i samme endepunkt).
+`POST /api/finpuss` tar feltene slik de står, lar AI rydde dem og fylle ut det
+som mangler, og returnerer forslaget uten å lagre noe. Adminpanelet tar vare på
+de gamle verdiene, så «Angre finpuss» setter alt tilbake.
+
+Prisen snappes til en pen butikkpris (49, 69, 99, 149 …) ut fra materialkostnad,
+vekt og AI-ens vurdering.
+
+`products.source_url` velges bort i spørringen som bygger nettsiden, og feltet
+vises bare for brukere med rollen `eier` i adminpanelet.
 
 ## Video
 

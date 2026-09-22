@@ -108,6 +108,7 @@ Alt på nettsiden styres fra `/admin`. **Alt lagres automatisk** – dere ser
 | Side | Hva dere gjør der |
 |---|---|
 | **Oversikt** | Se hvor mye dere har lagt inn |
+| **PrintBot** | Chat med hjelperen: spør om hjelp, finn fram, eller la den gjøre endringer |
 | **Oppgaver** | Deres egen planlegging: hva skal gjøres, hvem gjør det, når er fristen |
 | **Priser** | Pris per gram, startpris, tillegg, levering og størrelsene kundene velger mellom |
 | **Galleri** | Modeller med bilder, undertittel, kulepunkter og full beskrivelse. Her ligger også «Hent modell med AI» |
@@ -144,23 +145,41 @@ Alle kan endre sitt eget navn, bilde og hva de gjør under **Min profil**, og
 bytte passord der. Eieren kan i tillegg endre navn og rolle på alle andre under
 **Ansatte** – også gjøre noen andre til eier. Det må alltid finnes minst én eier.
 
-### AI-nøkkel og import fra MakerWorld
+### AI-nøkkel og «Finpuss med AI»
 
-Under **Galleri** → «Hent modell med AI» kan eieren lime inn en OpenAI-nøkkel. Den lagres trygt på
-serveren til noen sletter den, og alle i gruppa kan bruke funksjonene uten å ha
-nøkkelen selv – ingen får se den igjen etterpå.
+Øverst på **Galleri**-siden legger eieren inn en OpenAI-nøkkel. Den lagres trygt
+på serveren til noen sletter den, og alle i gruppa kan bruke AI-funksjonene uten
+å ha nøkkelen selv – ingen får se den igjen etterpå.
 
-Når nøkkelen er på plass kan dere lime inn en lenke til en modell på MakerWorld
-(eller Printables og Thingiverse). Nettsiden henter bilder og informasjon, lar AI
-skrive en ferdig norsk produktside – navn, undertittel, kulepunkter og full
-beskrivelse – og foreslår en pen pris (49, 99, 149 …). Modellen legges i
-galleriet **skjult** til dere har sett over den.
+Slik legger dere inn en modell:
 
-Noen sider (blant annet MakerWorld) blokkerer automatisk henting. Da får dere
-opp et skjema der dere limer inn tittel og tekst selv, og bildene med **Ctrl+V**
-(høyreklikk på bildet → «Kopier bilde»). AI-en skriver resten.
+1. Trykk **«+ Legg til modell»**
+2. Last opp bildene – dra dem inn, velg dem, eller lim inn med **Ctrl+V**.
+   Det første bildet blir hovedbildet, men du kan trykke «Gjør til hovedbilde»
+   på hvilket som helst av dem.
+3. Skriv det du vet. Du trenger ikke fylle ut alt.
+4. Trykk **«Finpuss med AI»**. Den rydder teksten, fyller ut feltene du lot
+   stå tomme, lager kulepunkter og foreslår en pen pris (49, 99, 149 …).
+5. Liker du det ikke? Trykk **«Angre finpuss»**, så er alt som før.
+6. Skru på bryteren til høyre, og publiser.
 
-Husk å sjekke lisensen på modellen før dere selger den videre.
+Feltet **«Lenke til originalen»** er bare synlig for eiere, og vises aldri på
+nettsiden. Husk å sjekke lisensen på modellen før dere selger den videre.
+
+### PrintBot
+
+**PrintBot** har sin egen side i menyen, og ligger dessuten som en liten boble
+nede til høyre på alle sidene så dere alltid kan spørre der dere er. Den kan svare på hvordan
+ting virker, vise vei til riktig side, og foreslå endringer – for eksempel «sett
+startprisen til 79 kr» eller «lag en oppgave om å ta bilder av nye modeller».
+
+PrintBot **gjør aldri noe selv, og spør alltid først**. Den viser nøyaktig hva
+som vil skje – den gamle verdien overstreket ved siden av den nye – og venter på
+at du trykker **«Ja, gjør det»**. Trykker du «Nei, la det være», skjer ingenting.
+
+Det er du som sitter og chatter som bestemmer. Du trenger ikke spørre eieren
+eller noen andre; alle som kan logge inn kan bruke PrintBot og si ja til det den
+foreslår. Den trenger den samme AI-nøkkelen som «Finpuss med AI».
 
 ### Publisering – viktig!
 

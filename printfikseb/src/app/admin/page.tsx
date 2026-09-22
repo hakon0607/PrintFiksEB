@@ -31,6 +31,11 @@ export default function AdminOversikt() {
 
   const snarveier = [
     {
+      href: '/admin/printbot',
+      tittel: 'Spør PrintBot',
+      tekst: 'Få hjelp, finn fram, eller la den gjøre endringer for deg – den spør alltid først.',
+    },
+    {
       href: '/admin/oppgaver',
       tittel: 'Planlegg oppgaver',
       tekst: 'Skriv ned hva som skal gjøres, gi det til noen og huk av når det er ferdig.',
