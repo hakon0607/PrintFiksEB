@@ -26,7 +26,7 @@ export default async function Hjem({
   const meldingstid = text(s, 'kontakt_meldingstid');
   const ringerTilbake = text(s, 'kontakt_ringer_tilbake');
   const hjemlevering =
-    site.deliveryOptions.find((d) => d.price > 0) ?? { name: 'Hjemlevering', price: 50 };
+    site.deliveryOptions.find((d) => Number(d.price) > 0) ?? { name: 'Hjemlevering', price: 50 };
   const utvalgte = site.products.filter((p) => p.featured).slice(0, 3);
   const nyeste = (utvalgte.length ? utvalgte : site.products).slice(0, 3);
 
@@ -58,8 +58,8 @@ export default async function Hjem({
 
             <Reveal delay={0.18}>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/kalkulator" className="btn-primary">
-                  Regn ut prisen
+                <Link href="/bestill" className="btn-primary">
+                  Bestill og se prisen
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path
                       d="M5 12h14m0 0-5.5-5.5M19 12l-5.5 5.5"
@@ -109,7 +109,7 @@ export default async function Hjem({
         </div>
       </section>
 
-      {/* ---------------- DETTE GJØR VI ---------------- */}
+      {/* ---------------- TJENESTER ---------------- */}
       <section className="relative py-16 sm:py-20">
         <div className="container-x">
           <Reveal>
@@ -125,7 +125,7 @@ export default async function Hjem({
                 tittel: '3D-print',
                 tekst:
                   'Har du en fil, eller vet du hva du vil ha? Vi printer i PLA eller PETG og gir deg pris per gram – ingen skjulte tillegg.',
-                pris: `Fra ${kr(num(s, 'pris_startpris', 100), valuta)} + materialkostnad`,
+                pris: `Fra ${kr(startpris, valuta)} + materialkostnad`,
                 ikon: (
                   <path
                     d="M12 2.8 20 7v10l-8 4.2L4 17V7z M12 12l8-5m-8 5-8-5m8 5v9.2"
@@ -201,8 +201,8 @@ export default async function Hjem({
               <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-600">
                 {text(s, 'tekst_godkjenning', '')}
               </p>
-              <Link href="/kalkulator" className="btn-primary mt-6">
-                Prøv priskalkulatoren
+              <Link href="/bestill" className="btn-primary mt-6">
+                Regn ut prisen din
               </Link>
             </Reveal>
 
@@ -234,7 +234,7 @@ export default async function Hjem({
                   <ul className="mt-4 grid gap-2.5 text-sm text-ink-700 sm:grid-cols-2">
                     {brukStartpris && (
                       <li className="flex items-baseline justify-between gap-3 rounded-2xl bg-white/80 px-4 py-3">
-                        <span>Startpris per bestilling</span>
+                        <span>Startpris når vi lager noe</span>
                         <span className="font-bold text-ink-900">{kr(startpris, valuta)}</span>
                       </li>
                     )}
@@ -252,10 +252,18 @@ export default async function Hjem({
                       <span className="font-bold text-emerald-600">Gratis</span>
                     </li>
                     <li className="flex items-baseline justify-between gap-3 rounded-2xl bg-white/80 px-4 py-3">
-                      <span>{hjemlevering.name} (innen {radius} km)</span>
+                      <span>
+                        {hjemlevering.name} (innen {radius} km)
+                      </span>
                       <span className="font-bold text-ink-900">{kr(hjemlevering.price, valuta)}</span>
                     </li>
                   </ul>
+                  {brukStartpris && (
+                    <p className="mt-3 text-xs text-ink-500">
+                      Ferdige modeller i galleriet har fast pris – der kommer ingen startpris i
+                      tillegg.
+                    </p>
+                  )}
                 </div>
               </StaggerItem>
             </Stagger>
@@ -263,7 +271,7 @@ export default async function Hjem({
         </div>
       </section>
 
-      {/* ---------------- SLIK BESTILLER DU ---------------- */}
+      {/* ---------------- SLIK GJØR DU DET ---------------- */}
       <section className="relative py-16 sm:py-20">
         <div className="container-x">
           <Reveal>
@@ -281,8 +289,8 @@ export default async function Hjem({
             {[
               {
                 n: '1',
-                t: 'Velg i kalkulatoren',
-                d: 'Velg materiale og omtrent hvor stor modellen er, eller plukk en ferdig modell fra galleriet.',
+                t: 'Velg og se prisen',
+                d: 'På bestillingssiden velger du materiale og størrelse, og prisen står rett ved siden av mens du velger.',
               },
               {
                 n: '2',
@@ -314,7 +322,7 @@ export default async function Hjem({
         </div>
       </section>
 
-      {/* ---------------- SLIK NÅR DU OSS ---------------- */}
+      {/* ---------------- KONTAKT ---------------- */}
       <section className="relative py-16 sm:py-20">
         <Blobs variant="soft" />
         <div className="container-x">
@@ -434,8 +442,8 @@ export default async function Hjem({
                   med resten – og du får alltid pris før vi starter.
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-3">
-                  <Link href="/kalkulator" className="btn-primary">
-                    Regn ut prisen
+                  <Link href="/bestill" className="btn-primary">
+                    Bestill nå
                   </Link>
                   <a href={telHref(telefon)} className="btn bg-white/10 text-white hover:bg-white/20">
                     Ring {formatPhone(telefon)}

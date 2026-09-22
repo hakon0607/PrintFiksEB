@@ -11,6 +11,11 @@ import { PublishBar } from './PublishBar';
 
 const meny = [
   { href: '/admin', label: 'Oversikt', ikon: 'M4 12h6V4H4zM14 20h6v-8h-6zM14 8h6V4h-6zM4 20h6v-4H4z' },
+  {
+    href: '/admin/oppgaver',
+    label: 'Oppgaver',
+    ikon: 'M9 5h9M9 12h9M9 19h9M4 5l1.2 1.2L7.5 4M4 12l1.2 1.2L7.5 11M4 19l1.2 1.2L7.5 18',
+  },
   { href: '/admin/priser', label: 'Priser', ikon: 'M12 3v18M7 7h7.5a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8' },
   { href: '/admin/galleri', label: 'Galleri', ikon: 'M4 5h16v14H4zM4 15l4.5-4.5L13 15l3-3 4 4' },
   { href: '/admin/tekster', label: 'Tekster', ikon: 'M5 6h14M5 12h14M5 18h9' },

@@ -10,6 +10,9 @@ const supabaseHost = (() => {
 })();
 
 const nextConfig = {
+  async redirects() {
+    return [{ source: '/kalkulator', destination: '/bestill', permanent: true }];
+  },
   images: {
     remotePatterns: [
       ...(supabaseHost ? [{ protocol: 'https', hostname: supabaseHost }] : []),

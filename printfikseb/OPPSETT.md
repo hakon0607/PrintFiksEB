@@ -108,12 +108,23 @@ Alt på nettsiden styres fra `/admin`. **Alt lagres automatisk** – dere ser
 | Side | Hva dere gjør der |
 |---|---|
 | **Oversikt** | Se hvor mye dere har lagt inn |
-| **Priser** | Pris per gram, startpris, tillegg, levering og størrelsene i kalkulatoren |
+| **Oppgaver** | Deres egen planlegging: hva skal gjøres, hvem gjør det, når er fristen |
+| **Priser** | Pris per gram, startpris, tillegg, levering og størrelsene kundene velger mellom |
 | **Galleri** | Legg inn ferdige modeller med bilde og pris. ID-nummer lages automatisk |
 | **Tekster** | Overskriften på forsiden, «om oss»-teksten og alt annet folk leser |
 | **Spørsmål og svar** | Svar på det kundene spør om ofte |
 | **Ansatte** | Hvem som vises på «Om oss», og hvem som får logge inn |
 | **Kontakt og levering** | Telefonnummer, Vipps, når folk kan ringe og sende melding, leveringstid og leveringsområde |
+
+### Oppgaver
+
+Under **Oppgaver** planlegger dere arbeidet. Skriv inn hva som skal gjøres, velg
+hvem i gruppa som tar det, sett en frist og hvor mye det haster. Huk av når det
+er ferdig, så flytter oppgaven seg ned under «Ferdig».
+
+Knappene øverst filtrerer: **Alle**, **Mine**, **Ufordelt** eller én person.
+Denne siden ser bare dere – den vises aldri på nettsiden, og den trenger ikke
+publiseres.
 
 ### Publisering – viktig!
 

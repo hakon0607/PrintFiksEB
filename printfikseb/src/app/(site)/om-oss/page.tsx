@@ -46,8 +46,8 @@ export default async function OmOssSide({
             </h1>
             <p className="mt-5 text-[17px] leading-relaxed text-ink-600">{text(s, 'tekst_om_oss', '')}</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/kalkulator" className="btn-primary">
-                Regn ut prisen
+              <Link href="/bestill" className="btn-primary">
+                Bestill og se prisen
               </Link>
               <a href={telHref(telefon)} className="btn-ghost">
                 Ring {formatPhone(telefon)}
@@ -65,11 +65,10 @@ export default async function OmOssSide({
         </div>
 
         {/* Nøkkeltall */}
-        <Stagger className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stagger className="mt-14 grid gap-4 sm:grid-cols-3">
           {[
             { t: `${dagerMin}–${dagerMaks}`, d: 'virkedager fra godkjent pris' },
             { t: `${radius} km`, d: 'gratis leveringsområde fra skolen' },
-            { t: '10. klasse', d: `elevbedrift ved ${text(s, 'bedrift_skole', 'Skranevatnet skole')}` },
             { t: 'PLA + PETG', d: 'materialer vi printer i' },
           ].map((n) => (
             <StaggerItem key={n.d}>

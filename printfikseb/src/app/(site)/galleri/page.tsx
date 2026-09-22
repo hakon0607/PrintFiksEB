@@ -32,8 +32,9 @@ export default async function GalleriSide({
             Ferdige modeller, klare til å bestilles
           </h1>
           <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-ink-600">
-            Dette er modeller vi allerede har laget og kan printe til deg. Hver modell har sin egen
-            ID – den tar du med i meldingen, så vet vi nøyaktig hva du vil ha.
+            Dette er modeller vi allerede har laget og kan printe til deg. Prisen du ser er
+            ferdig – ingen startpris kommer i tillegg. Hver modell har sin egen ID, og den tar du
+            med i meldingen så vi vet nøyaktig hva du vil ha.
           </p>
         </Reveal>
 
@@ -50,7 +51,7 @@ export default async function GalleriSide({
                 deg et tilbud.
               </p>
             </div>
-            <Link href="/kalkulator" className="btn-primary shrink-0">
+            <Link href="/bestill" className="btn-primary shrink-0">
               Bestill noe eget
             </Link>
           </div>

@@ -43,10 +43,9 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
           <h3 className="text-sm font-semibold text-white">Snarveier</h3>
           <ul className="mt-4 space-y-2.5 text-sm">
             {[
-              { href: '/kalkulator', label: 'Priskalkulator' },
+              { href: '/bestill', label: 'Bestill' },
               { href: '/galleri', label: 'Galleri' },
               { href: '/om-oss', label: 'Om oss og FAQ' },
-              { href: '/bestill', label: 'Handleliste' },
             ].map((l) => (
               <li key={l.href}>
                 <Link href={l.href} className="link-underline text-ink-300 hover:text-white">

@@ -66,7 +66,11 @@ export function orderTotals(
 
   const extras = orderExtras(items);
   const extrasSum = extras.reduce((sum, e) => sum + e.price, 0);
-  const startFee = items.length > 0 ? opts.startFee : 0;
+
+  // Startprisen gjelder bare når vi skal lage noe.
+  // Ferdige modeller fra galleriet har fast pris og får ingen startpris.
+  const kreverStartpris = items.some((i) => i.kind !== 'product');
+  const startFee = kreverStartpris ? opts.startFee : 0;
   const deliveryFee = opts.deliveryFee;
 
   const totalMin = itemsMin + extrasSum + startFee + deliveryFee;

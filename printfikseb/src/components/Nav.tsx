@@ -10,7 +10,7 @@ import { formatPhone, telHref } from '@/lib/settings';
 
 const links = [
   { href: '/', label: 'Hjem' },
-  { href: '/kalkulator', label: 'Priskalkulator' },
+  { href: '/bestill', label: 'Bestill' },
   { href: '/galleri', label: 'Galleri' },
   { href: '/om-oss', label: 'Om oss' },
 ];
@@ -119,18 +119,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
           </a>
 
           <Link href="/bestill" className="btn-primary btn-sm relative">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M4 6h2l2.2 9.2a2 2 0 0 0 2 1.5h6.9a2 2 0 0 0 1.9-1.4L21 9H7"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <circle cx="10.5" cy="19.5" r="1.4" fill="currentColor" />
-              <circle cx="17.5" cy="19.5" r="1.4" fill="currentColor" />
-            </svg>
-            <span className="hidden sm:inline">Handleliste</span>
+            <span>Bestill</span>
             <AnimatePresence>
               {ready && count > 0 && (
                 <motion.span

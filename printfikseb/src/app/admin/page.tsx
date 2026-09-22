@@ -5,31 +5,36 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAdmin } from '@/components/admin/AdminProvider';
 
-type Tall = { produkter: number; ansatte: number; materialer: number; sporsmal: number };
+type Tall = { produkter: number; ansatte: number; oppgaver: number; sporsmal: number };
 
 export default function AdminOversikt() {
   const { supabase, profile, user } = useAdmin();
-  const [tall, setTall] = useState<Tall>({ produkter: 0, ansatte: 0, materialer: 0, sporsmal: 0 });
+  const [tall, setTall] = useState<Tall>({ produkter: 0, ansatte: 0, oppgaver: 0, sporsmal: 0 });
 
   useEffect(() => {
     if (!supabase) return;
     (async () => {
-      const [p, a, m, f] = await Promise.all([
+      const [p, a, o, f] = await Promise.all([
         supabase.from('products').select('id', { count: 'exact', head: true }),
         supabase.from('team_members').select('id', { count: 'exact', head: true }),
-        supabase.from('materials').select('id', { count: 'exact', head: true }),
+        supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('done', false),
         supabase.from('faq').select('id', { count: 'exact', head: true }),
       ]);
       setTall({
         produkter: p.count ?? 0,
         ansatte: a.count ?? 0,
-        materialer: m.count ?? 0,
+        oppgaver: o.count ?? 0,
         sporsmal: f.count ?? 0,
       });
     })();
   }, [supabase]);
 
   const snarveier = [
+    {
+      href: '/admin/oppgaver',
+      tittel: 'Planlegg oppgaver',
+      tekst: 'Skriv ned hva som skal gjøres, gi det til noen og huk av når det er ferdig.',
+    },
     {
       href: '/admin/priser',
       tittel: 'Endre priser',
@@ -78,7 +83,7 @@ export default function AdminOversikt() {
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { t: tall.produkter, d: 'modeller i galleriet' },
-          { t: tall.materialer, d: 'materialer' },
+          { t: tall.oppgaver, d: 'oppgaver å gjøre' },
           { t: tall.ansatte, d: 'ansatte' },
           { t: tall.sporsmal, d: 'spørsmål og svar' },
         ].map((n, i) => (

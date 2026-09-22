@@ -111,3 +111,18 @@ export type SiteData = {
   faq: Faq[];
   connected: boolean;
 };
+
+export type Task = {
+  id: string;
+  title: string;
+  notes: string | null;
+  assigned_to: string | null;
+  due_date: string | null;
+  priority: 'lav' | 'normal' | 'hoy' | string;
+  done: boolean;
+  done_at: string | null;
+  done_by: string | null;
+  created_by: string | null;
+  sort: number;
+  created_at: string;
+};

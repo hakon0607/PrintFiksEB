@@ -252,6 +252,33 @@ drop policy if exists "status_skriv" on public.site_status;
 create policy "status_skriv" on public.site_status
   for all to authenticated using (true) with check (true);
 
+
+-- ------------------------------------------------------------
+-- 12. Oppgaver – deres egen planlegging (vises aldri på nettsiden)
+-- ------------------------------------------------------------
+create table if not exists public.tasks (
+  id              uuid primary key default gen_random_uuid(),
+  title           text not null,
+  notes           text default '',
+  assigned_to     uuid references public.team_members(id) on delete set null,
+  due_date        date,
+  priority        text not null default 'normal',   -- lav | normal | hoy
+  done            boolean not null default false,
+  done_at         timestamptz,
+  done_by         text,
+  created_by      text,
+  sort            int not null default 100,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists tasks_done_idx on public.tasks (done, due_date);
+
+alter table public.tasks enable row level security;
+
+drop policy if exists "oppgaver_ansatte" on public.tasks;
+create policy "oppgaver_ansatte" on public.tasks
+  for all to authenticated using (true) with check (true);
+
 -- ============================================================
 -- RLS – alle kan LESE nettsiden, bare innloggede ansatte kan ENDRE
 -- ============================================================
@@ -338,7 +365,7 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('kontakt_ringer_tilbake', 'Rekker vi ikke å ta telefonen, ringer vi tilbake så fort vi har tid.', 'Hvis dere ikke svarer', '', 'text', 'Kontakt', 46),
   ('sosial_instagram',    '',                                     'Instagram (lenke)',       'Valgfritt', 'text', 'Kontakt', 50),
   ('sosial_snapchat',     '',                                     'Snapchat (brukernavn)',   'Valgfritt', 'text', 'Kontakt', 60),
-  ('pris_startpris',      '100',                                  'Startpris (kr)',          'Legges på én gang per bestilling', 'number', 'Priser', 10),
+  ('pris_startpris',      '100',                                  'Startpris (kr)',          'Legges på én gang per bestilling. Ferdige modeller fra galleriet får ingen startpris.', 'number', 'Priser', 10),
   ('pris_startpris_pa',   'ja',                                   'Bruk startpris',          'Skru av for å fjerne startprisen helt', 'bool', 'Priser', 20),
   ('pris_valuta',         'kr',                                   'Valuta',                  '', 'text',     'Priser', 30),
   ('pris_reparasjon',     'Pris etter avtale',                    'Reparasjon – pristekst',  'Vises på reparasjonskortet', 'text', 'Priser', 40),
@@ -388,7 +415,7 @@ where not exists (select 1 from public.delivery_options);
 insert into public.faq (question, answer, sort)
 select * from (values
   ('Hvordan bestiller jeg?', 'Bruk priskalkulatoren eller galleriet, legg det du vil ha i handlelisten, og trykk «Send bestilling». Da får du en ferdig melding du bare sender til oss på SMS. Så svarer vi og avtaler resten.', 10),
-  ('Hva koster det?', 'Det koster 100 kr i startpris per bestilling, pluss 0,80 kr per gram for PLA eller 1,00 kr per gram for PETG. Skal vi designe 3D-filen for deg koster det 100 kr ekstra.', 20),
+  ('Hva koster det?', 'Skal vi lage noe for deg koster det 100 kr i startpris per bestilling, pluss 0,80 kr per gram for PLA eller 1,00 kr per gram for PETG. Skal vi designe 3D-filen for deg koster det 100 kr ekstra. Ferdige modeller fra galleriet har fast pris uten startpris.', 20),
   ('Må jeg vite hvor mange gram modellen er?', 'Nei. Du velger bare omtrent hvor stor den er i kalkulatoren, så gir vi deg en nøyaktig pris på melding etterpå.', 30),
   ('Hva hvis jeg ikke har en 3D-fil?', 'Da kan du sende oss en detaljert tegning med alle mål, så printer vi etter den. Eller så designer vi filen for deg for 100 kr. Vi kan også komme hjem til deg og ta målene for 50 kr ekstra.', 40),
   ('Hvor lang tid tar det?', 'Vanligvis 2–4 virkedager fra du har godkjent prisen. Store eller kompliserte jobber kan ta litt lenger – da sier vi fra.', 50),

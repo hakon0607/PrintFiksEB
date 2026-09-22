@@ -10,21 +10,27 @@ Nettsiden til **PrintFiksEB** – elevbedrift ved Skranevatnet skole som driver 
 | Side | Innhold |
 |---|---|
 | `/` | Forside med animert hero, tjenester, priser og «slik bestiller du» |
-| `/kalkulator` | Rask «hva koster det»-kalkulator – materiale og størrelse, ingen bestilling |
 | `/galleri` | Ferdige modeller med bilde, ID-nummer og fast pris |
-| `/bestill` | Full konfigurator + handleliste → ferdig utfylt SMS, eller ring oss |
+| `/bestill` | Hele bestillingen: valg til venstre, live priskalkulator og bestillingen til høyre |
 | `/om-oss` | Om elevbedriften, teamet, betaling, levering og FAQ |
 | `/admin` | Adminpanel der alt på nettsiden kan endres uten å kode |
+| `/admin/oppgaver` | Intern oppgaveliste for planlegging (vises aldri på nettsiden) |
 
-## Kalkulator og bestilling er to forskjellige ting
+## Bestillingssiden
 
-**`/kalkulator`** er en rask prissjekk: velg materiale og omtrent hvor stor
-modellen er, så vises et estimat. Ingen handleliste, ingen skjema. Knappen
-«Bestill dette» tar valget med videre til bestillingssiden.
+Alt skjer på `/bestill`. Siden er delt i to: til venstre tre steg man klikker
+opp og ned (1 Hva skal vi lage, 2 Levering, 3 Om deg), til høyre priskalkulatoren
+som viser hva det man holder på å velge koster – og under den selve bestillingen
+med totalsum og send-knappene.
 
-**`/bestill`** er den detaljerte delen: her beskriver kunden hva de vil ha,
-velger materiale, størrelse (eller eksakt vekt), antall og tillegg, legger til
-flere ting, og fyller inn levering og kontaktinfo.
+Steg 1 er sammenslått når man kommer inn, så siden er lett å få oversikt over.
+Den åpner seg automatisk hvis man kom fra hurtigstarten på forsiden, og lukker
+seg igjen når man har lagt noe til.
+
+`/kalkulator` finnes ikke lenger som egen side – gamle lenker sendes til `/bestill`.
+
+**Startprisen legges bare på når vi skal lage noe.** Ferdige modeller fra
+galleriet har fast pris, uten startpris.
 
 ## To måter å bestille på
 
