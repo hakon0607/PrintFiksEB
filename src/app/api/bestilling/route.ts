@@ -69,6 +69,11 @@ export async function POST(request: Request) {
   const kommentar = tekst(body.kommentar, 1000);
   const beskrivelse = tekst(body.beskrivelse, 1000);
   const varer = Array.isArray(body.varer) ? (body.varer as Vare[]).slice(0, 30) : [];
+  const vilkarGodtatt = Boolean((body as { vilkarGodtatt?: unknown }).vilkarGodtatt);
+
+  // Bare ferdige modeller fra galleriet = fast pris, ingen godkjenning
+  const bareFastPris =
+    varer.length > 0 && varer.every((v) => tekst(v.type, 20) === 'galleri') && !beskrivelse;
 
   if (navn.split(' ').filter(Boolean).length < 2) {
     return NextResponse.json({ feil: 'Skriv hele navnet ditt, både fornavn og etternavn.' }, { status: 400 });
@@ -127,6 +132,8 @@ export async function POST(request: Request) {
       pris: tall(body.sumMin),
       status: 'ny',
       kilde: 'nett',
+      krever_godkjenning: !bareFastPris,
+      vilkar_godtatt: vilkarGodtatt,
       opprettet_av: 'Nettsiden',
     })
     .select()
@@ -181,6 +188,7 @@ export async function POST(request: Request) {
     bedriftTelefon,
     nettside: s.nettside_url || new URL(request.url).origin,
     leveringstid,
+    fastPris: bareFastPris,
   };
 
   // Hvem av oss skal ha varsel?
@@ -214,6 +222,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     ordrenr,
+    fastPris: bareFastPris,
     epostSendt: tilKunde.ok,
   });
 }

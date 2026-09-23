@@ -168,6 +168,8 @@ export type Order = {
   epost?: string | null;
   ordrenr?: string | null;
   kilde?: string | null;
+  krever_godkjenning?: boolean | null;
+  vilkar_godtatt?: boolean | null;
   betalt: boolean;
   betalingsmate: string | null;
   status: string;

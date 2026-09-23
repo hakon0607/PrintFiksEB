@@ -32,6 +32,7 @@ type Props = {
   businessName: string;
   paymentText: string;
   approvalText: string;
+  termsText: string;
   repairPriceText: string;
   repairText: string;
   phoneHours: string;
@@ -64,6 +65,7 @@ export function Bestilling(props: Props) {
     businessName,
     paymentText,
     approvalText,
+    termsText,
     repairPriceText,
     repairText,
     phoneHours,
@@ -118,6 +120,8 @@ export function Bestilling(props: Props) {
   const [tlf, setTlf] = useState('');
   const [epost, setEpost] = useState('');
   const [betaling, setBetaling] = useState('Vipps');
+  const [godtarVilkar, setGodtarVilkar] = useState(false);
+  const [visVilkar, setVisVilkar] = useState(false);
   const [sender, setSender] = useState(false);
   const [sendeFeil, setSendeFeil] = useState('');
   const [kommentar, setKommentar] = useState('');
@@ -186,12 +190,20 @@ export function Bestilling(props: Props) {
     [items, startFee, useStartFee, leveringPris]
   );
 
+  // Bare ferdige modeller fra galleriet = fast pris, ingen godkjenning
+  const bareFastPris = items.length > 0 && items.every((i) => i.kind === 'product');
+
   const manglerNavn = navn.trim().split(/\s+/).filter(Boolean).length < 2;
   const manglerTlf = tlf.replace(/\D/g, '').length < 8;
   const manglerEpost = !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(epost.trim());
   const manglerAdresse = krevAdresse && !adresse.trim();
   const klar =
-    items.length > 0 && !manglerNavn && !manglerTlf && !manglerEpost && !manglerAdresse;
+    items.length > 0 &&
+    !manglerNavn &&
+    !manglerTlf &&
+    !manglerEpost &&
+    !manglerAdresse &&
+    godtarVilkar;
 
   const mangeltekst = manglerNavn
     ? 'Skriv hele navnet ditt i steg 3.'
@@ -199,7 +211,9 @@ export function Bestilling(props: Props) {
       ? 'Skriv mobilnummeret ditt i steg 3.'
       : manglerEpost
         ? 'Skriv e-postadressen din i steg 3.'
-        : 'Skriv adressen i steg 3.';
+        : manglerAdresse
+          ? 'Skriv adressen i steg 3.'
+          : 'Kryss av for at du godtar vilkårene.';
 
   function toggleExtra(id: string) {
     setValgteExtras((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -293,6 +307,7 @@ export function Bestilling(props: Props) {
           sum: sumTekst,
           sumMin: totals.hasUnknown ? 0 : totals.totalMin,
           sumMaks: totals.hasUnknown ? 0 : totals.totalMax,
+          vilkarGodtatt: godtarVilkar,
         }),
       });
 
@@ -317,6 +332,7 @@ export function Bestilling(props: Props) {
             kommentar: kommentar.trim(),
             varer,
             sum: sumTekst,
+            fastPris: bareFastPris,
             epostSendt: Boolean(svar.epostSendt),
           })
         );
@@ -878,6 +894,47 @@ export function Bestilling(props: Props) {
           )}
 
           <div className="border-t border-ink-100 bg-ink-50/60 p-5">
+            <div className="mb-3 rounded-2xl border border-ink-200 bg-white p-3.5">
+              <label className="flex items-start gap-2.5 text-[13px] font-semibold text-ink-800">
+                <input
+                  type="checkbox"
+                  checked={godtarVilkar}
+                  onChange={(e) => setGodtarVilkar(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-ink-300 text-brand-600"
+                />
+                <span>
+                  Jeg godtar vilkårene og vet at bestillingen er bindende.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setVisVilkar((v) => !v)}
+                    className="font-bold text-brand-700 underline-offset-2 hover:underline"
+                  >
+                    {visVilkar ? 'Skjul vilkårene' : 'Les vilkårene'}
+                  </button>
+                </span>
+              </label>
+
+              <AnimatePresence initial={false}>
+                {visVilkar && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 max-h-56 space-y-2 overflow-auto rounded-xl bg-ink-50 p-3.5 text-[12px] leading-relaxed text-ink-600">
+                      {termsText
+                        .split(/\n\s*\n/)
+                        .filter(Boolean)
+                        .map((avsnitt, i) => (
+                          <p key={i}>{avsnitt}</p>
+                        ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {items.length > 0 && !klar && (
               <p className="mb-3 rounded-2xl bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-700">
                 {mangeltekst}
@@ -937,7 +994,9 @@ export function Bestilling(props: Props) {
                 {callbackText}
               </p>
               <p className="pt-1">
-                Vi tar kontakt så fort vi kan for å avtale detaljene. {approvalText}
+                {bareFastPris
+                  ? 'Ferdige modeller fra galleriet har fast pris. Vi setter i gang med en gang, og tar kontakt om noe er uklart.'
+                  : `Vi tar kontakt så fort vi kan for å avtale detaljene. ${approvalText}`}
               </p>
             </div>
 
@@ -946,7 +1005,7 @@ export function Bestilling(props: Props) {
         </div>
 
         <p className="px-2 text-center text-xs leading-relaxed text-ink-400">
-          Ferdig på {daysMin}–{daysMax} virkedager etter at du har godkjent prisen. {paymentText}
+          Ferdig på {daysMin}–{daysMax} virkedager{bareFastPris ? '' : ' etter at du har godkjent prisen'}. {paymentText}
         </p>
       </div>
     </div>

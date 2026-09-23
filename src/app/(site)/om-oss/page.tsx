@@ -169,7 +169,9 @@ export default async function OmOssSide({
                 ))}
               </ul>
               <p className="mt-5 text-sm text-ink-500">
-                Vanlig leveringstid er {dagerMin}–{dagerMaks} virkedager etter at du har godkjent
+                Vanlig leveringstid er {dagerMin}–{dagerMaks} virkedager fra vi setter i gang. På
+                ferdige modeller fra galleriet starter vi med en gang; på ting vi lager spesielt til
+                deg starter vi når du har godkjent
                 prisen.
               </p>
             </div>

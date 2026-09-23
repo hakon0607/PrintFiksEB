@@ -46,6 +46,11 @@ export default async function BestillSide({
             businessName={text(s, 'bedrift_navn', 'PrintFiksEB')}
             paymentText={text(s, 'betaling_tekst', '')}
             approvalText={text(s, 'tekst_godkjenning', '')}
+            termsText={text(
+              s,
+              'tekst_vilkar',
+              'Når du sender inn en bestilling, er den bindende, og du plikter å betale for det du har bestilt. Ferdige modeller fra galleriet har fast pris og settes i produksjon med en gang. Ting vi lager spesielt til deg får du en endelig pris på som du må godkjenne først. Vil du avbestille, må du ringe eller sende melding før vi har startet produksjonen.'
+            )}
             repairPriceText={text(s, 'pris_reparasjon', 'Pris etter avtale')}
             repairText={text(s, 'tekst_reparasjon', '')}
             phoneHours={text(s, 'kontakt_ringetid', '')}

@@ -419,6 +419,8 @@ alter table public.orders add column if not exists kostnad numeric(10,2) not nul
 alter table public.orders add column if not exists epost text default '';
 alter table public.orders add column if not exists ordrenr text;
 alter table public.orders add column if not exists kilde text not null default 'admin';   -- nett | telefon | admin
+alter table public.orders add column if not exists krever_godkjenning boolean not null default true;
+alter table public.orders add column if not exists vilkar_godtatt boolean not null default false;
 
 create unique index if not exists orders_ordrenr_idx on public.orders (ordrenr) where ordrenr is not null;
 
@@ -573,7 +575,18 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('tekst_hero_ingress',  'PrintFiksEB er en elevbedrift på Skranevatnet skole. Send oss en idé, et mål eller et ødelagt plastdel – så lager vi det. Du får alltid en pris du må godkjenne før vi starter.', 'Forside – ingress', '', 'longtext', 'Tekster', 20),
   ('tekst_om_oss',        'PrintFiksEB er en elevbedrift drevet av 10. klassinger på Skranevatnet skole. Vi startet fordi vi syntes det var rart at så mye kastes når en liten plastdel ryker – og fordi 3D-printing rett og slett er gøy. I dag printer vi reservedeler, holdere, figurer, gaver og egne design for folk i nærmiljøet.', 'Om oss – tekst', '', 'longtext', 'Tekster', 30),
   ('tekst_reparasjon',    'Har du noe som har knekt? Beskriv det i bestillingen, så tar vi kontakt og finner ut om vi kan printe en ny del eller lage en løsning. Vi gir alltid pris før vi begynner.', 'Reparasjon – tekst', '', 'longtext', 'Tekster', 40),
-  ('tekst_godkjenning',   'Alle priser på nettsiden er estimat. Du får en endelig pris fra oss som du må godkjenne før vi starter å printe.', 'Tekst om prisgodkjenning', '', 'longtext', 'Tekster', 50),
+  ('tekst_vilkar',        'Når du sender inn en bestilling, er den bindende, og du plikter å betale for det du har bestilt.
+
+Ferdige modeller fra galleriet har fast pris. Da trenger vi ingen godkjenning, og vi starter produksjonen med en gang.
+
+Ting vi lager spesielt til deg – egne design, reparasjoner og alt som lages etter dine mål – får du en endelig pris på fra oss, som du må godkjenne før vi starter.
+
+Vil du avbestille, må du ringe eller sende melding til oss før vi har startet produksjonen. Har vi begynt å printe, må bestillingen betales.
+
+Angrerett: Ferdige modeller fra galleriet kan du angre på i 14 dager etter at du har fått dem, så lenge de ikke er tilpasset deg. Ting som er laget etter dine mål eller ønsker er unntatt angreretten, fordi de er laget spesielt til deg.
+
+Betaling skjer med Vipps eller kontant ved henting eller levering.', 'Vilkår for bestilling', 'Vises på /vilkar og i avkrysningen når kunden bestiller', 'longtext', 'Tekster', 60),
+  ('tekst_godkjenning',   'Priser på ting vi lager spesielt til deg er estimat – du får en endelig pris fra oss som du må godkjenne før vi starter. Ferdige modeller fra galleriet har fast pris, og dem setter vi i gang med med en gang.', 'Tekst om prisgodkjenning', '', 'longtext', 'Tekster', 50),
   ('tekst_fikse_tittel',  'Du vet ikke hva en 3D-printer kan fikse',  'Hva vi kan fikse – overskrift', '', 'text', 'Tekster', 60),
   ('tekst_fikse_ingress', 'De fleste tenker på 3D-printing som leker og figurer. Sannheten er at vi lager små plastdeler folk ellers kaster hele produktet for. Her er noen eksempler.', 'Hva vi kan fikse – ingress', '', 'longtext', 'Tekster', 70),
   ('tekst_fikse_ikke',    'Vi printer i plast, så vi kan ikke lage noe som skal tåle høy varme, bære tung vekt eller brukes i mat over tid. Metall, glass og elektronikk fikser vi heller ikke. Er du usikker? Spør oss – vi sier fra hvis det ikke går.', 'Hva vi IKKE kan gjøre', '', 'longtext', 'Tekster', 80),

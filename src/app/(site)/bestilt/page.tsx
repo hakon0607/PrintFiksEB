@@ -17,10 +17,11 @@ type Kvittering = {
   kommentar: string;
   varer: Vare[];
   sum: string;
+  fastPris?: boolean;
   epostSendt: boolean;
 };
 
-const STEG = [
+const STEG_VANLIG = [
   {
     t: 'Vi tar kontakt',
     d: 'Vi ringer eller sender melding så fort vi kan, for å avtale detaljene – og om vi trenger å møtes eller måle opp noe.',
@@ -30,6 +31,19 @@ const STEG = [
     d: 'Prisen under er et estimat. Du får en endelig pris fra oss som du må godkjenne før vi starter å printe.',
   },
   { t: 'Vi printer', d: 'Når du har sagt ja, setter vi i gang. Vanligvis ferdig på 2–4 virkedager.' },
+  { t: 'Henting eller levering', d: 'Du henter hos oss på Sandsli, eller vi kjører det hjem til deg.' },
+];
+
+const STEG_FAST = [
+  {
+    t: 'Fast pris – vi er i gang',
+    d: 'Du har bestilt ferdige modeller til fast pris, så vi trenger ingen godkjenning. Vi setter i gang med en gang.',
+  },
+  {
+    t: 'Vi tar kontakt om noe er uklart',
+    d: 'Er det noe vi lurer på – farge, antall eller levering – ringer vi eller sender melding.',
+  },
+  { t: 'Vi printer', d: 'Vanligvis ferdig på 2–4 virkedager.' },
   { t: 'Henting eller levering', d: 'Du henter hos oss på Sandsli, eller vi kjører det hjem til deg.' },
 ];
 
@@ -85,8 +99,9 @@ export default function BestiltSide() {
           transition={{ delay: 0.22 }}
           className="mx-auto mt-3 max-w-xl text-center text-[15px] leading-relaxed text-ink-600"
         >
-          Vi har fått bestillingen din og tar kontakt så fort vi kan. Du får en endelig pris fra oss
-          som du må godkjenne før vi starter å printe.
+          {k?.fastPris
+            ? 'Vi har fått bestillingen din. Dette er ferdige modeller til fast pris, så vi setter i gang med en gang – du trenger ikke godkjenne noe.'
+            : 'Vi har fått bestillingen din og tar kontakt så fort vi kan. Du får en endelig pris fra oss som du må godkjenne før vi starter å printe.'}
         </motion.p>
 
         {k?.ordrenr && (
@@ -104,7 +119,7 @@ export default function BestiltSide() {
 
         {/* Stegene */}
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
-          {STEG.map((s, i) => (
+          {(k?.fastPris ? STEG_FAST : STEG_VANLIG).map((s, i) => (
             <motion.div
               key={s.t}
               initial={{ opacity: 0, y: 14 }}
@@ -148,7 +163,9 @@ export default function BestiltSide() {
             </ul>
 
             <div className="flex items-center justify-between border-t border-ink-100 px-5 py-4">
-              <span className="text-sm font-semibold text-ink-700">Estimert pris</span>
+              <span className="text-sm font-semibold text-ink-700">
+                {k.fastPris ? 'Fast pris' : 'Estimert pris'}
+              </span>
               <span className="text-xl font-bold text-brand-700">{k.sum}</span>
             </div>
 

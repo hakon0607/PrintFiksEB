@@ -20,6 +20,8 @@ export type Kvittering = {
   bedriftTelefon: string;
   nettside: string;
   leveringstid: string;
+  /** Bare ferdige modeller til fast pris? Da trengs ingen godkjenning. */
+  fastPris?: boolean;
 };
 
 function esc(s: string): string {
@@ -90,9 +92,11 @@ export function kundeEpost(k: Kvittering): { emne: string; html: string; tekst: 
         <tr><td class="pad" style="padding:26px 30px 6px;">
           <p class="fade" style="margin:0 0 6px;font-size:16px;line-height:1.6;">Hei ${esc(k.kunde.split(' ')[0] || k.kunde)}!</p>
           <p class="fade" style="margin:0;font-size:15px;line-height:1.65;color:#525A6B;">
-            Vi har fått bestillingen din og tar kontakt så fort vi kan – på telefon eller melding –
-            for å avtale detaljene og om vi trenger å møtes eller måle opp noe.
-            <strong style="color:#14171C;">Du får en endelig pris som du må godkjenne før vi starter å printe.</strong>
+            ${
+              k.fastPris
+                ? 'Vi har fått bestillingen din. Dette er ferdige modeller med <strong style="color:#14171C;">fast pris</strong>, så vi setter i gang med en gang – ingen godkjenning trengs. Vi tar kontakt om noe er uklart, og når den er klar til henting eller levering.'
+                : 'Vi har fått bestillingen din og tar kontakt så fort vi kan – på telefon eller melding – for å avtale detaljene og om vi trenger å møtes eller måle opp noe. <strong style="color:#14171C;">Du får en endelig pris som du må godkjenne før vi starter å printe.</strong>'
+            }
           </p>
         </td></tr>
 
@@ -101,8 +105,14 @@ export function kundeEpost(k: Kvittering): { emne: string; html: string; tekst: 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fade" style="background:#F6F8FC;border-radius:18px;">
             <tr>
               <td style="padding:16px 18px;font-size:13px;line-height:1.5;color:#3D4453;">
-                <div style="margin-bottom:8px;"><strong style="color:#2559C7;">1.</strong> Vi tar kontakt og avtaler detaljer</div>
-                <div style="margin-bottom:8px;"><strong style="color:#2559C7;">2.</strong> Du får endelig pris og godkjenner den</div>
+                <div style="margin-bottom:8px;"><strong style="color:#2559C7;">1.</strong> ${
+                  k.fastPris ? 'Vi bekrefter bestillingen' : 'Vi tar kontakt og avtaler detaljer'
+                }</div>
+                <div style="margin-bottom:8px;"><strong style="color:#2559C7;">2.</strong> ${
+                  k.fastPris
+                    ? 'Fast pris – ingen godkjenning nødvendig'
+                    : 'Du får endelig pris og godkjenner den'
+                }</div>
                 <div style="margin-bottom:8px;"><strong style="color:#2559C7;">3.</strong> Vi printer – ferdig på ${esc(k.leveringstid)}</div>
                 <div><strong style="color:#2559C7;">4.</strong> Du henter, eller vi leverer hjem til deg</div>
               </td>
@@ -121,7 +131,11 @@ export function kundeEpost(k: Kvittering): { emne: string; html: string; tekst: 
             </tr>
           </table>
           <p style="margin:10px 0 0;font-size:12px;line-height:1.55;color:#697285;">
-            Dette er et estimat. Endelig pris får du fra oss før vi starter.
+            ${
+              k.fastPris
+                ? 'Dette er fast pris. Bestillingen er bindende – vil du avbestille, må du si fra før vi har startet produksjonen.'
+                : 'Dette er et estimat. Endelig pris får du fra oss før vi starter. Bestillingen er bindende når du har godkjent prisen.'
+            }
           </p>
         </td></tr>
 
@@ -164,8 +178,9 @@ export function kundeEpost(k: Kvittering): { emne: string; html: string; tekst: 
   const tekst = [
     `Takk for bestillingen! Bestilling #${k.ordrenr}`,
     '',
-    'Vi tar kontakt så fort vi kan for å avtale detaljene.',
-    'Du får en endelig pris som du må godkjenne før vi starter å printe.',
+    k.fastPris
+      ? 'Dette er ferdige modeller med fast pris, så vi setter i gang med en gang. Vi tar kontakt når den er klar.'
+      : 'Vi tar kontakt så fort vi kan for å avtale detaljene. Du får en endelig pris som du må godkjenne før vi starter å printe.',
     '',
     'Dette bestilte du:',
     ...k.linjer.map((l) => `- ${l.antall}x ${l.navn} – ${l.pris}`),
@@ -212,7 +227,11 @@ export function varselEpost(k: Kvittering): { emne: string; html: string; tekst:
         ${k.adresse ? `<div><strong>Adresse:</strong> ${esc(k.adresse)}</div>` : ''}
         <div><strong>Levering:</strong> ${esc(k.levering)} · <strong>Betaling:</strong> ${esc(k.betaling)}</div>
         ${k.kommentar ? `<div style="margin-top:10px;background:#F6F8FC;border-radius:12px;padding:12px 14px;">${esc(k.kommentar)}</div>` : ''}
-        <p style="margin:18px 0 0;font-size:13px;color:#697285;">Husk å ringe kunden og sende endelig pris til godkjenning.</p>
+        <p style="margin:18px 0 0;font-size:13px;color:#697285;">${
+          k.fastPris
+            ? 'Fast pris fra galleriet – ingen godkjenning trengs, bare sett i gang.'
+            : 'Husk å ringe kunden og sende endelig pris til godkjenning.'
+        }</p>
       </td></tr>
     </table>
   </td></tr></table>

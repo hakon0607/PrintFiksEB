@@ -874,6 +874,11 @@ export function Bestillinger() {
                               Fra nettsiden
                             </span>
                           )}
+                          {o.krever_godkjenning === false && (
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                              Fast pris
+                            </span>
+                          )}
                           {o.betalt ? (
                             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
                               Betalt
@@ -1006,6 +1011,18 @@ export function Bestillinger() {
                                   </p>
                                 </div>
                               </div>
+
+                              {o.krever_godkjenning === false ? (
+                                <p className="rounded-2xl bg-emerald-50 px-4 py-2.5 text-[13px] font-semibold text-emerald-800">
+                                  Fast pris fra galleriet – kunden trenger ikke godkjenne noe. Bare
+                                  sett i gang.
+                                </p>
+                              ) : (
+                                <p className="rounded-2xl bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-800">
+                                  Husk å sende endelig pris til kunden og få den godkjent før dere
+                                  starter.
+                                </p>
+                              )}
 
                               {ferdig && (
                                 <p className="rounded-2xl bg-emerald-50 px-4 py-2.5 text-[13px] font-semibold text-emerald-800">
