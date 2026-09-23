@@ -33,6 +33,21 @@ function startDato(periode: Periode): Date | null {
   return null;
 }
 
+/** Godtar "249", "249,50", "1 200", "249 kr", "kr 249,-" og liknende. */
+function lesBelop(raw: string): number | null {
+  const rent = raw
+    .replace(/\u00a0/g, ' ')
+    .replace(/kr/gi, '')
+    .replace(/[^0-9,.-]/g, '')
+    .replace(/\.(?=\d{3}\b)/g, '')
+    .replace(',', '.')
+    .replace(/-+$/, '')
+    .trim();
+  if (!rent) return null;
+  const n = Number(rent);
+  return Number.isFinite(n) ? n : null;
+}
+
 function iDag(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -184,25 +199,40 @@ export function Okonomi() {
 
   async function leggTil(e: React.FormEvent) {
     e.preventDefault();
-    if (!supabase) return;
-    const sum = Number(belop.replace(',', '.'));
-    if (!beskrivelse.trim() || !Number.isFinite(sum) || sum <= 0) {
-      setFeil('Skriv hva det gjelder og et beløp.');
+    if (!supabase) {
+      setFeil('Ingen kontakt med databasen. Last siden på nytt og prøv igjen.');
       return;
     }
+
+    const tekst = beskrivelse.trim() || kategori.trim();
+    const sum = lesBelop(belop);
+
+    if (!tekst) {
+      setFeil('Skriv kort hva det gjelder, f.eks. «1 kg PLA svart».');
+      return;
+    }
+    if (sum === null || sum <= 0) {
+      setFeil('Skriv et beløp større enn 0, f.eks. 249.');
+      return;
+    }
+
     setFeil('');
     const ny = {
-      dato,
+      dato: dato || iDag(),
       type,
       kategori: kategori.trim(),
-      beskrivelse: beskrivelse.trim(),
+      beskrivelse: tekst,
       belop: sum,
       betalt: true,
       opprettet_av: profile?.name || user?.email || '',
     };
     const { data, error } = await supabase.from('finances').insert(ny).select().single();
     if (error || !data) {
-      setFeil('Klarte ikke å lagre føringen.');
+      setFeil(
+        error?.message
+          ? `Klarte ikke å lagre: ${error.message}`
+          : 'Klarte ikke å lagre føringen.'
+      );
       return;
     }
     setPoster((prev) => [data as Finance, ...prev].sort((a, b) => (a.dato < b.dato ? 1 : -1)));
@@ -344,7 +374,10 @@ export function Okonomi() {
             <input
               id="okonomi-hva"
               value={beskrivelse}
-              onChange={(e) => setBeskrivelse(e.target.value)}
+              onChange={(e) => {
+                setBeskrivelse(e.target.value);
+                if (feil) setFeil('');
+              }}
               placeholder={type === 'utgift' ? 'F.eks. 1 kg PLA svart' : 'F.eks. salg på foreldremøte'}
               className="field"
             />
@@ -376,7 +409,10 @@ export function Okonomi() {
             <input
               id="okonomi-belop"
               value={belop}
-              onChange={(e) => setBelop(e.target.value)}
+              onChange={(e) => {
+                setBelop(e.target.value);
+                if (feil) setFeil('');
+              }}
               inputMode="decimal"
               placeholder="0"
               className="field"
@@ -531,8 +567,8 @@ export function Okonomi() {
                                 value={String(p.belop)}
                                 inputMode="decimal"
                                 onChange={(e) => {
-                                  const n = Number(e.target.value.replace(',', '.'));
-                                  endre(p.id, { belop: Number.isFinite(n) ? n : 0 });
+                                  const n = lesBelop(e.target.value);
+                                  endre(p.id, { belop: n ?? 0 });
                                 }}
                                 className="field"
                               />
