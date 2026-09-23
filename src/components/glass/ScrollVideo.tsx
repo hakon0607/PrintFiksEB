@@ -2,8 +2,12 @@
 
 import { useEffect, useRef } from 'react';
 
+/** Alle bildene fra print-videoen ligger i ett stort bilde (10 per rad). */
+const SPRITE = '/video/printing-sprite.jpg';
 const ANTALL = 153;
-const src = (i: number) => `/video/frames/f${String(i + 1).padStart(3, '0')}.jpg`;
+const KOLONNER = 10;
+const BW = 560;
+const BH = 316;
 
 /**
  * Mørk boks med print-videoen i bakgrunnen. Videoen spoles fram og tilbake
@@ -23,24 +27,23 @@ export function ScrollVideo({ children }: { children: React.ReactNode }) {
     if (!ctx) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const imgs: HTMLImageElement[] = [];
+    const sprite = new Image();
+    sprite.decoding = 'async';
     let lastetInn = false;
     let last = -1;
     let fi = 0;
     let raf = 0;
 
-    const last_inn = () => {
-      if (lastetInn) return;
-      lastetInn = true;
-      for (let i = 0; i < ANTALL; i++) {
-        const im = new Image();
-        im.decoding = 'async';
-        im.src = src(i);
-        imgs[i] = im;
-      }
-    };
-    // Last bildene først når boksen nærmer seg
-    const io = new IntersectionObserver(([e]) => e.isIntersecting && last_inn(), { rootMargin: '800px' });
+    // Last bildet først når boksen nærmer seg
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting && !lastetInn) {
+          lastetInn = true;
+          sprite.src = SPRITE;
+        }
+      },
+      { rootMargin: '800px' },
+    );
     io.observe(el);
 
     const fit = () => {
@@ -49,15 +52,17 @@ export function ScrollVideo({ children }: { children: React.ReactNode }) {
       canvas.height = canvas.clientHeight * d;
       last = -1;
     };
-    const draw = (im?: HTMLImageElement) => {
-      if (!im || !im.complete || !im.naturalWidth) return false;
+    const draw = (n: number) => {
+      if (!sprite.complete || !sprite.naturalWidth) return false;
+      const sx = (n % KOLONNER) * BW;
+      const sy = Math.floor(n / KOLONNER) * BH;
       const cw = canvas.width;
       const ch = canvas.height;
-      const s = Math.max(cw / im.naturalWidth, ch / im.naturalHeight);
-      const w = im.naturalWidth * s;
-      const h = im.naturalHeight * s;
+      const s = Math.max(cw / BW, ch / BH);
+      const w = BW * s;
+      const h = BH * s;
       ctx.clearRect(0, 0, cw, ch);
-      ctx.drawImage(im, (cw - w) / 2, (ch - h) / 2, w, h);
+      ctx.drawImage(sprite, sx, sy, BW, BH, (cw - w) / 2, (ch - h) / 2, w, h);
       return true;
     };
 
@@ -73,7 +78,7 @@ export function ScrollVideo({ children }: { children: React.ReactNode }) {
         }
         fi += (k * (ANTALL - 1) - fi) * 0.18;
         const n = Math.round(fi);
-        if (n !== last && draw(imgs[n])) last = n;
+        if (n !== last && draw(n)) last = n;
         if (pct.current) pct.current.textContent = String(Math.round(k * 100));
         if (bar.current) bar.current.style.width = `${k * 100}%`;
       }
