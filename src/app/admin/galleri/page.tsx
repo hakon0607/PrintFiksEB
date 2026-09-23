@@ -36,11 +36,18 @@ export default function GalleriAdmin() {
     },
     { key: 'price', label: 'Pris til kunden', type: 'price', suffix: 'kr' },
     {
+      key: 'cost_price',
+      label: 'Hva koster den oss',
+      type: 'price',
+      suffix: 'kr',
+      help: 'Skriv inn hva modellen faktisk koster å lage. Står det 0, regner vi det ut fra vekt og materialpris.',
+    },
+    {
       key: 'cost_extra',
       label: 'Ekstra kostnad',
       type: 'price',
       suffix: 'kr',
-      help: 'Ting utenom plasten: metallring, tape, emballasje, lim. Står det 0, regner vi bare plast.',
+      help: 'Ting som kommer i tillegg: metallring, tape, emballasje, lim. Legges alltid oppå.',
     },
     {
       key: 'code',
@@ -122,7 +129,8 @@ export default function GalleriAdmin() {
         radInfo={(rad) => {
           const m = regnMargin(rad, materialer);
           if (!m.pris) return 'Ingen pris satt ennå';
-          if (!m.kjentMateriale || !m.vekt) return `${kr(m.pris)} · sett materiale og vekt for å se margin`;
+          if (!m.egenKostpris && (!m.kjentMateriale || !m.vekt))
+            return `${kr(m.pris)} · skriv inn hva den koster oss for å se margin`;
           return `${kr(m.pris)} · koster oss ${kr(m.kost)} · vi tjener ${kr(m.overskudd)}${
             m.prosent === null ? '' : ` (${Math.round(m.prosent)} %)`
           }`;
@@ -138,6 +146,7 @@ export default function GalleriAdmin() {
           image_url: '',
           images: [],
           material: 'PLA',
+          cost_price: 0,
           cost_extra: 0,
           category: '',
           featured: false,
@@ -158,14 +167,15 @@ function MarginKort({
   materialer: Material[];
 }) {
   const m = regnMargin(rad, materialer);
-  const mangler = !m.kjentMateriale || !m.vekt;
+  const mangler = !m.egenKostpris && (!m.kjentMateriale || !m.vekt);
 
   if (mangler) {
     return (
       <div className="rounded-2xl bg-ink-50 px-4 py-3 text-sm text-ink-600">
-        Skriv inn <span className="font-semibold text-ink-800">materiale</span> (PLA eller PETG) og{' '}
-        <span className="font-semibold text-ink-800">vekt i gram</span>, så regner vi ut hva modellen
-        koster oss og hvor mye dere tjener på den.
+        Skriv inn <span className="font-semibold text-ink-800">hva den koster oss</span> – eller fyll
+        ut <span className="font-semibold text-ink-800">materiale</span> og{' '}
+        <span className="font-semibold text-ink-800">vekt i gram</span>, så regner vi det ut for
+        dere.
       </div>
     );
   }
@@ -201,11 +211,21 @@ function MarginKort({
       </div>
 
       <p className="mt-3 text-[13px] leading-relaxed text-ink-600">
-        {m.vekt} g {String(rad.material ?? '')} ×{' '}
-        {m.perGram.toLocaleString('nb-NO', { minimumFractionDigits: 2 })} kr = {kr(m.materialkost)} i
-        plast{m.ekstra > 0 ? ` + ${kr(m.ekstra)} i ekstra` : ''}. Materialprisen hentes fra{' '}
-        <span className="font-semibold text-ink-800">Priser</span>, så den endrer seg hvis dere
-        endrer den der.
+        {m.egenKostpris ? (
+          <>
+            Dere har satt kostprisen selv til {kr(m.materialkost)}
+            {m.ekstra > 0 ? ` + ${kr(m.ekstra)} i ekstra` : ''}. Tøm feltet «Hva koster den oss», så
+            regner vi den ut fra vekt og materialpris i stedet.
+          </>
+        ) : (
+          <>
+            {m.vekt} g {String(rad.material ?? '')} ×{' '}
+            {m.perGram.toLocaleString('nb-NO', { minimumFractionDigits: 2 })} kr ={' '}
+            {kr(m.materialkost)} i plast{m.ekstra > 0 ? ` + ${kr(m.ekstra)} i ekstra` : ''}.
+            Materialprisen hentes fra <span className="font-semibold text-ink-800">Priser</span>, så
+            den endrer seg hvis dere endrer den der.
+          </>
+        )}
       </p>
 
       {!bra && (

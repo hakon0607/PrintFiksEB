@@ -67,15 +67,28 @@ export function PrintBotSamtale({
   const [jobber, setJobber] = useState(false);
   const [feil, setFeil] = useState('');
   const bunnRef = useRef<HTMLDivElement>(null);
+  const boksRef = useRef<HTMLDivElement>(null);
+  // Var du nederst i samtalen da svaret kom? Bare da følger vi etter.
+  const folgMed = useRef(true);
+
+  function sjekkPosisjon() {
+    const el = boksRef.current;
+    if (!el) return;
+    folgMed.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+  }
 
   useEffect(() => {
-    bunnRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = boksRef.current;
+    if (!el || !folgMed.current) return;
+    // Vi flytter bare selve samtaleboksen, aldri hele siden
+    el.scrollTop = el.scrollHeight;
   }, [meldinger, jobber]);
 
   async function send(sporsmal?: string) {
     const innhold = (sporsmal ?? tekst).trim();
     if (!innhold || jobber || !supabase) return;
 
+    folgMed.current = true;
     const nye: Melding[] = [...meldinger, { rolle: 'bruker', tekst: innhold }];
     setMeldinger(nye);
     setTekst('');
@@ -185,8 +198,10 @@ export function PrintBotSamtale({
     <div className={full ? 'flex min-h-[min(70vh,640px)] flex-col' : 'flex flex-1 flex-col overflow-hidden'}>
       {/* Samtale */}
       <div
-        className={`flex-1 space-y-4 overflow-y-auto ${
-          full ? 'px-1 pb-4' : 'px-5 py-4'
+        ref={boksRef}
+        onScroll={sjekkPosisjon}
+        className={`flex-1 space-y-4 overflow-y-auto overscroll-contain ${
+          full ? 'max-h-[min(70vh,640px)] px-1 pb-4' : 'px-5 py-4'
         }`}
       >
         {meldinger.length === 0 && (

@@ -17,6 +17,13 @@ export default async function Hjem({
   const s = site.settings;
   const valuta = text(s, 'pris_valuta', 'kr');
   const startpris = num(s, 'pris_startpris', 100);
+  const aktiveMaterialer = site.materials.filter((m) => m.active !== false);
+  const materialNavn =
+    aktiveMaterialer.length > 1
+      ? `${aktiveMaterialer.slice(0, -1).map((m) => m.name).join(', ')} eller ${
+          aktiveMaterialer[aktiveMaterialer.length - 1].name
+        }`
+      : aktiveMaterialer[0]?.name ?? 'PLA';
   const brukStartpris = bool(s, 'pris_startpris_pa', true);
   const radius = num(s, 'levering_radius_km', 3);
   const dagerMin = num(s, 'levering_dager_min', 2);
@@ -104,7 +111,15 @@ export default async function Hjem({
           </div>
 
           <div className="lg:pl-6">
-            <PrinterAnimation />
+            <PrinterAnimation
+              materiale={site.materials[0]?.name ?? 'PLA'}
+              perGram={site.materials[0]?.price_per_gram ?? 0.8}
+              startpris={startpris}
+              eksempelVekt={60}
+              dagerMin={dagerMin}
+              dagerMaks={dagerMaks}
+              valuta={valuta}
+            />
           </div>
         </div>
       </section>
@@ -124,7 +139,7 @@ export default async function Hjem({
               {
                 tittel: '3D-print',
                 tekst:
-                  'Har du en fil, eller vet du hva du vil ha? Vi printer i PLA eller PETG og gir deg pris per gram – ingen skjulte tillegg.',
+                  `Har du en fil, eller vet du hva du vil ha? Vi printer i ${materialNavn} og gir deg pris per gram – ingen skjulte tillegg.`,
                 pris: `Fra ${kr(startpris, valuta)} + materialkostnad`,
                 ikon: (
                   <path

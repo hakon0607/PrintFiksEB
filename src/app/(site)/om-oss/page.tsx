@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getSiteFor } from '@/lib/data';
-import { num, text, formatPhone, telHref } from '@/lib/settings';
+import { num, text, kr, formatPhone, telHref } from '@/lib/settings';
 import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
 import { FaqList } from '@/components/Faq';
@@ -29,6 +29,9 @@ export default async function OmOssSide({
   const dagerMin = num(s, 'levering_dager_min', 2);
   const dagerMaks = num(s, 'levering_dager_maks', 4);
   const radius = num(s, 'levering_radius_km', 3);
+  const valuta = text(s, 'pris_valuta', 'kr');
+  const designPris = site.extras.find((e) => e.scope === 'item')?.price ?? 100;
+  const besokPris = site.extras.find((e) => e.scope === 'order')?.price ?? 50;
   const ringetid = text(s, 'kontakt_ringetid');
   const meldingstid = text(s, 'kontakt_meldingstid');
   const ringerTilbake = text(s, 'kontakt_ringer_tilbake');
@@ -112,11 +115,11 @@ export default async function OmOssSide({
               },
               {
                 t: 'Har du ikke en fil?',
-                d: 'Send oss en detaljert tegning med alle mål, så printer vi etter den. Eller så designer vi filen for deg for 100 kr.',
+                d: `Send oss en detaljert tegning med alle mål, så printer vi etter den. Eller så designer vi filen for deg for ${kr(designPris, valuta)}.`,
               },
               {
                 t: 'Vil du ikke tegne selv?',
-                d: `For 50 kr ekstra kommer en av oss hjem til deg, tar målene og lager tegningen. Gjelder innenfor ${radius} km fra skolen.`,
+                d: `For ${kr(besokPris, valuta)} ekstra kommer en av oss hjem til deg, tar målene og lager tegningen. Gjelder innenfor ${radius} km fra skolen.`,
               },
               {
                 t: 'Pris før vi starter',

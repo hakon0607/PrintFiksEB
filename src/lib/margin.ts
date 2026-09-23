@@ -9,6 +9,8 @@ export type Margin = {
   materialkost: number;
   /** Ekstra ting: metallring, tape, emballasje ... */
   ekstra: number;
+  /** Har dere satt kostprisen selv? */
+  egenKostpris: boolean;
   /** Alt det koster oss å lage én */
   kost: number;
   /** Det kunden betaler */
@@ -31,19 +33,29 @@ function tall(v: unknown): number {
  * Materialprisen hentes fra prislisten, så den følger med hvis dere endrer den.
  */
 export function regnMargin(
-  rad: { price?: unknown; weight_g?: unknown; material?: unknown; cost_extra?: unknown },
+  rad: {
+    price?: unknown;
+    weight_g?: unknown;
+    material?: unknown;
+    cost_extra?: unknown;
+    cost_price?: unknown;
+  },
   materialer: Material[]
 ): Margin {
   const navn = String(rad.material ?? '').trim().toLowerCase();
   const treff = materialer.find((m) => m.name.trim().toLowerCase() === navn);
   const perGram = treff ? tall(treff.price_per_gram) : 0;
   const vekt = tall(rad.weight_g);
-  const materialkost = vekt * perGram;
+  const egen = tall(rad.cost_price);
+  const egenKostpris = egen > 0;
+  // Har dere skrevet inn hva den faktisk koster, bruker vi det i stedet for regnestykket
+  const materialkost = egenKostpris ? egen : vekt * perGram;
   const ekstra = tall(rad.cost_extra);
   const kost = materialkost + ekstra;
   const pris = tall(rad.price);
   const overskudd = pris - kost;
   return {
+    egenKostpris,
     vekt,
     perGram,
     materialkost,

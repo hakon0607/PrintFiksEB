@@ -58,6 +58,7 @@ export type Product = {
   source_url?: string | null;
   price: number;
   cost_extra?: number | null;
+  cost_price?: number | null;
   image_url: string | null;
   material: string | null;
   weight_g: number | null;

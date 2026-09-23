@@ -1,10 +1,35 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { kr } from '@/lib/settings';
 
 const layers = Array.from({ length: 11 }, (_, i) => i);
 
-export function PrinterAnimation() {
+export type PrinterAnimationProps = {
+  /** Navnet på materialet vi viser fram, f.eks. PLA */
+  materiale?: string;
+  /** Kroner per gram for det materialet */
+  perGram?: number;
+  /** Startprisen fra innstillingene */
+  startpris?: number;
+  /** Vekten vi bruker i eksempelet */
+  eksempelVekt?: number;
+  dagerMin?: number;
+  dagerMaks?: number;
+  valuta?: string;
+};
+
+export function PrinterAnimation({
+  materiale = 'PLA',
+  perGram = 0.8,
+  startpris = 100,
+  eksempelVekt = 60,
+  dagerMin = 2,
+  dagerMaks = 4,
+  valuta = 'kr',
+}: PrinterAnimationProps) {
+  const estimat = Math.round(startpris + eksempelVekt * perGram);
+
   return (
     <div className="relative mx-auto w-full max-w-[420px]">
       <motion.div
@@ -24,7 +49,7 @@ export function PrinterAnimation() {
             </span>
           </div>
           <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-bold text-brand-700">
-            PLA · 0,80 kr/g
+            {materiale} · {perGram.toLocaleString('nb-NO', { minimumFractionDigits: 2 })} {valuta}/g
           </span>
         </div>
 
@@ -95,7 +120,9 @@ export function PrinterAnimation() {
 
         <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-ink-500">
           <span>Lag 11 av 11</span>
-          <span>Ferdig om ca. 2–4 dager</span>
+          <span>
+            Ferdig om ca. {dagerMin}–{dagerMaks} dager
+          </span>
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/80">
           <motion.div
@@ -115,10 +142,12 @@ export function PrinterAnimation() {
       >
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-400">Estimat</p>
         <p className="mt-1 text-2xl font-bold text-ink-900">
-          148 <span className="text-base font-semibold text-ink-500">kr</span>
+          {estimat.toLocaleString('nb-NO')}{' '}
+          <span className="text-base font-semibold text-ink-500">{valuta}</span>
         </p>
         <p className="mt-1 text-[11px] leading-snug text-ink-500">
-          Startpris 100 kr + 60 g PLA. Du godkjenner før vi starter.
+          Startpris {kr(startpris, valuta)} + {eksempelVekt} g {materiale}. Du godkjenner før vi
+          starter.
         </p>
       </motion.div>
     </div>
