@@ -136,6 +136,10 @@ alter table public.products add column if not exists tagline text default '';
 alter table public.products add column if not exists highlights text[] not null default '{}';
 alter table public.products add column if not exists cost_extra numeric(10,2) not null default 0;
 alter table public.products add column if not exists cost_price numeric(10,2) not null default 0;
+alter table public.products add column if not exists print_minutes int not null default 0;
+alter table public.products add column if not exists calculated_price numeric(10,2) not null default 0;
+alter table public.products add column if not exists suggested_price numeric(10,2) not null default 0;
+alter table public.products add column if not exists price_mode text not null default 'manual';
 
 -- Gir hver ny modell et tilfeldig 5-sifret ID-nummer hvis dere ikke fyller det ut
 create or replace function public.set_product_code()
@@ -529,6 +533,9 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('pris_startpris_pa',   'ja',                                   'Bruk startpris',          'Skru av for å fjerne startprisen helt', 'bool', 'Priser', 20),
   ('pris_valuta',         'kr',                                   'Valuta',                  '', 'text',     'Priser', 30),
   ('pris_reparasjon',     'Pris etter avtale',                    'Reparasjon – pristekst',  'Vises på reparasjonskortet', 'text', 'Priser', 40),
+  ('pris_filament_gram',  '0.30',                                 'Filament koster oss (kr/g)', 'Hva plasten faktisk koster oss per gram. Brukes til å regne ut anbefalt pris på modellene.', 'number', 'Priser', 50),
+  ('pris_printer_time',   '5',                                    'Printeren koster (kr/time)', 'Strøm og slitasje per time printeren går.', 'number', 'Priser', 60),
+  ('pris_profittfaktor',  '2.8',                                  'Profittfaktor',           'Kostnaden ganges med dette tallet. 2,8 er et vanlig utgangspunkt.', 'number', 'Priser', 70),
   ('levering_radius_km',  '3',                                    'Radius hjemlevering (km)','Målt fra skolen', 'number', 'Levering', 10),
   ('levering_dager_min',  '2',                                    'Leveringstid fra (dager)','Virkedager', 'number', 'Levering', 20),
   ('levering_dager_maks', '4',                                    'Leveringstid til (dager)','Virkedager', 'number', 'Levering', 30),

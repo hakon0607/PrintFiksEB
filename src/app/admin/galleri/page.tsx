@@ -6,12 +6,20 @@ import { AiNokkel } from '@/components/admin/AiNokkel';
 import { TableEditor, type Felt } from '@/components/admin/TableEditor';
 import { regnMargin } from '@/lib/margin';
 import { kr } from '@/lib/settings';
+import { foreslaPris, tidTekst } from '@/lib/prissetting';
+import {
+  Prisinnstillinger,
+  Prisoversikt,
+  Prispanel,
+  usePrisinnstillinger,
+} from '@/components/admin/Prissystem';
 import type { Material } from '@/lib/types';
 
 export default function GalleriAdmin() {
   const { profile, supabase } = useAdmin();
   const erEier = profile?.role === 'eier';
   const [materialer, setMaterialer] = useState<Material[]>([]);
+  const { innstillinger, verdier, setVerdier } = usePrisinnstillinger();
 
   // Materialprisene brukes til å regne ut hva hver modell koster oss
   const hentMaterialer = useCallback(async () => {
@@ -64,6 +72,12 @@ export default function GalleriAdmin() {
     },
     { key: 'material', label: 'Materiale', type: 'text', placeholder: 'PLA eller PETG' },
     { key: 'weight_g', label: 'Vekt', type: 'number', suffix: 'gram' },
+    {
+      key: 'print_minutes',
+      label: 'Printtid',
+      type: 'tid',
+      help: 'Slik sliceren viser den. Brukes til å regne ut anbefalt pris.',
+    },
     {
       key: 'description',
       label: 'Kort beskrivelse',
@@ -118,6 +132,14 @@ export default function GalleriAdmin() {
 
       <AiNokkel />
 
+      <Prisinnstillinger
+        verdier={verdier}
+        setVerdier={setVerdier}
+        innstillinger={innstillinger}
+      />
+
+      <Prisoversikt innstillinger={innstillinger} />
+
       <TableEditor
         table="products"
         tittel="Modeller i galleriet"
@@ -128,14 +150,30 @@ export default function GalleriAdmin() {
         tomTekst="Ingen modeller ennå. Trykk «Legg til modell», last opp bilder og skriv litt – så finpusser AI-en resten."
         radInfo={(rad) => {
           const m = regnMargin(rad, materialer);
-          if (!m.pris) return 'Ingen pris satt ennå';
+          const auto = String(rad.price_mode ?? 'manual') === 'automatic';
+          const merke = auto ? 'automatisk pris' : 'manuell pris';
+          const tid = Number(rad.print_minutes ?? 0) > 0 ? ` · ${tidTekst(rad.print_minutes)}` : '';
+          if (!m.pris) return `Ingen pris satt ennå${tid}`;
           if (!m.egenKostpris && (!m.kjentMateriale || !m.vekt))
-            return `${kr(m.pris)} · skriv inn hva den koster oss for å se margin`;
-          return `${kr(m.pris)} · koster oss ${kr(m.kost)} · vi tjener ${kr(m.overskudd)}${
+            return `${kr(m.pris)} · ${merke}${tid}`;
+          return `${kr(m.pris)} · ${merke}${tid} · vi tjener ${kr(m.overskudd)}${
             m.prosent === null ? '' : ` (${Math.round(m.prosent)} %)`
           }`;
         }}
-        radPanel={(rad) => <MarginKort rad={rad} materialer={materialer} />}
+        radPanel={(rad) => (
+          <div className="space-y-3">
+            <Prispanel rad={rad} innstillinger={innstillinger} />
+            <MarginKort rad={rad} materialer={materialer} />
+          </div>
+        )}
+        folgeEndring={(key, verdi, rad) => {
+          // Skriver dere prisen selv, blir modellen stående som manuell
+          if (key === 'price') {
+            const foreslatt = foreslaPris(rad.weight_g, rad.print_minutes, innstillinger).foreslatt;
+            return Number(verdi) === foreslatt ? null : { price_mode: 'manual' };
+          }
+          return null;
+        }}
         nyRad={{
           name: 'Ny modell',
           description: '',
@@ -148,6 +186,10 @@ export default function GalleriAdmin() {
           material: 'PLA',
           cost_price: 0,
           cost_extra: 0,
+          print_minutes: 0,
+          calculated_price: 0,
+          suggested_price: 0,
+          price_mode: 'manual',
           category: '',
           featured: false,
           active: true,

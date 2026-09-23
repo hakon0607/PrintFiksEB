@@ -59,6 +59,10 @@ export type Product = {
   price: number;
   cost_extra?: number | null;
   cost_price?: number | null;
+  print_minutes?: number | null;
+  calculated_price?: number | null;
+  suggested_price?: number | null;
+  price_mode?: string | null;
   image_url: string | null;
   material: string | null;
   weight_g: number | null;
