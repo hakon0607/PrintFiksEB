@@ -458,6 +458,33 @@ create policy "regnskap_ansatte" on public.finances
   for all to authenticated using (true) with check (true);
 
 
+-- ------------------------------------------------------------
+-- 18. Varelinjer: hva som faktisk ble solgt i hver bestilling
+-- ------------------------------------------------------------
+create table if not exists public.order_items (
+  id          uuid primary key default gen_random_uuid(),
+  order_id    uuid not null references public.orders(id) on delete cascade,
+  product_id  uuid references public.products(id) on delete set null,
+  code        text default '',              -- ID-nummeret modellen hadde da den ble solgt
+  name        text not null default '',
+  qty         int not null default 1,
+  unit_price  numeric(10,2) not null default 0,   -- hva kunden betaler per stk
+  unit_cost   numeric(10,2) not null default 0,   -- hva den koster oss per stk
+  kind        text not null default 'galleri',    -- galleri | egen
+  sort        int not null default 100,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists order_items_order_idx on public.order_items (order_id);
+create index if not exists order_items_product_idx on public.order_items (product_id);
+
+alter table public.order_items enable row level security;
+
+drop policy if exists "varelinjer_ansatte" on public.order_items;
+create policy "varelinjer_ansatte" on public.order_items
+  for all to authenticated using (true) with check (true);
+
+
 -- ============================================================
 -- SANNTID – gjør at endringer dukker opp hos alle med en gang
 -- ============================================================
@@ -467,7 +494,7 @@ declare
 begin
   foreach t in array array[
     'settings','materials','weight_ranges','extras','delivery_options',
-    'products','team_members','faq','examples','colors','tasks','orders','finances','profiles','site_status'
+    'products','team_members','faq','examples','colors','tasks','orders','order_items','finances','profiles','site_status'
   ]
   loop
     begin

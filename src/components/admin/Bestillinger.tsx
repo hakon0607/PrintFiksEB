@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { lyttPaTabell } from '@/lib/realtime';
-import type { Order, TeamMember } from '@/lib/types';
+import { kr } from '@/lib/settings';
+import { Varelinjer, summerLinjer, type NyLinje } from './Varelinjer';
+import type { Material, Order, OrderItem, Product, TeamMember } from '@/lib/types';
 
 const STATUSER = [
   { verdi: 'ny', tekst: 'Ny', farge: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -45,6 +47,10 @@ export function Bestillinger() {
   const [sok, setSok] = useState('');
   const [nyApen, setNyApen] = useState(false);
   const [apen, setApen] = useState<string | null>(null);
+  const [produkter, setProdukter] = useState<Product[]>([]);
+  const [materialer, setMaterialer] = useState<Material[]>([]);
+  const [linjer, setLinjer] = useState<Record<string, OrderItem[]>>({});
+  const [nyeLinjer, setNyeLinjer] = useState<NyLinje[]>([]);
 
   const [ny, setNy] = useState({
     kunde: '',
@@ -61,9 +67,12 @@ export function Bestillinger() {
   const hent = useCallback(async () => {
     if (!supabase) return;
     setLaster(true);
-    const [b, t] = await Promise.all([
+    const [b, t, v, p, m] = await Promise.all([
       supabase.from('orders').select('*').order('created_at', { ascending: false }),
       supabase.from('team_members').select('*').order('sort'),
+      supabase.from('order_items').select('*').order('sort'),
+      supabase.from('products').select('*').order('sort'),
+      supabase.from('materials').select('*').order('sort'),
     ]);
     if (b.error) {
       setMangler(true);
@@ -73,6 +82,14 @@ export function Bestillinger() {
     setMangler(false);
     setBestillinger((b.data as Order[]) ?? []);
     setFolk((t.data as TeamMember[]) ?? []);
+    setProdukter((p.data as Product[]) ?? []);
+    setMaterialer((m.data as Material[]) ?? []);
+
+    const samlet: Record<string, OrderItem[]> = {};
+    for (const rad of ((v.data as OrderItem[]) ?? [])) {
+      (samlet[rad.order_id] ||= []).push(rad);
+    }
+    setLinjer(samlet);
     setLaster(false);
   }, [supabase]);
 
@@ -99,15 +116,21 @@ export function Bestillinger() {
 
   async function opprett(e: React.FormEvent) {
     e.preventDefault();
-    if (!supabase || !ny.kunde.trim() || !ny.hva.trim()) return;
+    if (!supabase || !ny.kunde.trim()) return;
+    const linjeSum = summerLinjer(nyeLinjer);
+    const beskrivelse =
+      ny.hva.trim() ||
+      nyeLinjer.map((l) => `${l.qty}x ${l.name || 'Uten navn'}`).join(', ') ||
+      '';
+    if (!beskrivelse) return;
     const { data, error } = await supabase
       .from('orders')
       .insert({
         kunde: ny.kunde.trim(),
         telefon: ny.telefon.trim(),
         adresse: ny.adresse.trim(),
-        hva: ny.hva.trim(),
-        pris: Number(ny.pris) || 0,
+        hva: beskrivelse,
+        pris: nyeLinjer.length > 0 ? linjeSum.salg : Number(ny.pris) || 0,
         levering: ny.levering,
         betalingsmate: ny.betalingsmate,
         frist: ny.frist || null,
@@ -122,7 +145,18 @@ export function Bestillinger() {
       setFeil('Klarte ikke å lagre bestillingen.');
       return;
     }
-    setBestillinger((prev) => [data as Order, ...prev.filter((o) => o.id !== (data as Order).id)]);
+    const ordre = data as Order;
+    setBestillinger((prev) => [ordre, ...prev.filter((o) => o.id !== ordre.id)]);
+
+    if (nyeLinjer.length > 0) {
+      const { data: lagrede } = await supabase
+        .from('order_items')
+        .insert(nyeLinjer.map((l) => ({ ...l, order_id: ordre.id })))
+        .select();
+      setLinjer((prev) => ({ ...prev, [ordre.id]: (lagrede as OrderItem[]) ?? [] }));
+    }
+    setNyeLinjer([]);
+
     setNy({
       kunde: '',
       telefon: '',
@@ -146,6 +180,51 @@ export function Bestillinger() {
       .update({ ...patch, updated_at: new Date().toISOString() })
       .eq('id', id);
     if (error) setFeil('Klarte ikke å lagre endringen.');
+  }
+
+  /** Prisen på bestillingen følger varelinjene når det finnes noen. */
+  async function oppdaterSum(orderId: string, liste: OrderItem[]) {
+    if (liste.length === 0) return;
+    const sum = summerLinjer(liste).salg;
+    await endre(orderId, { pris: sum });
+  }
+
+  async function leggTilLinje(orderId: string, linje: NyLinje) {
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from('order_items')
+      .insert({ ...linje, order_id: orderId })
+      .select()
+      .single();
+    if (error || !data) {
+      setFeil('Klarte ikke å legge til varelinjen.');
+      return;
+    }
+    const liste = [...(linjer[orderId] ?? []), data as OrderItem];
+    setLinjer((prev) => ({ ...prev, [orderId]: liste }));
+    oppdaterSum(orderId, liste);
+  }
+
+  async function endreLinje(orderId: string, index: number, patch: Partial<NyLinje>) {
+    if (!supabase) return;
+    const liste = [...(linjer[orderId] ?? [])];
+    const rad = liste[index];
+    if (!rad) return;
+    liste[index] = { ...rad, ...patch } as OrderItem;
+    setLinjer((prev) => ({ ...prev, [orderId]: liste }));
+    await supabase.from('order_items').update(patch).eq('id', rad.id);
+    oppdaterSum(orderId, liste);
+  }
+
+  async function slettLinje(orderId: string, index: number) {
+    if (!supabase) return;
+    const liste = [...(linjer[orderId] ?? [])];
+    const rad = liste[index];
+    if (!rad) return;
+    liste.splice(index, 1);
+    setLinjer((prev) => ({ ...prev, [orderId]: liste }));
+    await supabase.from('order_items').delete().eq('id', rad.id);
+    oppdaterSum(orderId, liste);
   }
 
   async function slett(id: string) {
@@ -182,6 +261,44 @@ export function Bestillinger() {
       .reduce((sum, o) => sum + (Number(o.pris) || 0), 0);
     return { aktive, ubetalt, tjentDenneMnd };
   }, [bestillinger]);
+
+  // Hva selger best – teller alle linjer i bestillinger som ikke er avlyst
+  const bestselgere = useMemo(() => {
+    const talt = new Map<
+      string,
+      { navn: string; kode: string; antall: number; omsetning: number; fortjeneste: number }
+    >();
+    let totaltAntall = 0;
+
+    for (const o of bestillinger) {
+      if (o.status === 'avlyst') continue;
+      for (const l of linjer[o.id] ?? []) {
+        const nokkel = l.product_id ?? `egen:${l.name.toLowerCase().trim()}`;
+        const rad = talt.get(nokkel) ?? {
+          navn: l.name || 'Uten navn',
+          kode: l.kind === 'galleri' ? l.code ?? '' : '',
+          antall: 0,
+          omsetning: 0,
+          fortjeneste: 0,
+        };
+        const antall = Number(l.qty) || 0;
+        rad.antall += antall;
+        rad.omsetning += antall * Number(l.unit_price);
+        rad.fortjeneste += antall * (Number(l.unit_price) - Number(l.unit_cost));
+        talt.set(nokkel, rad);
+        totaltAntall += antall;
+      }
+    }
+
+    const liste = [...talt.values()].sort((a, b) => b.antall - a.antall);
+    return {
+      liste,
+      totaltAntall,
+      omsetning: liste.reduce((s, r) => s + r.omsetning, 0),
+      fortjeneste: liste.reduce((s, r) => s + r.fortjeneste, 0),
+      hoyeste: liste[0]?.antall ?? 1,
+    };
+  }, [bestillinger, linjer]);
 
   if (mangler) {
     return (
@@ -269,17 +386,36 @@ export function Bestillinger() {
                 </div>
 
                 <div className="sm:col-span-2">
+                  <Varelinjer
+                    linjer={nyeLinjer}
+                    produkter={produkter}
+                    materialer={materialer}
+                    onLeggTil={(l) => setNyeLinjer((prev) => [...prev, l])}
+                    onEndre={(i, patch) =>
+                      setNyeLinjer((prev) => prev.map((l, k) => (k === i ? { ...l, ...patch } : l)))
+                    }
+                    onSlett={(i) => setNyeLinjer((prev) => prev.filter((_, k) => k !== i))}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
                   <label className="label" htmlFor="b-hva">
-                    Hva skal lages? <span className="text-red-500">*</span>
+                    Notat om jobben{' '}
+                    {nyeLinjer.length === 0 && <span className="text-red-500">*</span>}
                   </label>
                   <textarea
                     id="b-hva"
-                    rows={3}
+                    rows={2}
                     value={ny.hva}
                     onChange={(e) => setNy({ ...ny, hva: e.target.value })}
                     className="field resize-none"
-                    placeholder="F.eks. «Saksholder i svart PLA, 2 stk. Skal designes fra bunnen. Har sendt mål på SMS.»"
+                    placeholder="F.eks. «Skal designes fra bunnen. Har sendt mål på SMS.»"
                   />
+                  {nyeLinjer.length > 0 && !ny.hva.trim() && (
+                    <p className="hint">
+                      Står dette tomt, bruker vi varelinjene som beskrivelse.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -301,11 +437,13 @@ export function Bestillinger() {
                   <input
                     id="b-pris"
                     type="number"
-                    value={ny.pris}
+                    value={nyeLinjer.length > 0 ? summerLinjer(nyeLinjer).salg : ny.pris}
                     onChange={(e) => setNy({ ...ny, pris: e.target.value })}
-                    className="field"
+                    readOnly={nyeLinjer.length > 0}
+                    className={`field ${nyeLinjer.length > 0 ? 'bg-ink-50 text-ink-600' : ''}`}
                     placeholder="0"
                   />
+                  {nyeLinjer.length > 0 && <p className="hint">Regnes ut fra varelinjene.</p>}
                 </div>
 
                 <div>
@@ -381,7 +519,7 @@ export function Bestillinger() {
                 <div className="sm:col-span-2">
                   <button
                     type="submit"
-                    disabled={!ny.kunde.trim() || !ny.hva.trim()}
+                    disabled={!ny.kunde.trim() || (!ny.hva.trim() && nyeLinjer.length === 0)}
                     className="btn-primary"
                   >
                     Lagre bestillingen
@@ -448,6 +586,12 @@ export function Bestillinger() {
                 key={o.id}
                 o={o}
                 folk={folk}
+                linjer={linjer[o.id] ?? []}
+                produkter={produkter}
+                materialer={materialer}
+                onLeggTilLinje={(l) => leggTilLinje(o.id, l)}
+                onEndreLinje={(i, patch) => endreLinje(o.id, i, patch)}
+                onSlettLinje={(i) => slettLinje(o.id, i)}
                 apen={apen === o.id}
                 onToggle={() => setApen(apen === o.id ? null : o.id)}
                 onEndre={(patch) => endre(o.id, patch)}
@@ -457,6 +601,55 @@ export function Bestillinger() {
           </AnimatePresence>
         </ul>
       )}
+
+      {/* Hva selger best */}
+      <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-soft">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-400">
+            Hva selger best
+          </p>
+          {bestselgere.totaltAntall > 0 && (
+            <p className="text-xs font-semibold text-ink-500">
+              {bestselgere.totaltAntall} solgt · {kr(bestselgere.omsetning)} · vi har tjent{' '}
+              {kr(bestselgere.fortjeneste)}
+            </p>
+          )}
+        </div>
+
+        {bestselgere.liste.length === 0 ? (
+          <p className="mt-4 rounded-2xl bg-ink-50 px-4 py-5 text-sm text-ink-500">
+            Ingen varelinjer ført ennå. Åpne en bestilling og legg inn hva som ble solgt – da dukker
+            topplisten opp her.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-2.5">
+            {bestselgere.liste.slice(0, 8).map((r) => (
+              <li key={`${r.kode}-${r.navn}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {r.kode && (
+                    <span className="rounded-full bg-ink-900 px-2 py-0.5 text-[10px] font-bold text-white">
+                      ID {r.kode}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-900">
+                    {r.navn}
+                  </span>
+                  <span className="shrink-0 text-sm font-bold text-ink-900">{r.antall} stk</span>
+                  <span className="shrink-0 text-xs font-semibold text-ink-500">
+                    {kr(r.omsetning)} · {kr(r.fortjeneste)} tjent
+                  </span>
+                </div>
+                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-ink-100">
+                  <div
+                    className="h-full rounded-full bg-brand-500"
+                    style={{ width: `${Math.max(4, (r.antall / bestselgere.hoyeste) * 100)}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -464,17 +657,29 @@ export function Bestillinger() {
 function Kort({
   o,
   folk,
+  linjer,
+  produkter,
+  materialer,
   apen,
   onToggle,
   onEndre,
   onSlett,
+  onLeggTilLinje,
+  onEndreLinje,
+  onSlettLinje,
 }: {
   o: Order;
   folk: TeamMember[];
+  linjer: OrderItem[];
+  produkter: Product[];
+  materialer: Material[];
   apen: boolean;
   onToggle: () => void;
   onEndre: (patch: Partial<Order>) => void;
   onSlett: () => void;
+  onLeggTilLinje: (linje: NyLinje) => void;
+  onEndreLinje: (index: number, patch: Partial<NyLinje>) => void;
+  onSlettLinje: (index: number) => void;
 }) {
   const s = statusInfo(o.status);
   const person = folk.find((f) => f.id === o.ansvarlig);
@@ -574,7 +779,18 @@ function Kort({
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <label className="label">Hva skal lages</label>
+                  <Varelinjer
+                    linjer={linjer}
+                    produkter={produkter}
+                    materialer={materialer}
+                    onLeggTil={onLeggTilLinje}
+                    onEndre={onEndreLinje}
+                    onSlett={onSlettLinje}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="label">Notat om jobben</label>
                   <textarea
                     rows={3}
                     defaultValue={o.hva}
@@ -610,10 +826,20 @@ function Kort({
                   <label className="label">Avtalt pris</label>
                   <input
                     type="number"
-                    defaultValue={Number(o.pris) || 0}
+                    key={linjer.length > 0 ? `sum-${summerLinjer(linjer).salg}` : 'manuell'}
+                    defaultValue={
+                      linjer.length > 0 ? summerLinjer(linjer).salg : Number(o.pris) || 0
+                    }
                     onBlur={(e) => onEndre({ pris: Number(e.target.value) || 0 })}
-                    className="field"
+                    readOnly={linjer.length > 0}
+                    className={`field ${linjer.length > 0 ? 'bg-ink-50 text-ink-600' : ''}`}
                   />
+                  {linjer.length > 0 && (
+                    <p className="hint">
+                      Regnes ut fra varelinjene. Vi tjener {kr(summerLinjer(linjer).fortjeneste)} på
+                      denne.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="label">Skal være ferdig</label>

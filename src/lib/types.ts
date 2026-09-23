@@ -185,3 +185,18 @@ export type Finance = {
   opprettet_av: string | null;
   created_at: string;
 };
+
+/** En varelinje i en bestilling – enten en modell fra galleriet eller en jobb vi lager selv. */
+export type OrderItem = {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  code: string | null;
+  name: string;
+  qty: number;
+  unit_price: number;
+  unit_cost: number;
+  kind: 'galleri' | 'egen' | string;
+  sort: number;
+  created_at?: string;
+};

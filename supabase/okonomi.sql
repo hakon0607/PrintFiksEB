@@ -35,3 +35,32 @@ do $$ begin
   begin alter publication supabase_realtime add table public.finances;
   exception when duplicate_object then null; when undefined_object then null; end;
 end $$;
+
+-- 4. Varelinjer: hva som faktisk ble solgt i hver bestilling
+create table if not exists public.order_items (
+  id          uuid primary key default gen_random_uuid(),
+  order_id    uuid not null references public.orders(id) on delete cascade,
+  product_id  uuid references public.products(id) on delete set null,
+  code        text default '',
+  name        text not null default '',
+  qty         int not null default 1,
+  unit_price  numeric(10,2) not null default 0,
+  unit_cost   numeric(10,2) not null default 0,
+  kind        text not null default 'galleri',
+  sort        int not null default 100,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists order_items_order_idx on public.order_items (order_id);
+create index if not exists order_items_product_idx on public.order_items (product_id);
+
+alter table public.order_items enable row level security;
+
+drop policy if exists "varelinjer_ansatte" on public.order_items;
+create policy "varelinjer_ansatte" on public.order_items
+  for all to authenticated using (true) with check (true);
+
+do $$ begin
+  begin alter publication supabase_realtime add table public.order_items;
+  exception when duplicate_object then null; when undefined_object then null; end;
+end $$;
