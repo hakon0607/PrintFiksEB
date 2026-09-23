@@ -27,7 +27,13 @@ export function Steps({ steps }: { steps: Steg[] }) {
           dot.current.style.left = `${smooth * 100}%`;
           dot.current.style.opacity = smooth > 0.01 && smooth < 0.99 ? '1' : '0';
         }
-        const n = steps.filter((_, i) => smooth >= i / (steps.length - 1) - 0.02).length;
+        // På mobil ligger stegene under hverandre – da tennes hvert tall når det kommer til syne
+        const mobil = window.innerWidth < 768;
+        const n = mobil
+          ? Array.from(el.querySelectorAll<HTMLElement>('.step-num')).filter(
+              (s) => s.getBoundingClientRect().top < h * 0.75,
+            ).length
+          : steps.filter((_, i) => smooth >= i / (steps.length - 1) - 0.02).length;
         setAktive((a) => (a === n ? a : n));
       }
       raf = requestAnimationFrame(loop);
