@@ -34,17 +34,14 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
   }, [pathname]);
 
   return (
-    <motion.header
-      initial={{ y: -90, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-      className="sticky top-0 z-50 px-3 pt-2.5 sm:px-4"
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'border-b border-ink-100/80 bg-white/80 backdrop-blur-xl shadow-[0_1px_20px_-10px_rgba(20,23,28,0.35)]'
+          : 'border-b border-transparent bg-white/40 backdrop-blur-md'
+      }`}
     >
-      <nav
-        className={`glass-nav glass-rim mx-auto flex w-full max-w-6xl items-center justify-between gap-4 rounded-full pl-4 pr-2.5 ${
-          scrolled ? 'is-scrolled h-[54px] max-w-[1080px]' : 'h-[60px]'
-        }`}
-      >
+      <nav className="container-x flex h-[68px] items-center justify-between gap-4">
         <Link href="/" className="group flex items-center gap-2.5" aria-label={businessName}>
           <motion.span
             whileHover={{ rotate: -6, scale: 1.06 }}
@@ -80,8 +77,8 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
                 {active && (
                   <motion.span
                     layoutId="nav-pill"
-                    className="glass-pill absolute inset-0 rounded-full"
-                    transition={{ type: 'spring', stiffness: 420, damping: 24, mass: 0.8 }}
+                    className="absolute inset-0 rounded-full bg-brand-50 ring-1 ring-brand-200/70"
+                    transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                   />
                 )}
                 <span className="relative">{link.label}</span>
@@ -122,7 +119,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
             </svg>
           </a>
 
-          <Link href="/bestill" className="btn-primary btn-sm relative" data-mag>
+          <Link href="/bestill" className="btn-primary btn-sm relative">
             <span>Bestill</span>
             <AnimatePresence>
               {ready && count > 0 && (
@@ -165,9 +162,9 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="glass mx-auto mt-2 max-w-6xl overflow-hidden rounded-3xl md:hidden"
+            className="overflow-hidden border-t border-ink-100 bg-white/95 backdrop-blur-xl md:hidden"
           >
-            <div className="flex flex-col gap-1 p-3">
+            <div className="container-x flex flex-col gap-1 py-3">
               {links.map((link) => (
                 <Link
                   key={link.href}
@@ -191,6 +188,6 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.header>
+    </header>
   );
 }

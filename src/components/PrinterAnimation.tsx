@@ -1,8 +1,6 @@
 'use client';
 
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { Tilt } from '@/components/glass/Tilt';
-import { CountUp } from '@/components/glass/CountUp';
+import { motion } from 'framer-motion';
 import { kr } from '@/lib/settings';
 
 const layers = Array.from({ length: 11 }, (_, i) => i);
@@ -31,22 +29,14 @@ export function PrinterAnimation({
   valuta = 'kr',
 }: PrinterAnimationProps) {
   const estimat = Math.round(startpris + eksempelVekt * perGram);
-  const { scrollY } = useScroll();
-  const parallax = useTransform(scrollY, [0, 800], [0, -90]);
 
   return (
-    <motion.div style={{ y: parallax }} className="relative mx-auto w-full max-w-[420px]">
-      <div
-        aria-hidden
-        className="glass-orb"
-        style={{ width: 520, height: 520, left: '50%', top: '50%', margin: '-260px 0 0 -260px' }}
-      />
-      <Tilt max={14} lift={0}>
+    <div className="relative mx-auto w-full max-w-[420px]">
       <motion.div
         initial={{ opacity: 0, scale: 0.94, y: 18 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        className="glass glass-slab relative overflow-hidden rounded-[2.25rem] p-6"
+        className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-white via-brand-50 to-brand-100 p-6 shadow-lift"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -142,18 +132,17 @@ export function PrinterAnimation({
           />
         </div>
       </motion.div>
-      </Tilt>
 
       {/* Flytende priskort */}
       <motion.div
         initial={{ opacity: 0, y: 16, x: -10 }}
         animate={{ opacity: 1, y: 0, x: 0 }}
         transition={{ delay: 0.5, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="glass glass-lens absolute -bottom-7 -left-3 w-[188px] rounded-[22px] p-4 sm:-left-8"
+        className="absolute -bottom-7 -left-3 w-[188px] rounded-2xl border border-ink-100 bg-white/95 p-4 shadow-lift backdrop-blur sm:-left-8"
       >
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-400">Estimat</p>
         <p className="mt-1 text-2xl font-bold text-ink-900">
-          <CountUp to={estimat} delay={700} />{' '}
+          {estimat.toLocaleString('nb-NO')}{' '}
           <span className="text-base font-semibold text-ink-500">{valuta}</span>
         </p>
         <p className="mt-1 text-[11px] leading-snug text-ink-500">
@@ -161,6 +150,6 @@ export function PrinterAnimation({
           starter.
         </p>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
