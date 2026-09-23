@@ -3,6 +3,8 @@ import { Nav } from '@/components/Nav';
 import { PreviewBanner } from '@/components/PreviewBanner';
 import { Besokende } from '@/components/Besokende';
 import { Footer } from '@/components/Footer';
+import { GlassBackdrop } from '@/components/glass/GlassBackdrop';
+import { GlassFx } from '@/components/glass/GlassFx';
 import { getSiteData } from '@/lib/data';
 import { text } from '@/lib/settings';
 
@@ -11,7 +13,9 @@ export const dynamic = 'force-dynamic';
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const site = await getSiteData();
   return (
-    <>
+    <div className="site">
+      <GlassBackdrop />
+      <GlassFx />
       <a
         href="#innhold"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
@@ -28,6 +32,6 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       />
       <main id="innhold">{children}</main>
       <Footer settings={site.settings} />
-    </>
+    </div>
   );
 }

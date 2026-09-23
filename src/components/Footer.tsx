@@ -25,8 +25,8 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
             'radial-gradient(60rem 22rem at 15% -10%, rgba(61,118,241,0.30), transparent 60%), radial-gradient(40rem 20rem at 95% 110%, rgba(37,89,199,0.28), transparent 60%)',
         }}
       />
-      <div className="container-x relative grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="sm:col-span-2 lg:col-span-1">
+      <div className="container-x relative grid gap-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="glass-smoke sm:col-span-2 lg:col-span-1">
           <div className="relative h-12 w-12 overflow-hidden rounded-2xl bg-white/10 p-1">
             <Image src="/logo-mark.png" alt="" fill sizes="48px" className="object-contain" />
           </div>
@@ -39,7 +39,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
           </p>
         </div>
 
-        <div>
+        <div className="glass-smoke">
           <h3 className="text-sm font-semibold text-white">Snarveier</h3>
           <ul className="mt-4 space-y-2.5 text-sm">
             {[
@@ -57,7 +57,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
           </ul>
         </div>
 
-        <div>
+        <div className="glass-smoke">
           <h3 className="text-sm font-semibold text-white">Kontakt</h3>
           <ul className="mt-4 space-y-2.5 text-sm text-ink-300">
             <li>
@@ -94,7 +94,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
           </ul>
         </div>
 
-        <div>
+        <div className="glass-smoke">
           <h3 className="text-sm font-semibold text-white">Betaling</h3>
           <p className="mt-4 text-sm text-ink-300">
             Vipps til <span className="font-semibold text-white">{formatPhone(vippsNr)}</span>, eller
