@@ -5,14 +5,19 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { lyttPaTabell } from '@/lib/realtime';
 import { kr } from '@/lib/settings';
-import {
-  Varelinjer,
-  beskriv,
-  linjeFraProdukt,
-  summer,
-  type Linje,
-} from './Varelinjer';
-import type { Material, Order, OrderItem, Product, TeamMember } from '@/lib/types';
+import { Handlekurv, bareGalleri, beskriv, summer, type Linje, type Rundt } from './Handlekurv';
+import { num } from '@/lib/settings';
+import type {
+  Color,
+  DeliveryOption,
+  Extra,
+  Material,
+  Order,
+  OrderItem,
+  Product,
+  TeamMember,
+  WeightRange,
+} from '@/lib/types';
 
 /* ------------------------------------------------------------------ */
 /*  Status – fire steg og avlyst. Gamle bestillinger tolkes automatisk */
@@ -59,7 +64,6 @@ type Utkast = {
   sendKvittering: boolean;
   adresse: string;
   notat: string;
-  levering: string;
   betalingsmate: string;
   frist: string;
   ansvarlig: string;
@@ -67,6 +71,10 @@ type Utkast = {
   kostnad: string;
   betalt: boolean;
 };
+
+function tomtRundt(leveringer: DeliveryOption[]): Rundt {
+  return { leveringId: leveringer[0]?.id ?? '', startpris: true, ordreExtras: [] };
+}
 
 function tomtUtkast(): Utkast {
   return {
@@ -76,7 +84,6 @@ function tomtUtkast(): Utkast {
     sendKvittering: true,
     adresse: '',
     notat: '',
-    levering: 'Henting',
     betalingsmate: 'Vipps',
     frist: '',
     ansvarlig: '',
@@ -89,8 +96,14 @@ function tomtUtkast(): Utkast {
 function OrdreSkjema({
   start,
   startLinjer,
+  startRundt,
   produkter,
   materialer,
+  farger,
+  vektIntervaller,
+  extras,
+  leveringer,
+  startpris,
   folk,
   lagreTekst,
   onLagre,
@@ -98,19 +111,27 @@ function OrdreSkjema({
 }: {
   start: Utkast;
   startLinjer: Linje[];
+  startRundt: Rundt;
   produkter: Product[];
   materialer: Material[];
+  farger: Color[];
+  vektIntervaller: WeightRange[];
+  extras: Extra[];
+  leveringer: DeliveryOption[];
+  startpris: number;
   folk: TeamMember[];
   lagreTekst: string;
-  onLagre: (u: Utkast, linjer: Linje[]) => Promise<void> | void;
+  onLagre: (u: Utkast, linjer: Linje[], rundt: Rundt) => Promise<void> | void;
   onAvbryt: () => void;
 }) {
   const [u, setU] = useState<Utkast>(start);
   const [linjer, setLinjer] = useState<Linje[]>(startLinjer);
+  const [rundt, setRundt] = useState<Rundt>(startRundt);
   const [lagrer, setLagrer] = useState(false);
   const [feil, setFeil] = useState('');
 
-  const sum = summer(linjer);
+  const prisdata = { extras, levering: leveringer, startpris };
+  const sum = summer(linjer, rundt, prisdata);
   const pris = tallFra(u.pris);
   const kostnad = tallFra(u.kostnad);
   const overskudd = pris - kostnad;
@@ -120,11 +141,10 @@ function OrdreSkjema({
     if (feil) setFeil('');
   }
 
-  /** Når varelinjene endrer seg, foreslår vi pris og kostnad – men overskriver aldri det dere har skrevet. */
-  function endreLinjer(nye: Linje[]) {
-    setLinjer(nye);
-    const gammel = summer(linjer);
-    const neste = summer(nye);
+  /** Endres kurven, foreslår vi ny pris og kostnad – men overskriver aldri det dere har skrevet selv. */
+  function oppdaterSummer(nyeLinjer: Linje[], nyRundt: Rundt) {
+    const gammel = summer(linjer, rundt, prisdata);
+    const neste = summer(nyeLinjer, nyRundt, prisdata);
     setU((prev) => ({
       ...prev,
       pris: prev.pris === '' || tallFra(prev.pris) === gammel.salg ? String(neste.salg) : prev.pris,
@@ -133,6 +153,17 @@ function OrdreSkjema({
           ? String(neste.kost)
           : prev.kostnad,
     }));
+  }
+
+  function endreLinjer(nye: Linje[]) {
+    // Startprisen faller bort av seg selv når bestillingen bare er ferdige modeller
+    setLinjer(nye);
+    oppdaterSummer(nye, rundt);
+  }
+
+  function endreRundt(ny: Rundt) {
+    setRundt(ny);
+    oppdaterSummer(linjer, ny);
   }
 
   async function lagre() {
@@ -144,13 +175,17 @@ function OrdreSkjema({
       setFeil('Skriv mobilnummeret til kunden.');
       return;
     }
+    if (sum.leveringPris > 0 && !u.adresse.trim()) {
+      setFeil('Skriv adressen når bestillingen skal leveres hjem.');
+      return;
+    }
     if (linjer.length === 0 && !u.notat.trim()) {
       setFeil('Legg inn minst én vare, eller skriv hva jobben går ut på i notatet.');
       return;
     }
     setLagrer(true);
     try {
-      await onLagre(u, linjer);
+      await onLagre(u, linjer, rundt);
     } catch {
       setFeil('Klarte ikke å lagre. Prøv igjen.');
     } finally {
@@ -200,11 +235,18 @@ function OrdreSkjema({
       </div>
 
       {/* 2. Varene */}
-      <Varelinjer
+      <Handlekurv
         linjer={linjer}
+        rundt={rundt}
         produkter={produkter}
         materialer={materialer}
-        onEndre={endreLinjer}
+        farger={farger}
+        vektIntervaller={vektIntervaller}
+        extras={extras}
+        leveringer={leveringer}
+        startpris={startpris}
+        onLinjer={endreLinjer}
+        onRundt={endreRundt}
       />
 
       {/* 3. Penger */}
@@ -264,24 +306,6 @@ function OrdreSkjema({
       {/* 4. Praktisk */}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <span className="label">Levering</span>
-          <div className="flex gap-2">
-            {['Henting', 'Hjemlevering'].map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => sett({ levering: v })}
-                className={`btn btn-sm flex-1 ${
-                  u.levering === v ? 'btn-dark' : 'border border-ink-200 bg-white text-ink-700'
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
           <span className="label">Betaling</span>
           <div className="flex gap-2">
             {['Vipps', 'Kontant'].map((v) => (
@@ -299,9 +323,11 @@ function OrdreSkjema({
           </div>
         </div>
 
-        {u.levering === 'Hjemlevering' && (
+        {sum.leveringPris > 0 && (
           <label className="block sm:col-span-2">
-            <span className="label">Adresse</span>
+            <span className="label">
+              Adresse <span className="text-red-500">*</span>
+            </span>
             <input
               value={u.adresse}
               onChange={(e) => sett({ adresse: e.target.value })}
@@ -400,6 +426,11 @@ export function Bestillinger() {
   const [linjer, setLinjer] = useState<Record<string, OrderItem[]>>({});
   const [produkter, setProdukter] = useState<Product[]>([]);
   const [materialer, setMaterialer] = useState<Material[]>([]);
+  const [farger, setFarger] = useState<Color[]>([]);
+  const [vektIntervaller, setVektIntervaller] = useState<WeightRange[]>([]);
+  const [extras, setExtras] = useState<Extra[]>([]);
+  const [leveringer, setLeveringer] = useState<DeliveryOption[]>([]);
+  const [startpris, setStartpris] = useState(100);
   const [folk, setFolk] = useState<TeamMember[]>([]);
   const [laster, setLaster] = useState(true);
   const [mangler, setMangler] = useState(false);
@@ -413,12 +444,17 @@ export function Bestillinger() {
   const hent = useCallback(async () => {
     if (!supabase) return;
     setLaster(true);
-    const [b, v, p, m, t] = await Promise.all([
+    const [b, v, p, m, t, f, w, e, d, inn] = await Promise.all([
       supabase.from('orders').select('*').order('created_at', { ascending: false }),
       supabase.from('order_items').select('*').order('sort'),
       supabase.from('products').select('*').order('sort'),
       supabase.from('materials').select('*').order('sort'),
       supabase.from('team_members').select('*').order('sort'),
+      supabase.from('colors').select('*').order('sort'),
+      supabase.from('weight_ranges').select('*').order('sort'),
+      supabase.from('extras').select('*').order('sort'),
+      supabase.from('delivery_options').select('*').order('sort'),
+      supabase.from('settings').select('key,value').in('key', ['pris_startpris', 'pris_startpris_pa']),
     ]);
     if (b.error) {
       setMangler(true);
@@ -430,6 +466,16 @@ export function Bestillinger() {
     setProdukter((p.data as Product[]) ?? []);
     setMaterialer((m.data as Material[]) ?? []);
     setFolk((t.data as TeamMember[]) ?? []);
+    setFarger((f.data as Color[]) ?? []);
+    setVektIntervaller((w.data as WeightRange[]) ?? []);
+    setExtras((e.data as Extra[]) ?? []);
+    setLeveringer((d.data as DeliveryOption[]) ?? []);
+
+    const innst: Record<string, string> = {};
+    for (const rad of ((inn.data as { key: string; value: string }[]) ?? [])) {
+      innst[rad.key] = rad.value;
+    }
+    setStartpris(num(innst, 'pris_startpris', 100));
 
     const samlet: Record<string, OrderItem[]> = {};
     for (const rad of ((v.data as OrderItem[]) ?? [])) {
@@ -479,8 +525,14 @@ export function Bestillinger() {
       }));
   }
 
-  async function opprett(u: Utkast, liste: Linje[]) {
+  async function opprett(u: Utkast, liste: Linje[], rundt: Rundt) {
     if (!supabase) return;
+    const sum = summer(liste, rundt, { extras, levering: leveringer, startpris });
+    const tilleggstekst = [
+      sum.start > 0 ? `startpris ${Math.round(sum.start)} kr` : '',
+      ...sum.valgteExtras.map((e) => `${e.name.toLowerCase()} ${Math.round(Number(e.price))} kr`),
+      sum.leveringPris > 0 ? `${sum.leveringNavn.toLowerCase()} ${Math.round(sum.leveringPris)} kr` : '',
+    ].filter(Boolean);
     const { data, error } = await supabase
       .from('orders')
       .insert({
@@ -490,11 +542,14 @@ export function Bestillinger() {
         kilde: 'telefon',
         adresse: u.adresse.trim(),
         hva: beskriv(liste) || u.notat.trim(),
-        notat: u.notat.trim(),
+        notat: [u.notat.trim(), tilleggstekst.length > 0 ? `Inkludert: ${tilleggstekst.join(', ')}` : '']
+          .filter(Boolean)
+          .join('\n\n'),
         pris: tallFra(u.pris),
         kostnad: tallFra(u.kostnad),
+        krever_godkjenning: !bareGalleri(liste),
         betalt: u.betalt,
-        levering: u.levering,
+        levering: sum.leveringNavn || 'Henting',
         betalingsmate: u.betalingsmate,
         frist: u.frist || null,
         ansvarlig: u.ansvarlig || null,
@@ -545,8 +600,9 @@ export function Bestillinger() {
     }
   }
 
-  async function lagreEndring(id: string, u: Utkast, liste: Linje[]) {
+  async function lagreEndring(id: string, u: Utkast, liste: Linje[], rundt: Rundt) {
     if (!supabase) return;
+    const sum = summer(liste, rundt, { extras, levering: leveringer, startpris });
     const patch = {
       kunde: u.kunde.trim(),
       telefon: u.telefon.trim(),
@@ -556,8 +612,9 @@ export function Bestillinger() {
       notat: u.notat.trim(),
       pris: tallFra(u.pris),
       kostnad: tallFra(u.kostnad),
+      krever_godkjenning: !bareGalleri(liste),
       betalt: u.betalt,
-      levering: u.levering,
+      levering: sum.leveringNavn || 'Henting',
       betalingsmate: u.betalingsmate,
       frist: u.frist || null,
       ansvarlig: u.ansvarlig || null,
@@ -686,7 +743,6 @@ export function Bestillinger() {
       sendKvittering: false,
       adresse: o.adresse ?? '',
       notat: o.notat ?? '',
-      levering: o.levering ?? 'Henting',
       betalingsmate: o.betalingsmate ?? 'Vipps',
       frist: o.frist ?? '',
       ansvarlig: o.ansvarlig ?? '',
@@ -694,6 +750,12 @@ export function Bestillinger() {
       kostnad: String(Number(o.kostnad ?? 0)),
       betalt: Boolean(o.betalt),
     };
+  }
+
+  /** Leveringen som allerede er valgt på bestillingen. Tillegg og startpris ligger i prisen. */
+  function rundtFra(o: Order): Rundt {
+    const valgt = leveringer.find((d) => d.name === o.levering) ?? leveringer[0];
+    return { leveringId: valgt?.id ?? '', startpris: false, ordreExtras: [] };
   }
 
   function linjerFra(o: Order): Linje[] {
@@ -757,8 +819,14 @@ export function Bestillinger() {
             <OrdreSkjema
               start={tomtUtkast()}
               startLinjer={[]}
+              startRundt={tomtRundt(leveringer)}
               produkter={produkter}
               materialer={materialer}
+              farger={farger}
+              vektIntervaller={vektIntervaller}
+              extras={extras}
+              leveringer={leveringer}
+              startpris={startpris}
               folk={folk}
               lagreTekst="Lagre bestillingen"
               onLagre={opprett}
@@ -922,11 +990,17 @@ export function Bestillinger() {
                             <OrdreSkjema
                               start={utkastFra(o)}
                               startLinjer={linjerFra(o)}
+                              startRundt={rundtFra(o)}
                               produkter={produkter}
                               materialer={materialer}
+                              farger={farger}
+                              vektIntervaller={vektIntervaller}
+                              extras={extras}
+                              leveringer={leveringer}
+                              startpris={startpris}
                               folk={folk}
                               lagreTekst="Lagre endringene"
-                              onLagre={(u, liste) => lagreEndring(o.id, u, liste)}
+                              onLagre={(u, liste, rundt) => lagreEndring(o.id, u, liste, rundt)}
                               onAvbryt={() => setRedigerer(null)}
                             />
                           ) : (

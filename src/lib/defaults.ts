@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   kontakt_epost: '',
   vipps_nummer: '41381608',
   vipps_navn: 'PrintFiksEB',
-  kontakt_meldingstid: 'Meldinger kan du sende når som helst – hele døgnet, alle dager.',
+  kontakt_meldingstid: 'Bestillinger på nettsiden tar vi imot hele døgnet, alle dager.',
   kontakt_ringetid: 'Ring mellom 15 og 21, mandag til lørdag.',
   kontakt_ringer_tilbake: 'Rekker vi ikke å ta telefonen, ringer vi tilbake så fort vi har tid.',
   sosial_instagram: '',
@@ -30,11 +30,11 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
     'Vi tar helst Vipps. Kontant går også fint, men si fra på forhånd så vi har veksel klart.',
   tekst_hero_tittel: 'Vi printer, fikser og designer det du trenger i 3D',
   tekst_hero_ingress:
-    'PrintFiksEB er en elevbedrift på Skranevatnet skole. Send oss en idé, et mål eller en ødelagt plastdel – så lager vi det. Du får alltid en pris du må godkjenne før vi starter.',
+    'PrintFiksEB er en elevbedrift på Skranevatnet skole. Bestill på nettsiden, så tar vi kontakt og gir deg en pris du må godkjenne før vi starter.',
   tekst_om_oss:
     'PrintFiksEB er en elevbedrift drevet av 10. klassinger på Skranevatnet skole. Vi startet fordi vi syntes det var rart at så mye kastes når en liten plastdel ryker – og fordi 3D-printing rett og slett er gøy. I dag printer vi reservedeler, holdere, figurer, gaver og egne design for folk i nærmiljøet.',
   tekst_reparasjon:
-    'Har du noe som har knekt? Send oss bilde og mål på SMS, så finner vi ut om vi kan printe en ny del eller lage en løsning. Vi gir alltid pris før vi begynner.',
+    'Har du noe som har knekt? Beskriv det i bestillingen, så tar vi kontakt og finner ut om vi kan printe en ny del eller lage en løsning. Vi gir alltid pris før vi begynner.',
   tekst_fikse_tittel: 'Du vet ikke hva en 3D-printer kan fikse',
   tekst_fikse_ingress:
     'De fleste tenker på 3D-printing som leker og figurer. Sannheten er at vi lager små plastdeler folk ellers kaster hele produktet for. Her er noen eksempler.',
@@ -42,8 +42,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
     'Vi printer i plast, så vi kan ikke lage noe som skal tåle høy varme, bære tung vekt eller brukes i mat over tid. Metall, glass og elektronikk fikser vi heller ikke. Er du usikker? Spør oss – vi sier fra hvis det ikke går.',
   video_url: '',
   ai_modell: 'gpt-4o-mini',
+  tekst_vilkar:
+    'Når du sender inn en bestilling, er den bindende, og du plikter å betale for det du har bestilt.\n\nFerdige modeller fra galleriet har fast pris. Da trenger vi ingen godkjenning, og vi starter produksjonen med en gang.\n\nTing vi lager spesielt til deg – egne design, reparasjoner og alt som lages etter dine mål – får du en endelig pris på fra oss, som du må godkjenne før vi starter.\n\nVil du avbestille, må du ringe eller sende melding til oss før vi har startet produksjonen. Har vi begynt å printe, må bestillingen betales.\n\nAngrerett: Ferdige modeller fra galleriet kan du angre på i 14 dager etter at du har fått dem, så lenge de ikke er tilpasset deg. Ting som er laget etter dine mål eller ønsker er unntatt angreretten, fordi de er laget spesielt til deg.\n\nBetaling skjer med Vipps eller kontant ved henting eller levering.',
   tekst_godkjenning:
-    'Alle priser på nettsiden er estimat. Du får en endelig pris på melding som du må godkjenne før vi starter å printe.',
+    'Priser på ting vi lager spesielt til deg er estimat – du får en endelig pris fra oss som du må godkjenne før vi starter. Ferdige modeller fra galleriet har fast pris, og dem setter vi i gang med med en gang.',
 };
 
 export const DEFAULT_SITE: SiteData = {
@@ -136,7 +138,7 @@ export const DEFAULT_SITE: SiteData = {
       id: 'f1',
       question: 'Hvordan bestiller jeg?',
       answer:
-        'Bruk priskalkulatoren eller galleriet, legg det du vil ha i handlelisten, og trykk «Send bestilling». Da får du en ferdig melding du bare sender til oss på SMS. Så svarer vi og avtaler resten.',
+        'Bruk bestillingssiden eller galleriet, legg det du vil ha i handlelisten, fyll inn fullt navn, mobilnummer og e-post, og trykk «Send bestilling». Bestillingen kommer rett inn til oss, du får kvittering på e-post med bestillingsnummer, og vi tar kontakt så fort vi kan.',
       active: true,
       sort: 10,
     },
@@ -144,7 +146,7 @@ export const DEFAULT_SITE: SiteData = {
       id: 'f2',
       question: 'Må jeg vite hvor mange gram modellen er?',
       answer:
-        'Nei. Du velger bare omtrent hvor stor den er i kalkulatoren, så gir vi deg en nøyaktig pris på melding etterpå.',
+        'Nei. Du velger bare omtrent hvor stor den er, så gir vi deg en nøyaktig pris når vi tar kontakt.',
       active: true,
       sort: 20,
     },
@@ -166,9 +168,9 @@ export const DEFAULT_SITE: SiteData = {
     },
     {
       id: 'f6',
-      question: 'Kan jeg ringe i stedet for å sende melding?',
+      question: 'Kan jeg ringe i stedet for å bestille på nettsiden?',
       answer:
-        'Ja! Meldinger kan du sende når som helst, hele døgnet. Telefonen tar vi mellom 15 og 21, mandag til lørdag. Rekker vi ikke å svare, ringer vi tilbake så fort vi har tid.',
+        'Ja! Bestillinger på nettsiden tar vi imot hele døgnet. Telefonen tar vi mellom 15 og 21, mandag til lørdag. Rekker vi ikke å svare, ringer vi tilbake så fort vi har tid, og fører bestillingen inn for deg.',
       active: true,
       sort: 45,
     },

@@ -5,6 +5,11 @@ import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
 import { PrinterAnimation } from '@/components/PrinterAnimation';
 import { ProductCard } from '@/components/ProductCard';
+import { SplitText } from '@/components/glass/SplitText';
+import { CountUp } from '@/components/glass/CountUp';
+import { Tilt } from '@/components/glass/Tilt';
+import { Steps } from '@/components/glass/Steps';
+import { ScrollVideo } from '@/components/glass/ScrollVideo';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,20 +47,25 @@ export default async function Hjem({
       {/* ---------------- HERO ---------------- */}
       <section className="relative overflow-hidden pb-20 pt-14 sm:pt-20">
         <Blobs />
+        <div aria-hidden className="drop" style={{ width: 90, height: 90, left: '46%', top: 40 }} />
+        <div aria-hidden className="drop hidden sm:block" style={{ width: 46, height: 46, left: '3%', top: '52%', animationDelay: '-3s' }} />
+        <div aria-hidden className="drop" style={{ width: 140, height: 140, right: '2%', bottom: 40, animationDelay: '-5s', animationDuration: '12s' }} />
         <div className="container-x grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
             <Reveal>
               <span className="eyebrow">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
+                <span className="live-dot relative h-1.5 w-1.5 rounded-full bg-brand-500" />
                 Elevbedrift på {text(s, 'bedrift_skole', 'Skranevatnet skole')}
               </span>
             </Reveal>
 
-            <Reveal delay={0.06}>
-              <h1 className="mt-5 text-balance text-4xl font-bold leading-[1.06] sm:text-5xl lg:text-[3.4rem]">
-                {text(s, 'tekst_hero_tittel', 'Vi printer, fikser og designer det du trenger i 3D')}
-              </h1>
-            </Reveal>
+            <SplitText
+              as="h1"
+              delay={0.08}
+              highlight="i 3D"
+              text={text(s, 'tekst_hero_tittel', 'Vi printer, fikser og designer det du trenger i 3D')}
+              className="mt-5 text-balance text-4xl font-bold leading-[1.06] sm:text-5xl lg:text-[3.4rem]"
+            />
 
             <Reveal delay={0.12}>
               <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-ink-600">
@@ -65,7 +75,7 @@ export default async function Hjem({
 
             <Reveal delay={0.18}>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/bestill" className="btn-primary">
+                <Link href="/bestill" className="btn-primary" data-mag>
                   Bestill og se prisen
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path
@@ -97,7 +107,14 @@ export default async function Hjem({
             <Reveal delay={0.24}>
               <dl className="mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-ink-100 pt-6">
                 {[
-                  { t: `${dagerMin}–${dagerMaks}`, d: 'virkedager levering' },
+                  {
+                    t: (
+                      <>
+                        <CountUp to={dagerMin} />–<CountUp to={dagerMaks} />
+                      </>
+                    ),
+                    d: 'virkedager levering',
+                  },
                   { t: 'Gratis', d: 'henting på Sandsli' },
                   { t: 'Vipps', d: 'eller kontant' },
                 ].map((item) => (
@@ -129,9 +146,7 @@ export default async function Hjem({
         <div className="container-x">
           <Reveal>
             <span className="eyebrow">Tjenester</span>
-            <h2 className="mt-4 max-w-2xl text-balance text-3xl font-bold sm:text-4xl">
-              Tre ting vi er gode på
-            </h2>
+            <SplitText text="Tre ting vi er gode på" className="mt-4 max-w-2xl text-balance text-3xl font-bold sm:text-4xl" />
           </Reveal>
 
           <Stagger className="mt-10 grid gap-5 md:grid-cols-3">
@@ -181,13 +196,14 @@ export default async function Hjem({
               },
             ].map((kort) => (
               <StaggerItem key={kort.tittel} className="h-full">
-                <div className="group relative h-full overflow-hidden rounded-3xl border border-ink-100 bg-white p-6 shadow-soft transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-200 hover:shadow-lift">
+                <Tilt className="h-full">
+                <div className="glass group relative h-full overflow-hidden rounded-[28px] p-6">
                   <div
                     aria-hidden
-                    className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-brand-50 transition-transform duration-500 group-hover:scale-[2.4]"
+                    className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(150,189,251,.55),rgba(193,216,253,.15)_70%)] blur-[2px] transition-transform duration-500 group-hover:scale-[2.6]"
                   />
                   <div className="relative">
-                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-glow">
+                    <span className="glass-icon drawn inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white transition-transform duration-500 group-hover:-rotate-12 group-hover:scale-110">
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
                         {kort.ikon}
                       </svg>
@@ -197,6 +213,7 @@ export default async function Hjem({
                     <p className="mt-4 text-sm font-bold text-brand-700">{kort.pris}</p>
                   </div>
                 </div>
+                </Tilt>
               </StaggerItem>
             ))}
           </Stagger>
@@ -210,13 +227,11 @@ export default async function Hjem({
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <Reveal>
               <span className="eyebrow">Priser</span>
-              <h2 className="mt-4 text-balance text-3xl font-bold sm:text-4xl">
-                Åpne priser, ingen overraskelser
-              </h2>
+              <SplitText text="Åpne priser, ingen overraskelser" className="mt-4 text-balance text-3xl font-bold sm:text-4xl" />
               <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-600">
                 {text(s, 'tekst_godkjenning', '')}
               </p>
-              <Link href="/bestill" className="btn-primary mt-6">
+              <Link href="/bestill" className="btn-primary mt-6" data-mag>
                 Regn ut prisen din
               </Link>
             </Reveal>
@@ -224,31 +239,33 @@ export default async function Hjem({
             <Stagger className="grid gap-4 sm:grid-cols-2">
               {site.materials.map((m) => (
                 <StaggerItem key={m.id} className="h-full">
-                  <div className="h-full rounded-3xl border border-ink-100 bg-white p-6 shadow-soft">
+                  <Tilt className="h-full" lift={4}>
+                  <div className="glass h-full rounded-[28px] p-6">
                     <div className="flex items-center gap-2.5">
                       <span
-                        className="h-3 w-3 rounded-full"
+                        className="live-dot relative h-3 w-3 rounded-full"
                         style={{ background: m.color || '#2559C7' }}
                       />
                       <h3 className="text-lg font-semibold">{m.name}</h3>
                     </div>
                     <p className="mt-3 text-3xl font-bold text-ink-900">
-                      {m.price_per_gram.toLocaleString('nb-NO', { minimumFractionDigits: 2 })}
+                      <CountUp to={m.price_per_gram} decimals={2} />
                       <span className="ml-1 text-sm font-semibold text-ink-500">{valuta}/gram</span>
                     </p>
                     <p className="mt-3 text-sm leading-relaxed text-ink-500">{m.description}</p>
                   </div>
+                  </Tilt>
                 </StaggerItem>
               ))}
 
               <StaggerItem className="h-full sm:col-span-2">
-                <div className="h-full rounded-3xl border border-brand-200 bg-brand-50/70 p-6">
+                <div className="glass glass-tint h-full rounded-[28px] p-6">
                   <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-brand-700">
                     I tillegg
                   </h3>
                   <ul className="mt-4 grid gap-2.5 text-sm text-ink-700 sm:grid-cols-2">
                     {brukStartpris && (
-                      <li className="flex items-baseline justify-between gap-3 rounded-2xl bg-white/80 px-4 py-3">
+                      <li className="glass-row flex items-baseline justify-between gap-3 rounded-2xl px-4 py-3">
                         <span>Startpris når vi lager noe</span>
                         <span className="font-bold text-ink-900">{kr(startpris, valuta)}</span>
                       </li>
@@ -256,17 +273,17 @@ export default async function Hjem({
                     {site.extras.map((e) => (
                       <li
                         key={e.id}
-                        className="flex items-baseline justify-between gap-3 rounded-2xl bg-white/80 px-4 py-3"
+                        className="glass-row flex items-baseline justify-between gap-3 rounded-2xl px-4 py-3"
                       >
                         <span>{e.name}</span>
                         <span className="font-bold text-ink-900">+{kr(e.price, valuta)}</span>
                       </li>
                     ))}
-                    <li className="flex items-baseline justify-between gap-3 rounded-2xl bg-white/80 px-4 py-3">
+                    <li className="glass-row flex items-baseline justify-between gap-3 rounded-2xl px-4 py-3">
                       <span>Henting på Sandsli</span>
                       <span className="font-bold text-emerald-600">Gratis</span>
                     </li>
-                    <li className="flex items-baseline justify-between gap-3 rounded-2xl bg-white/80 px-4 py-3">
+                    <li className="glass-row flex items-baseline justify-between gap-3 rounded-2xl px-4 py-3">
                       <span>
                         {hjemlevering.name} (innen {radius} km)
                       </span>
@@ -291,17 +308,11 @@ export default async function Hjem({
         <div className="container-x">
           <Reveal>
             <span className="eyebrow">Slik gjør du det</span>
-            <h2 className="mt-4 max-w-2xl text-balance text-3xl font-bold sm:text-4xl">
-              Fra idé til ferdig print i fire steg
-            </h2>
+            <SplitText text="Fra idé til ferdig print i fire steg" className="mt-4 max-w-2xl text-balance text-3xl font-bold sm:text-4xl" />
           </Reveal>
 
-          <Stagger className="relative mt-12 grid gap-6 md:grid-cols-4">
-            <div
-              aria-hidden
-              className="absolute left-0 right-0 top-7 hidden h-px bg-gradient-to-r from-transparent via-brand-200 to-transparent md:block"
-            />
-            {[
+          <Steps
+            steps={[
               {
                 n: '1',
                 t: 'Velg og se prisen',
@@ -315,25 +326,15 @@ export default async function Hjem({
               {
                 n: '3',
                 t: 'Vi tar kontakt',
-                d: 'Vi ringer eller sender melding for å avtale detaljene, og gir deg en endelig pris. Vi starter ikke før du har sagt ja.',
+                d: 'Vi ringer eller sender melding for å avtale detaljene, og gir deg en endelig pris. Ferdige modeller fra galleriet har fast pris – dem setter vi i gang med med en gang.',
               },
               {
                 n: '4',
                 t: 'Hent eller få det levert',
                 d: `Ferdig på ${dagerMin}–${dagerMaks} virkedager. Betal med Vipps, eller kontant hvis du sier fra.`,
               },
-            ].map((steg) => (
-              <StaggerItem key={steg.n}>
-                <div className="relative">
-                  <span className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl border border-brand-200 bg-white text-xl font-bold text-brand-700 shadow-soft">
-                    {steg.n}
-                  </span>
-                  <h3 className="mt-5 text-base font-semibold">{steg.t}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-600">{steg.d}</p>
-                </div>
-              </StaggerItem>
-            ))}
-          </Stagger>
+            ]}
+          />
         </div>
       </section>
 
@@ -343,9 +344,7 @@ export default async function Hjem({
         <div className="container-x">
           <Reveal>
             <span className="eyebrow">Kontakt</span>
-            <h2 className="mt-4 max-w-2xl text-balance text-3xl font-bold sm:text-4xl">
-              Bestill slik det passer deg
-            </h2>
+            <SplitText text="Bestill slik det passer deg" className="mt-4 max-w-2xl text-balance text-3xl font-bold sm:text-4xl" />
             <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-600">
               Du velger selv om du vil skrive eller snakke. Begge deler ender samme sted – hos oss.
             </p>
@@ -353,8 +352,9 @@ export default async function Hjem({
 
           <Stagger className="mt-9 grid gap-5 md:grid-cols-2">
             <StaggerItem className="h-full">
-              <div className="flex h-full flex-col rounded-3xl border border-ink-100 bg-white p-7 shadow-soft">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-glow">
+              <Tilt className="h-full" lift={4}>
+              <div className="glass group flex h-full flex-col rounded-[28px] p-7">
+                <span className="glass-icon drawn inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white transition-transform duration-500 group-hover:-rotate-12">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path
                       d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.2-.6L3 21l1.8-5.1A8.2 8.2 0 0 1 3.6 11.5 8.4 8.4 0 0 1 12.6 3a8.4 8.4 0 0 1 8.4 8.5z"
@@ -366,22 +366,24 @@ export default async function Hjem({
                 </span>
                 <div className="mt-5 flex flex-wrap items-center gap-2">
                   <h3 className="text-lg font-semibold">Bestill på nettsiden</h3>
-                  <span className="chip">Åpent 24/7</span>
+                  <span className="chip chip-shine">Åpent 24/7</span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-ink-600">{meldingstid}</p>
                 <p className="mt-2 text-sm leading-relaxed text-ink-500">
                   Bestillingen kommer rett inn til oss, du får kvittering på e-post, og vi tar
                   kontakt så fort vi kan.
                 </p>
-                <Link href="/bestill" className="btn-primary mt-6 self-start">
-                  Lag bestillingen min
+                <Link href="/bestill" className="btn-primary mt-6 self-start" data-mag>
+                  Bestill nå
                 </Link>
               </div>
+              </Tilt>
             </StaggerItem>
 
             <StaggerItem className="h-full">
-              <div className="flex h-full flex-col rounded-3xl border border-ink-100 bg-white p-7 shadow-soft">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-white">
+              <Tilt className="h-full" lift={4}>
+              <div className="glass group flex h-full flex-col rounded-[28px] p-7">
+                <span className="glass-icon dark drawn inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-white transition-transform duration-500 group-hover:rotate-12">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path
                       d="M6.5 3.5h3l1.5 4-2 1.4a12 12 0 0 0 6.1 6.1l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"
@@ -393,14 +395,15 @@ export default async function Hjem({
                 </span>
                 <div className="mt-5 flex flex-wrap items-center gap-2">
                   <h3 className="text-lg font-semibold">Ring oss</h3>
-                  <span className="chip">15–21, man–lør</span>
+                  <span className="chip chip-shine">15–21, man–lør</span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-ink-600">{ringetid}</p>
                 <p className="mt-2 text-sm leading-relaxed text-ink-500">{ringerTilbake}</p>
-                <a href={telHref(telefon)} className="btn-dark mt-6 self-start">
+                <a href={telHref(telefon)} className="btn-dark mt-6 self-start" data-mag>
                   Ring {formatPhone(telefon)}
                 </a>
               </div>
+              </Tilt>
             </StaggerItem>
           </Stagger>
         </div>
@@ -414,9 +417,7 @@ export default async function Hjem({
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <span className="eyebrow">Galleri</span>
-                  <h2 className="mt-4 text-balance text-3xl font-bold sm:text-4xl">
-                    Ferdige modeller du kan kjøpe
-                  </h2>
+                  <SplitText text="Ferdige modeller du kan kjøpe" className="mt-4 text-balance text-3xl font-bold sm:text-4xl" />
                 </div>
                 <Link href="/galleri" className="btn-ghost">
                   Se alle modellene
@@ -439,28 +440,21 @@ export default async function Hjem({
       <section className="py-16 sm:py-20">
         <div className="container-x">
           <Reveal>
-            <div className="relative overflow-hidden rounded-[2rem] bg-ink-900 px-7 py-14 text-center sm:px-14">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background:
-                    'radial-gradient(40rem 18rem at 20% 0%, rgba(61,118,241,0.38), transparent 62%), radial-gradient(34rem 18rem at 85% 100%, rgba(37,89,199,0.34), transparent 60%)',
-                }}
-              />
+            <ScrollVideo>
               <div className="relative mx-auto max-w-2xl">
-                <h2 className="text-balance text-3xl font-bold text-white sm:text-4xl">
-                  Har du en idé? Vi fikser resten.
-                </h2>
+                <SplitText
+                  text="Har du en idé? Vi fikser resten."
+                  className="text-balance text-3xl font-bold text-white sm:text-4xl"
+                />
                 <p className="mt-4 text-[15px] leading-relaxed text-ink-300">
                   Du trenger ikke vite noe om 3D-printing. Beskriv hva du vil ha, så hjelper vi deg
                   med resten – og du får alltid pris før vi starter.
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-3">
-                  <Link href="/bestill" className="btn-primary">
+                  <Link href="/bestill" className="btn-primary" data-mag>
                     Bestill nå
                   </Link>
-                  <a href={telHref(telefon)} className="btn bg-white/10 text-white hover:bg-white/20">
+                  <a href={telHref(telefon)} className="btn btn-glass-dark">
                     Ring {formatPhone(telefon)}
                   </a>
                 </div>
@@ -468,7 +462,7 @@ export default async function Hjem({
                   Melding: hele døgnet · Telefon: {ringetid}
                 </p>
               </div>
-            </div>
+            </ScrollVideo>
           </Reveal>
         </div>
       </section>

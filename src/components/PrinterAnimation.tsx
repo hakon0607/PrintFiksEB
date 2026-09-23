@@ -1,6 +1,8 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { Tilt } from '@/components/glass/Tilt';
+import { CountUp } from '@/components/glass/CountUp';
 import { kr } from '@/lib/settings';
 
 const layers = Array.from({ length: 11 }, (_, i) => i);
@@ -29,14 +31,22 @@ export function PrinterAnimation({
   valuta = 'kr',
 }: PrinterAnimationProps) {
   const estimat = Math.round(startpris + eksempelVekt * perGram);
+  const { scrollY } = useScroll();
+  const parallax = useTransform(scrollY, [0, 800], [0, -90]);
 
   return (
-    <div className="relative mx-auto w-full max-w-[420px]">
+    <motion.div style={{ y: parallax }} className="relative mx-auto w-full max-w-[420px]">
+      <div
+        aria-hidden
+        className="glass-orb"
+        style={{ width: 520, height: 520, left: '50%', top: '50%', margin: '-260px 0 0 -260px' }}
+      />
+      <Tilt max={14} lift={0}>
       <motion.div
         initial={{ opacity: 0, scale: 0.94, y: 18 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-white via-brand-50 to-brand-100 p-6 shadow-lift"
+        className="glass glass-slab relative overflow-hidden rounded-[2.25rem] p-6"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -118,13 +128,12 @@ export function PrinterAnimation({
           <rect x="60" y="175" width="200" height="5" rx="2.5" fill="#3D4453" />
         </svg>
 
-        <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-ink-500">
-          <span>Lag 11 av 11</span>
+        <div className="ml-auto mt-2 flex w-[62%] justify-end text-[11px] font-semibold text-ink-500">
           <span>
             Ferdig om ca. {dagerMin}–{dagerMaks} dager
           </span>
         </div>
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/80">
+        <div className="ml-auto mt-2 h-1.5 w-[62%] overflow-hidden rounded-full bg-white/80">
           <motion.div
             className="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-600"
             animate={{ width: ['4%', '100%'] }}
@@ -132,17 +141,18 @@ export function PrinterAnimation({
           />
         </div>
       </motion.div>
+      </Tilt>
 
       {/* Flytende priskort */}
       <motion.div
         initial={{ opacity: 0, y: 16, x: -10 }}
         animate={{ opacity: 1, y: 0, x: 0 }}
         transition={{ delay: 0.5, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute -bottom-7 -left-3 w-[188px] rounded-2xl border border-ink-100 bg-white/95 p-4 shadow-lift backdrop-blur sm:-left-8"
+        className="glass glass-lens absolute -bottom-10 -left-2 w-[172px] rounded-[22px] p-4 sm:w-[188px] sm:-left-8"
       >
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-400">Estimat</p>
         <p className="mt-1 text-2xl font-bold text-ink-900">
-          {estimat.toLocaleString('nb-NO')}{' '}
+          <CountUp to={estimat} delay={700} />{' '}
           <span className="text-base font-semibold text-ink-500">{valuta}</span>
         </p>
         <p className="mt-1 text-[11px] leading-snug text-ink-500">
@@ -150,6 +160,6 @@ export function PrinterAnimation({
           starter.
         </p>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
