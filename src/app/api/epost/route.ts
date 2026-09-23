@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { krevInnlogget } from '@/lib/server-auth';
 import { finnMottakere, gyldigEpost, lesAdresser, sendEpost, testEpost } from '@/lib/epost';
+import { sendForOrdre } from '@/lib/ordre-epost';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,12 @@ export async function GET(request: Request) {
   // onboarding@resend.dev kan bare sende til adressen Resend-kontoen er laget med.
   const testavsender = /resend\.dev/i.test(avsender);
 
+  const { data: siste } = await okt.service
+    .from('orders')
+    .select('id,ordrenr,kunde,created_at,kilde,epost,epost_status')
+    .order('created_at', { ascending: false })
+    .limit(8);
+
   return NextResponse.json({
     nokkel,
     avsender,
@@ -37,6 +44,7 @@ export async function GET(request: Request) {
     reserveBrukt: mottakere.reserveBrukt,
     manglerKolonne: mottakere.manglerKolonne,
     bedrift: s.bedrift_navn || 'PrintFiksEB',
+    siste: siste ?? [],
   });
 }
 
@@ -45,7 +53,22 @@ export async function POST(request: Request) {
   const okt = await krevInnlogget(request);
   if (okt.feil) return okt.feil;
 
-  const body = (await request.json().catch(() => ({}))) as { til?: string };
+  const body = (await request.json().catch(() => ({}))) as { til?: string; ordreId?: string };
+
+  // Send varselet for en konkret bestilling på nytt.
+  if (body.ordreId) {
+    const utfall = await sendForOrdre(okt.service, body.ordreId, {
+      origin: new URL(request.url).origin,
+      tilKunde: false,
+      tilOss: true,
+    });
+    return NextResponse.json({
+      ok: utfall.varselOk,
+      til: utfall.mottakere,
+      feil: utfall.varselOk ? undefined : utfall.feil ?? 'Klarte ikke å sende varselet.',
+    });
+  }
+
   const s = await hentInnstillinger(okt.service);
   const avsender = s.epost_avsender || 'PrintFiksEB <onboarding@resend.dev>';
   const bedrift = s.bedrift_navn || 'PrintFiksEB';

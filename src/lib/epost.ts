@@ -386,3 +386,167 @@ export function testEpost(bedrift: string): { emne: string; html: string; tekst:
   const tekst = `E-posten virker. Får du denne, kommer varselet fram når noen bestiller. – ${bedrift}`;
   return { emne, html, tekst };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Ferdig kvittering – sendes når bestillingen er levert              */
+/* ------------------------------------------------------------------ */
+
+export function ferdigEpost(k: Kvittering): { emne: string; html: string; tekst: string } {
+  const linjer = k.linjer
+    .map(
+      (l, i) => `
+      <tr class="linje" style="animation-delay:${0.25 + i * 0.08}s">
+        <td style="padding:14px 0;border-bottom:1px solid #ECEEF2;">
+          <span style="display:inline-block;min-width:26px;height:26px;line-height:26px;text-align:center;background:#E8F7EE;color:#1B8A4B;border-radius:999px;font-weight:700;font-size:12px;">${l.antall}×</span>
+          <span style="margin-left:10px;font-weight:600;color:#14171C;">${esc(l.navn)}</span>
+        </td>
+        <td align="right" style="padding:14px 0;border-bottom:1px solid #ECEEF2;font-weight:700;color:#14171C;white-space:nowrap;">${esc(l.pris)}</td>
+      </tr>`
+    )
+    .join('');
+
+  const html = `<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Takk for handelen</title>
+<style>
+  @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes pop { 0% { transform:scale(.6); opacity:0; } 60% { transform:scale(1.08); opacity:1; } 100% { transform:scale(1); } }
+  @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+  .fade { animation: fadeUp .7s cubic-bezier(.22,1,.36,1) both; }
+  .linje { animation: fadeUp .6s cubic-bezier(.22,1,.36,1) both; }
+  .merke { animation: pop .8s cubic-bezier(.22,1,.36,1) both; }
+  .bob { animation: float 3.4s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .fade,.linje,.merke,.bob { animation:none !important; } }
+  @media (max-width:520px) { .pad { padding:22px !important; } .stor { font-size:26px !important; } }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#EFF3FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14171C;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Bestilling ${esc(k.ordrenr)} er ferdig. Takk for handelen!</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EFF3FA;padding:28px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:26px;overflow:hidden;box-shadow:0 18px 44px rgba(20,23,28,.10);">
+
+        <!-- Topp -->
+        <tr><td class="pad" style="padding:38px 30px 28px;text-align:center;background:linear-gradient(160deg,#F2FBF5 0%,#FFFFFF 70%);">
+          <div class="merke bob" style="width:66px;height:66px;line-height:66px;margin:0 auto;border-radius:999px;background:#1B8A4B;color:#fff;font-size:32px;">&#10003;</div>
+          <h1 class="fade stor" style="margin:20px 0 6px;font-size:30px;line-height:1.2;font-weight:800;color:#14171C;">Takk for handelen!</h1>
+          <p class="fade" style="margin:0;font-size:15px;line-height:1.65;color:#5A6270;">
+            Bestillingen din er ferdig og levert. Håper du blir fornøyd.
+          </p>
+          ${
+            k.ordrenr
+              ? `<p class="fade" style="margin:16px 0 0;"><span style="display:inline-block;background:#14171C;color:#fff;border-radius:999px;padding:7px 16px;font-size:13px;font-weight:700;letter-spacing:.04em;">Bestilling #${esc(k.ordrenr)}</span></p>`
+              : ''
+          }
+        </td></tr>
+
+        <!-- Varene -->
+        <tr><td class="pad" style="padding:24px 30px 0;">
+          <p class="fade" style="margin:0 0 4px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:#8891A2;">Dette fikk du</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${linjer}
+            <tr>
+              <td style="padding:16px 0 0;font-weight:800;color:#14171C;">Å betale</td>
+              <td align="right" style="padding:16px 0 0;font-weight:800;font-size:22px;color:#1B8A4B;">${esc(k.sum)}</td>
+            </tr>
+          </table>
+          <p style="margin:10px 0 0;font-size:12px;line-height:1.55;color:#697285;">
+            Dette er den endelige prisen. Betales med ${esc(k.betaling)}.
+          </p>
+        </td></tr>
+
+        <!-- Detaljer -->
+        <tr><td class="pad" style="padding:22px 30px 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fade" style="border:1px solid #ECEEF2;border-radius:18px;">
+            <tr><td style="padding:16px 18px;font-size:14px;line-height:1.7;color:#3D4453;">
+              <div><strong style="color:#14171C;">Navn:</strong> ${esc(k.kunde)}</div>
+              <div><strong style="color:#14171C;">Telefon:</strong> ${esc(k.telefon)}</div>
+              ${k.adresse ? `<div><strong style="color:#14171C;">Adresse:</strong> ${esc(k.adresse)}</div>` : ''}
+              <div><strong style="color:#14171C;">Levering:</strong> ${esc(k.levering)}</div>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- Velkommen tilbake -->
+        <tr><td class="pad" style="padding:22px 30px 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fade" style="background:#F4F8FF;border-radius:18px;">
+            <tr><td style="padding:20px 22px;text-align:center;">
+              <p style="margin:0 0 6px;font-size:17px;font-weight:800;color:#14171C;">Velkommen tilbake!</p>
+              <p style="margin:0;font-size:14px;line-height:1.65;color:#5A6270;">
+                Trenger du noe printet, fikset eller designet en annen gang, er det bare å ta kontakt.
+                Er du fornøyd, blir vi kjempeglade om du tipser noen andre om oss.
+              </p>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- Bunn -->
+        <tr><td class="pad" style="padding:26px 30px 30px;text-align:center;">
+          <a href="${esc(k.nettside)}" class="fade" style="display:inline-block;background:#1B8A4B;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 26px;border-radius:999px;">Bestill noe nytt</a>
+          <p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:#8891A2;">
+            ${esc(k.bedrift)} · elevbedrift på Skranevatnet skole<br />
+            Spørsmål? Ring eller send melding til ${esc(k.bedriftTelefon)}
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const tekst = [
+    `Takk for handelen! Bestilling #${k.ordrenr} er ferdig.`,
+    '',
+    'Dette fikk du:',
+    ...k.linjer.map((l) => `- ${l.antall}x ${l.navn} – ${l.pris}`),
+    `Å betale: ${k.sum} (${k.betaling})`,
+    '',
+    `Navn: ${k.kunde}`,
+    `Telefon: ${k.telefon}`,
+    k.adresse ? `Adresse: ${k.adresse}` : '',
+    `Levering: ${k.levering}`,
+    '',
+    'Velkommen tilbake! Trenger du noe printet, fikset eller designet en annen gang, er det bare å ta kontakt.',
+    '',
+    k.bedrift,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return { emne: `Takk for handelen – bestilling #${k.ordrenr}`, html, tekst };
+}
+
+/**
+ * Sender samme e-post til hver mottaker i hver sin sending.
+ *
+ * Grunnen: med Resend sin testavsender (onboarding@resend.dev) avvises HELE
+ * sendingen med 403 hvis bare én av adressene ikke er kontoens egen. Da ville
+ * ingen fått noe. Sender vi én og én, kommer den i hvert fall fram til dem den
+ * har lov å gå til, og vi ser nøyaktig hvem som feilet.
+ */
+export async function sendEnkeltvis(opts: {
+  til: string[];
+  emne: string;
+  html: string;
+  tekst: string;
+  avsender: string;
+  svarTil?: string;
+}): Promise<{ ok: boolean; sendt: string[]; feilet: { til: string; feil: string }[] }> {
+  const resultater = await Promise.all(
+    opts.til.map(async (adresse) => ({
+      adresse,
+      svar: await sendEpost({ ...opts, til: [adresse] }),
+    }))
+  );
+
+  const sendt = resultater.filter((r) => r.svar.ok).map((r) => r.adresse);
+  const feilet = resultater
+    .filter((r) => !r.svar.ok)
+    .map((r) => ({ til: r.adresse, feil: r.svar.feil ?? 'ukjent' }));
+
+  return { ok: sendt.length > 0, sendt, feilet };
+}

@@ -4,6 +4,7 @@ import {
   finnMottakere,
   gyldigEpost,
   kundeEpost,
+  sendEnkeltvis,
   sendEpost,
   varselEpost,
   type EpostLinje,
@@ -203,7 +204,7 @@ export async function POST(request: Request) {
   const [tilKunde, tilOss] = await Promise.all([
     sendEpost({ til: [epost], emne: kunde.emne, html: kunde.html, tekst: kunde.tekst, avsender }),
     mottakere.adresser.length > 0
-      ? sendEpost({
+      ? sendEnkeltvis({
           til: mottakere.adresser,
           emne: varsel.emne,
           html: varsel.html,
@@ -211,23 +212,25 @@ export async function POST(request: Request) {
           avsender,
           svarTil: epost,
         })
-      : Promise.resolve({ ok: false, feil: 'Ingen i bedriften har lagt inn e-postadresse.' }),
+      : Promise.resolve({
+          ok: false,
+          sendt: [] as string[],
+          feilet: [{ til: '(ingen)', feil: 'Ingen i bedriften har lagt inn e-postadresse' }],
+        }),
   ]);
 
   // Skriv ned hva som faktisk skjedde, så dere ser det i admin.
   const status = [
     tilKunde.ok ? 'Kvittering sendt til kunden' : `Kvittering feilet: ${tilKunde.feil ?? 'ukjent'}`,
-    tilOss.ok
-      ? `Varsel sendt til ${mottakere.adresser.join(', ')}`
-      : `Varsel feilet: ${tilOss.feil ?? 'ukjent'}`,
+    tilOss.sendt.length > 0 ? `Varsel sendt til ${tilOss.sendt.join(', ')}` : 'Varsel feilet',
+    ...tilOss.feilet.map((f) => `Varsel til ${f.til} feilet: ${f.feil}`),
   ].join(' | ');
 
   if (!tilKunde.ok || !tilOss.ok) {
     console.error('[bestilling] e-post gikk ikke ut', {
       ordrenr,
       kunde: tilKunde.feil,
-      varsel: tilOss.feil,
-      mottakere: mottakere.adresser,
+      varselFeilet: tilOss.feilet,
       avsender,
     });
   }
@@ -240,5 +243,6 @@ export async function POST(request: Request) {
     fastPris: bareFastPris,
     epostSendt: tilKunde.ok,
     varselSendt: tilOss.ok,
+    varselTil: tilOss.sendt,
   });
 }

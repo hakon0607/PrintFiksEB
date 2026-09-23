@@ -441,6 +441,7 @@ export function Bestillinger() {
   const [nyApen, setNyApen] = useState(false);
   const [redigerer, setRedigerer] = useState<string | null>(null);
   const [apen, setApen] = useState<string | null>(null);
+  const [epostSvar, setEpostSvar] = useState<Record<string, string>>({});
 
   const hent = useCallback(async () => {
     if (!supabase) return;
@@ -651,6 +652,29 @@ export function Bestillinger() {
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', id);
     if (error) setFeil('Klarte ikke å lagre statusen.');
+  }
+
+  async function sendKvitteringFor(id: string, mal: 'mottatt' | 'ferdig') {
+    if (!supabase) return;
+    setEpostSvar((p) => ({ ...p, [id]: 'Sender …' }));
+    const { data: okt } = await supabase.auth.getSession();
+    const res = await fetch('/api/kvittering', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${okt.session?.access_token ?? ''}`,
+      },
+      body: JSON.stringify({ id, mal, tilKunde: true, tilOss: false }),
+    });
+    const svar = await res.json().catch(() => ({}));
+    setEpostSvar((p) => ({
+      ...p,
+      [id]: svar.ok
+        ? mal === 'ferdig'
+          ? 'Ferdig kvittering er sendt til kunden.'
+          : 'Kvitteringen er sendt på nytt.'
+        : `Gikk ikke: ${svar.feil ?? 'ukjent feil'}`,
+    }));
   }
 
   async function settBetalt(id: string, betalt: boolean) {
@@ -1035,6 +1059,50 @@ export function Bestillinger() {
                                   ))}
                                 </div>
                               </div>
+
+                              {/* E-post til kunden */}
+                              {o.epost && (
+                                <div className="rounded-2xl border border-ink-200 bg-white p-4">
+                                  <p className="label">E-post til kunden</p>
+                                  <p className="mb-2.5 text-[13px] leading-relaxed text-ink-600">
+                                    Sendes til{' '}
+                                    <span className="font-mono text-ink-800">{o.epost}</span>
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => sendKvitteringFor(o.id, 'ferdig')}
+                                      className="btn-primary btn-sm"
+                                    >
+                                      Send ferdig kvittering
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => sendKvitteringFor(o.id, 'mottatt')}
+                                      className="btn-ghost btn-sm"
+                                    >
+                                      Send vanlig kvittering på nytt
+                                    </button>
+                                  </div>
+                                  <p className="mt-2 text-[12px] leading-relaxed text-ink-500">
+                                    Den ferdige kvitteringen viser prisen som står her nå
+                                    ({kr(Number(o.pris ?? 0))}) som endelig pris, takker for handelen
+                                    og ønsker kunden velkommen tilbake. Sjekk at prisen stemmer før
+                                    dere sender.
+                                  </p>
+                                  {epostSvar[o.id] && (
+                                    <p
+                                      className={`mt-2 rounded-xl px-3 py-2 text-[13px] font-medium ${
+                                        epostSvar[o.id].startsWith('Gikk ikke')
+                                          ? 'bg-red-50 text-red-700'
+                                          : 'bg-emerald-50 text-emerald-800'
+                                      }`}
+                                    >
+                                      {epostSvar[o.id]}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Varer */}
                               {varer.length > 0 && (

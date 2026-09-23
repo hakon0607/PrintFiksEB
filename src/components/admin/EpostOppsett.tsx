@@ -4,6 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 
+type SisteOrdre = {
+  id: string;
+  ordrenr: string | null;
+  kunde: string | null;
+  created_at: string;
+  kilde: string | null;
+  epost: string | null;
+  epost_status: string | null;
+};
+
 type Status = {
   nokkel: boolean;
   avsender: string;
@@ -14,6 +24,7 @@ type Status = {
   reserveBrukt: boolean;
   manglerKolonne: boolean;
   bedrift: string;
+  siste: SisteOrdre[];
 };
 
 function Merke({ ok, tekst }: { ok: boolean; tekst: string }) {
@@ -66,6 +77,7 @@ export function EpostOppsett() {
   const [til, setTil] = useState('');
   const [sender, setSender] = useState(false);
   const [svar, setSvar] = useState<{ ok: boolean; tekst: string } | null>(null);
+  const [sendtPaNytt, setSendtPaNytt] = useState<Record<string, string>>({});
 
   const token = useCallback(async () => {
     if (!supabase) return '';
@@ -103,6 +115,21 @@ export function EpostOppsett() {
     } else {
       setSvar({ ok: false, tekst: data.feil || 'Klarte ikke å sende.' });
     }
+  }
+
+  async function sendPaNytt(o: SisteOrdre) {
+    setSendtPaNytt((p) => ({ ...p, [o.id]: 'Sender …' }));
+    const res = await fetch('/api/epost', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` },
+      body: JSON.stringify({ ordreId: o.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSendtPaNytt((p) => ({
+      ...p,
+      [o.id]: data.ok ? `Sendt til ${(data.til as string[]).join(', ')}` : data.feil || 'Gikk ikke.',
+    }));
+    hent();
   }
 
   if (laster && !status) {
@@ -243,6 +270,71 @@ export function EpostOppsett() {
         <button type="button" onClick={hent} className="btn-ghost btn-sm mt-4">
           Sjekk på nytt
         </button>
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="border-b border-ink-100/70 px-6 py-4">
+          <h2 className="text-base font-bold text-ink-900">Siste bestillinger</h2>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-ink-600">
+            Her står det hva som faktisk skjedde med e-posten for hver bestilling. Står det ingenting,
+            kom bestillingen inn før dette ble satt opp.
+          </p>
+        </div>
+
+        {status.siste.length === 0 ? (
+          <p className="px-6 py-6 text-sm text-ink-600">Ingen bestillinger ennå.</p>
+        ) : (
+          <ul className="divide-y divide-ink-100/70">
+            {status.siste.map((o) => {
+              const feilet = (o.epost_status ?? '').includes('feilet');
+              const tomt = !o.epost_status;
+              return (
+                <li key={o.id} className="flex flex-wrap items-start gap-3 px-6 py-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-sm">
+                      {o.ordrenr && (
+                        <span className="rounded-full bg-ink-900 px-2 py-0.5 text-[11px] font-bold text-white">
+                          #{o.ordrenr}
+                        </span>
+                      )}
+                      <span className="font-semibold text-ink-900">{o.kunde || 'Uten navn'}</span>
+                      {o.kilde === 'nett' && (
+                        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-bold text-brand-700">
+                          Fra nettsiden
+                        </span>
+                      )}
+                      <span className="text-xs text-ink-400">
+                        {new Date(o.created_at).toLocaleString('nb-NO', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </p>
+                    <p
+                      className={`mt-1 text-[13px] leading-relaxed ${
+                        feilet ? 'text-red-700' : tomt ? 'text-ink-400' : 'text-ink-600'
+                      }`}
+                    >
+                      {o.epost_status || 'Ingenting registrert'}
+                    </p>
+                    {sendtPaNytt[o.id] && (
+                      <p className="mt-1 text-[13px] font-medium text-ink-800">{sendtPaNytt[o.id]}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => sendPaNytt(o)}
+                    className="btn-ghost btn-sm shrink-0"
+                  >
+                    Send varsel på nytt
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );
