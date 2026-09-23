@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { ImageUpload } from './ImageUpload';
@@ -35,6 +35,10 @@ type Props = {
   harAktiv?: boolean;
   tomTekst?: string;
   finpuss?: boolean;
+  /** Liten linje under navnet i listen, f.eks. margin. */
+  radInfo?: (rad: Record<string, unknown>) => ReactNode;
+  /** Boks øverst når raden er åpen, f.eks. regnestykket for margin. */
+  radPanel?: (rad: Record<string, unknown>) => ReactNode;
 };
 
 export function TableEditor({
@@ -49,6 +53,8 @@ export function TableEditor({
   harAktiv = true,
   tomTekst,
   finpuss = false,
+  radInfo,
+  radPanel,
 }: Props) {
   const { supabase, profile, user } = useAdmin();
   const [rader, setRader] = useState<Rad[]>([]);
@@ -256,6 +262,8 @@ export function TableEditor({
                   onFokus={(aktiv) => meldFokus(rad.id, aktiv)}
                   onTravel={(travel) => settTravel(rad.id, travel)}
                   finpuss={finpuss}
+                  radInfo={radInfo}
+                  radPanel={radPanel}
                 />
               </motion.li>
             ))}
@@ -284,6 +292,8 @@ function RadRedigerer({
   onFokus,
   onTravel,
   finpuss,
+  radInfo,
+  radPanel,
 }: {
   table: string;
   rad: Rad;
@@ -302,6 +312,8 @@ function RadRedigerer({
   onFokus: (aktiv: boolean) => void;
   onTravel: (travel: boolean) => void;
   finpuss?: boolean;
+  radInfo?: (rad: Record<string, unknown>) => ReactNode;
+  radPanel?: (rad: Record<string, unknown>) => ReactNode;
 }) {
   const { supabase } = useAdmin();
   const [finpusser, setFinpusser] = useState(false);
@@ -448,6 +460,7 @@ function RadRedigerer({
             {tittel}
           </span>
           {!aktiv && <span className="text-xs text-ink-400">Skjult på nettsiden</span>}
+          {aktiv && radInfo && <span className="mt-0.5 block text-xs text-ink-500">{radInfo(rad)}</span>}
         </button>
 
         {redigeresAv && (
@@ -501,6 +514,8 @@ function RadRedigerer({
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden border-t border-ink-100 bg-ink-50/50"
           >
+            {radPanel && <div className="border-b border-ink-100 bg-white px-5 py-4">{radPanel(rad)}</div>}
+
             {finpuss && (
               <div className="space-y-3 border-b border-ink-100 bg-white px-5 py-4">
                 <div className="flex flex-wrap items-center gap-2">

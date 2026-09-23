@@ -37,6 +37,7 @@ const SIDER = `
 /admin                 Oversikt – tall og snarveier
 /admin/bestillinger    Bestillinger – bestillinger som er kommet inn, status, hvem som gjør hva, betaling
 /admin/oppgaver        Oppgaver – hva som skal gjøres, hvem som gjør det, frister
+/admin/okonomi         Økonomi – inntekter, utgifter og overskudd
 /admin/priser          Priser – pris per gram, startpris, tillegg, levering, størrelser
 /admin/galleri         Galleri – ferdige modeller med bilder, og «Finpuss med AI»
 /admin/eksempler       Hva vi kan fikse – eksemplene på 3D-printing-siden

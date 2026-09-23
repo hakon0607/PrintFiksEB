@@ -57,6 +57,7 @@ export type Product = {
   images?: string[] | null;
   source_url?: string | null;
   price: number;
+  cost_extra?: number | null;
   image_url: string | null;
   material: string | null;
   weight_g: number | null;
@@ -166,6 +167,20 @@ export type Order = {
   status: string;
   ansvarlig: string | null;
   frist: string | null;
+  opprettet_av: string | null;
+  created_at: string;
+};
+
+/** En linje i regnskapet: enten penger inn eller penger ut. */
+export type Finance = {
+  id: string;
+  dato: string;
+  type: 'inntekt' | 'utgift' | string;
+  kategori: string | null;
+  beskrivelse: string;
+  belop: number;
+  betalt: boolean;
+  notat: string | null;
   opprettet_av: string | null;
   created_at: string;
 };
