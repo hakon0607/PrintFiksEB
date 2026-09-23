@@ -48,6 +48,11 @@ function lesBelop(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** En bestilling teller i regnskapet når den er ferdig. «ferdig» er den gamle verdien. */
+function erFerdig(o: Order): boolean {
+  return o.status === 'levert' || o.status === 'ferdig';
+}
+
 function iDag(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -131,27 +136,31 @@ export function Okonomi() {
     [poster, fra]
   );
 
-  const betalteOrdrer = useMemo(
-    () =>
-      ordrer.filter(
-        (o) => o.betalt && Number(o.pris ?? 0) > 0 && (!fra || new Date(o.created_at) >= fra)
-      ),
+  const ferdigeOrdrer = useMemo(
+    () => ordrer.filter((o) => erFerdig(o) && (!fra || new Date(o.created_at) >= fra)),
     [ordrer, fra]
   );
 
   const fraBestillinger = useMemo(
-    () => (medBestillinger ? betalteOrdrer.reduce((sum, o) => sum + Number(o.pris ?? 0), 0) : 0),
-    [betalteOrdrer, medBestillinger]
+    () => (medBestillinger ? ferdigeOrdrer.reduce((sum, o) => sum + Number(o.pris ?? 0), 0) : 0),
+    [ferdigeOrdrer, medBestillinger]
+  );
+
+  const kostFraBestillinger = useMemo(
+    () => (medBestillinger ? ferdigeOrdrer.reduce((sum, o) => sum + Number(o.kostnad ?? 0), 0) : 0),
+    [ferdigeOrdrer, medBestillinger]
   );
 
   const egneInntekter = useMemo(
     () => iPerioden.filter((p) => p.type === 'inntekt').reduce((s, p) => s + Number(p.belop), 0),
     [iPerioden]
   );
-  const utgifter = useMemo(
+  const egneUtgifter = useMemo(
     () => iPerioden.filter((p) => p.type !== 'inntekt').reduce((s, p) => s + Number(p.belop), 0),
     [iPerioden]
   );
+
+  const utgifter = egneUtgifter + kostFraBestillinger;
 
   const inntekter = egneInntekter + fraBestillinger;
   const overskudd = inntekter - utgifter;
@@ -176,20 +185,27 @@ export function Okonomi() {
           ? ordrer
               .filter(
                 (o) =>
-                  o.betalt &&
-                  new Date(o.created_at) >= start &&
-                  new Date(o.created_at) < slutt
+                  erFerdig(o) && new Date(o.created_at) >= start && new Date(o.created_at) < slutt
               )
               .reduce((s, o) => s + Number(o.pris ?? 0), 0)
           : 0);
-      const ut = poster
-        .filter(
-          (p) =>
-            p.type !== 'inntekt' &&
-            new Date(p.dato + 'T00:00:00') >= start &&
-            new Date(p.dato + 'T00:00:00') < slutt
-        )
-        .reduce((s, p) => s + Number(p.belop), 0);
+      const ut =
+        poster
+          .filter(
+            (p) =>
+              p.type !== 'inntekt' &&
+              new Date(p.dato + 'T00:00:00') >= start &&
+              new Date(p.dato + 'T00:00:00') < slutt
+          )
+          .reduce((s, p) => s + Number(p.belop), 0) +
+        (medBestillinger
+          ? ordrer
+              .filter(
+                (o) =>
+                  erFerdig(o) && new Date(o.created_at) >= start && new Date(o.created_at) < slutt
+              )
+              .reduce((s, o) => s + Number(o.kostnad ?? 0), 0)
+          : 0);
       liste.push({ navn: manedNavn(start), inn, ut });
     }
     return liste;
@@ -296,7 +312,7 @@ export function Okonomi() {
           <p className="mt-1 text-3xl font-bold text-emerald-800">{kr(inntekter)}</p>
           <p className="mt-1 text-xs text-emerald-700">
             {medBestillinger && fraBestillinger > 0
-              ? `${kr(fraBestillinger)} fra betalte bestillinger + ${kr(egneInntekter)} ført selv`
+              ? `${kr(fraBestillinger)} fra ferdige bestillinger + ${kr(egneInntekter)} ført selv`
               : 'Ført av dere'}
           </p>
         </div>
@@ -306,7 +322,11 @@ export function Okonomi() {
             Penger ut
           </p>
           <p className="mt-1 text-3xl font-bold text-red-700">{kr(utgifter)}</p>
-          <p className="mt-1 text-xs text-red-600">Filament, emballasje, utstyr og annet</p>
+          <p className="mt-1 text-xs text-red-600">
+            {kostFraBestillinger > 0
+              ? `${kr(kostFraBestillinger)} brukt på bestillinger + ${kr(egneUtgifter)} ført selv`
+              : 'Filament, emballasje, utstyr og annet'}
+          </p>
         </div>
 
         <div
@@ -337,8 +357,8 @@ export function Okonomi() {
           onChange={(e) => setMedBestillinger(e.target.checked)}
           className="h-4 w-4 rounded border-ink-300 text-brand-600"
         />
-        Ta med bestillinger som er huket av som betalt ({betalteOrdrer.length} stk,{' '}
-        {kr(betalteOrdrer.reduce((s, o) => s + Number(o.pris ?? 0), 0))})
+        Ta med bestillinger som er merket ferdig ({ferdigeOrdrer.length} stk,{' '}
+        {kr(ferdigeOrdrer.reduce((s, o) => s + Number(o.pris ?? 0), 0))} inn)
       </label>
 
       {/* Ny føring */}
@@ -631,13 +651,13 @@ export function Okonomi() {
       </div>
 
       {/* Betalte bestillinger */}
-      {medBestillinger && betalteOrdrer.length > 0 && (
+      {medBestillinger && ferdigeOrdrer.length > 0 && (
         <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-soft">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-400">
-            Betalte bestillinger som er regnet med
+            Ferdige bestillinger som er regnet med
           </p>
           <ul className="mt-3 divide-y divide-ink-100">
-            {betalteOrdrer.slice(0, 20).map((o) => (
+            {ferdigeOrdrer.slice(0, 20).map((o) => (
               <li key={o.id} className="flex items-center gap-3 py-2.5">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-ink-900">
@@ -647,15 +667,23 @@ export function Okonomi() {
                     {visDato(o.created_at.slice(0, 10))} · {o.hva || 'Ingen beskrivelse'}
                   </span>
                 </span>
-                <span className="shrink-0 text-sm font-bold text-emerald-700">
-                  +{kr(Number(o.pris ?? 0))}
+                <span className="shrink-0 text-right">
+                  <span className="block text-sm font-bold text-emerald-700">
+                    +{kr(Number(o.pris ?? 0))}
+                  </span>
+                  {Number(o.kostnad ?? 0) > 0 && (
+                    <span className="block text-xs font-semibold text-red-600">
+                      −{kr(Number(o.kostnad ?? 0))}
+                    </span>
+                  )}
                 </span>
               </li>
             ))}
           </ul>
           <p className="mt-3 text-xs text-ink-500">
-            Disse hentes fra <span className="font-semibold text-ink-700">Bestillinger</span>. Huk av
-            «betalt» der, så kommer de hit av seg selv.
+            Disse hentes fra <span className="font-semibold text-ink-700">Bestillinger</span>. Sett
+            en bestilling til «Ferdig» der, så kommer både det dere tok betalt og det dere brukte
+            hit av seg selv.
           </p>
         </div>
       )}

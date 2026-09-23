@@ -8,7 +8,12 @@ import { regnMargin } from '@/lib/margin';
 import { kr } from '@/lib/settings';
 import type { Finance, Material, Order, Product, Task } from '@/lib/types';
 
-const PAGANG = ['tilbud', 'godkjent', 'produksjon', 'ferdig'];
+const PAGANG = ['ny', 'tilbud', 'godkjent', 'produksjon'];
+
+/** En bestilling teller i regnskapet når den er ferdig. «ferdig» er den gamle verdien. */
+function erFerdig(o: Order): boolean {
+  return o.status === 'levert' || o.status === 'ferdig';
+}
 
 function startAvManeden(): Date {
   const n = new Date();
@@ -91,28 +96,29 @@ export function Oversikt() {
   const fra = startAvManeden();
 
   const bestilling = useMemo(() => {
-    const nye = ordrer.filter((o) => o.status === 'ny');
+    const nye = ordrer.filter((o) => o.status === 'ny' || o.status === 'tilbud');
     const paagang = ordrer.filter((o) => PAGANG.includes(o.status));
-    const venter = ordrer.filter((o) => !o.betalt && ['ferdig', 'levert'].includes(o.status));
-    const levertMnd = ordrer.filter((o) => o.status === 'levert' && new Date(o.created_at) >= fra);
-    const betaltMnd = ordrer.filter((o) => o.betalt && new Date(o.created_at) >= fra);
+    const venter = ordrer.filter((o) => !o.betalt && o.status !== 'avlyst');
+    const levertMnd = ordrer.filter((o) => erFerdig(o) && new Date(o.created_at) >= fra);
     return {
       nye,
       paagang,
       venter,
       levertMnd,
       venterSum: venter.reduce((s, o) => s + Number(o.pris ?? 0), 0),
-      betaltSum: betaltMnd.reduce((s, o) => s + Number(o.pris ?? 0), 0),
+      betaltSum: levertMnd.reduce((s, o) => s + Number(o.pris ?? 0), 0),
+      kostSum: levertMnd.reduce((s, o) => s + Number(o.kostnad ?? 0), 0),
     };
   }, [ordrer, fra]);
 
   const okonomi = useMemo(() => {
     const iMnd = poster.filter((p) => new Date(p.dato + 'T00:00:00') >= fra);
     const egenInn = iMnd.filter((p) => p.type === 'inntekt').reduce((s, p) => s + Number(p.belop), 0);
-    const ut = iMnd.filter((p) => p.type !== 'inntekt').reduce((s, p) => s + Number(p.belop), 0);
+    const egenUt = iMnd.filter((p) => p.type !== 'inntekt').reduce((s, p) => s + Number(p.belop), 0);
     const inn = egenInn + bestilling.betaltSum;
+    const ut = egenUt + bestilling.kostSum;
     return { inn, ut, overskudd: inn - ut };
-  }, [poster, fra, bestilling.betaltSum]);
+  }, [poster, fra, bestilling.betaltSum, bestilling.kostSum]);
 
   const galleri = useMemo(() => {
     const aktive = produkter.filter((p) => p.active !== false);
@@ -253,10 +259,10 @@ export function Oversikt() {
 
           <p className="mt-3 text-[13px] leading-relaxed text-ink-600">
             {bestilling.levertMnd.length} bestilling
-            {bestilling.levertMnd.length === 1 ? '' : 'er'} levert denne måneden.{' '}
+            {bestilling.levertMnd.length === 1 ? '' : 'er'} ferdig denne måneden.{' '}
             {bestilling.betaltSum > 0
-              ? `${kr(bestilling.betaltSum)} er betalt inn.`
-              : 'Ingen innbetalinger er ført ennå.'}
+              ? `${kr(bestilling.betaltSum)} inn, ${kr(bestilling.kostSum)} brukt på dem.`
+              : 'Ingen er ført som ferdige ennå.'}
           </p>
         </div>
 

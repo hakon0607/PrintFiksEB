@@ -413,6 +413,8 @@ create table if not exists public.orders (
   updated_at    timestamptz not null default now()
 );
 
+alter table public.orders add column if not exists kostnad numeric(10,2) not null default 0;
+
 create index if not exists orders_status_idx on public.orders (status, created_at desc);
 
 alter table public.orders enable row level security;

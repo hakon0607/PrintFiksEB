@@ -5,74 +5,380 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { lyttPaTabell } from '@/lib/realtime';
 import { kr } from '@/lib/settings';
-import { Varelinjer, summerLinjer, type NyLinje } from './Varelinjer';
+import {
+  Varelinjer,
+  beskriv,
+  linjeFraProdukt,
+  summer,
+  type Linje,
+} from './Varelinjer';
 import type { Material, Order, OrderItem, Product, TeamMember } from '@/lib/types';
+
+/* ------------------------------------------------------------------ */
+/*  Status – fire steg og avlyst. Gamle bestillinger tolkes automatisk */
+/* ------------------------------------------------------------------ */
 
 const STATUSER = [
   { verdi: 'ny', tekst: 'Ny', farge: 'bg-amber-50 text-amber-700 border-amber-200' },
-  { verdi: 'tilbud', tekst: 'Pris sendt', farge: 'bg-sky-50 text-sky-700 border-sky-200' },
   { verdi: 'godkjent', tekst: 'Godkjent', farge: 'bg-brand-50 text-brand-700 border-brand-200' },
   { verdi: 'produksjon', tekst: 'Printes', farge: 'bg-violet-50 text-violet-700 border-violet-200' },
-  { verdi: 'ferdig', tekst: 'Ferdig', farge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  { verdi: 'levert', tekst: 'Levert', farge: 'bg-ink-100 text-ink-600 border-ink-200' },
-  { verdi: 'avlyst', tekst: 'Avlyst', farge: 'bg-red-50 text-red-600 border-red-200' },
+  { verdi: 'levert', tekst: 'Ferdig', farge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { verdi: 'avlyst', tekst: 'Avlyst', farge: 'bg-ink-100 text-ink-500 border-ink-200' },
 ];
 
-const AKTIVE = ['ny', 'tilbud', 'godkjent', 'produksjon', 'ferdig'];
+/** Gamle statuser fra før vi forenklet: tilbud og ferdig. */
+function normaliser(status: string): string {
+  if (status === 'tilbud') return 'ny';
+  if (status === 'ferdig') return 'levert';
+  return status;
+}
 
 function statusInfo(v: string) {
-  return STATUSER.find((s) => s.verdi === v) ?? STATUSER[0];
+  return STATUSER.find((s) => s.verdi === normaliser(v)) ?? STATUSER[0];
 }
 
-function datoTekst(iso: string | null) {
-  if (!iso) return null;
-  const i_dag = new Date();
-  i_dag.setHours(0, 0, 0, 0);
-  const d = new Date(iso + 'T00:00:00');
-  const dager = Math.round((d.getTime() - i_dag.getTime()) / 86400000);
-  if (dager < 0) return { tekst: `${Math.abs(dager)} dag${Math.abs(dager) === 1 ? '' : 'er'} på overtid`, rod: true };
-  if (dager === 0) return { tekst: 'Frist i dag', rod: true };
-  if (dager === 1) return { tekst: 'Frist i morgen', rod: false };
-  return { tekst: `Frist ${d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}`, rod: false };
+const PAGANG = ['ny', 'godkjent', 'produksjon'];
+
+function visDato(iso: string): string {
+  return new Date(iso).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' });
 }
 
-export function Bestillinger() {
-  const { supabase, profile, user } = useAdmin();
-  const [bestillinger, setBestillinger] = useState<Order[]>([]);
-  const [folk, setFolk] = useState<TeamMember[]>([]);
-  const [laster, setLaster] = useState(true);
-  const [mangler, setMangler] = useState(false);
-  const [feil, setFeil] = useState('');
-  const [filter, setFilter] = useState('aktive');
-  const [sok, setSok] = useState('');
-  const [nyApen, setNyApen] = useState(false);
-  const [apen, setApen] = useState<string | null>(null);
-  const [produkter, setProdukter] = useState<Product[]>([]);
-  const [materialer, setMaterialer] = useState<Material[]>([]);
-  const [linjer, setLinjer] = useState<Record<string, OrderItem[]>>({});
-  const [nyeLinjer, setNyeLinjer] = useState<NyLinje[]>([]);
+function tallFra(v: string): number {
+  const n = Number(String(v).replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+}
 
-  const [ny, setNy] = useState({
+/* ------------------------------------------------------------------ */
+/*  Skjemaet – brukes både for ny bestilling og når dere redigerer     */
+/* ------------------------------------------------------------------ */
+
+type Utkast = {
+  kunde: string;
+  telefon: string;
+  adresse: string;
+  notat: string;
+  levering: string;
+  betalingsmate: string;
+  frist: string;
+  ansvarlig: string;
+  pris: string;
+  kostnad: string;
+  betalt: boolean;
+};
+
+function tomtUtkast(): Utkast {
+  return {
     kunde: '',
     telefon: '',
     adresse: '',
-    hva: '',
-    pris: '',
+    notat: '',
     levering: 'Henting',
     betalingsmate: 'Vipps',
     frist: '',
     ansvarlig: '',
-  });
+    pris: '',
+    kostnad: '',
+    betalt: false,
+  };
+}
+
+function OrdreSkjema({
+  start,
+  startLinjer,
+  produkter,
+  materialer,
+  folk,
+  lagreTekst,
+  onLagre,
+  onAvbryt,
+}: {
+  start: Utkast;
+  startLinjer: Linje[];
+  produkter: Product[];
+  materialer: Material[];
+  folk: TeamMember[];
+  lagreTekst: string;
+  onLagre: (u: Utkast, linjer: Linje[]) => Promise<void> | void;
+  onAvbryt: () => void;
+}) {
+  const [u, setU] = useState<Utkast>(start);
+  const [linjer, setLinjer] = useState<Linje[]>(startLinjer);
+  const [lagrer, setLagrer] = useState(false);
+  const [feil, setFeil] = useState('');
+
+  const sum = summer(linjer);
+  const pris = tallFra(u.pris);
+  const kostnad = tallFra(u.kostnad);
+  const overskudd = pris - kostnad;
+
+  function sett(patch: Partial<Utkast>) {
+    setU((prev) => ({ ...prev, ...patch }));
+    if (feil) setFeil('');
+  }
+
+  /** Når varelinjene endrer seg, foreslår vi pris og kostnad – men overskriver aldri det dere har skrevet. */
+  function endreLinjer(nye: Linje[]) {
+    setLinjer(nye);
+    const gammel = summer(linjer);
+    const neste = summer(nye);
+    setU((prev) => ({
+      ...prev,
+      pris: prev.pris === '' || tallFra(prev.pris) === gammel.salg ? String(neste.salg) : prev.pris,
+      kostnad:
+        prev.kostnad === '' || tallFra(prev.kostnad) === gammel.kost
+          ? String(neste.kost)
+          : prev.kostnad,
+    }));
+  }
+
+  async function lagre() {
+    if (!u.kunde.trim()) {
+      setFeil('Skriv hvem som har bestilt.');
+      return;
+    }
+    if (linjer.length === 0 && !u.notat.trim()) {
+      setFeil('Legg inn minst én vare, eller skriv hva jobben går ut på i notatet.');
+      return;
+    }
+    setLagrer(true);
+    try {
+      await onLagre(u, linjer);
+    } catch {
+      setFeil('Klarte ikke å lagre. Prøv igjen.');
+    } finally {
+      setLagrer(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* 1. Kunden */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="label">
+            Hvem bestiller? <span className="text-red-500">*</span>
+          </span>
+          <input
+            value={u.kunde}
+            onChange={(e) => sett({ kunde: e.target.value })}
+            placeholder="Ola Nordmann"
+            className="field"
+          />
+        </label>
+        <label className="block">
+          <span className="label">Telefon</span>
+          <input
+            value={u.telefon}
+            onChange={(e) => sett({ telefon: e.target.value })}
+            placeholder="Valgfritt"
+            className="field"
+          />
+        </label>
+      </div>
+
+      {/* 2. Varene */}
+      <Varelinjer
+        linjer={linjer}
+        produkter={produkter}
+        materialer={materialer}
+        onEndre={endreLinjer}
+      />
+
+      {/* 3. Penger */}
+      <div className="rounded-2xl border border-ink-200 bg-ink-50/60 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="label mb-0">Penger</span>
+          {linjer.length > 0 && (pris !== sum.salg || kostnad !== sum.kost) && (
+            <button
+              type="button"
+              onClick={() => sett({ pris: String(sum.salg), kostnad: String(sum.kost) })}
+              className="text-xs font-semibold text-brand-700 underline-offset-2 hover:underline"
+            >
+              Bruk tallene fra varelinjene ({kr(sum.salg)} / {kr(sum.kost)})
+            </button>
+          )}
+        </div>
+
+        <div className="mt-2 grid gap-3 sm:grid-cols-3">
+          <label className="block">
+            <span className="text-[11px] font-semibold text-ink-500">Vi tok betalt</span>
+            <input
+              value={u.pris}
+              onChange={(e) => sett({ pris: e.target.value })}
+              inputMode="decimal"
+              placeholder="0"
+              className="field mt-0.5"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[11px] font-semibold text-ink-500">Vi brukte</span>
+            <input
+              value={u.kostnad}
+              onChange={(e) => sett({ kostnad: e.target.value })}
+              inputMode="decimal"
+              placeholder="0"
+              className="field mt-0.5"
+            />
+          </label>
+          <div>
+            <span className="text-[11px] font-semibold text-ink-500">Overskudd</span>
+            <p
+              className={`mt-2 text-2xl font-bold ${
+                overskudd >= 0 ? 'text-emerald-700' : 'text-red-600'
+              }`}
+            >
+              {kr(overskudd)}
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-2 text-xs text-ink-500">
+          Tallene fylles ut fra varelinjene, men du bestemmer selv. Når bestillingen står som{' '}
+          <span className="font-semibold text-ink-700">Ferdig</span>, havner de i økonomien.
+        </p>
+      </div>
+
+      {/* 4. Praktisk */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <span className="label">Levering</span>
+          <div className="flex gap-2">
+            {['Henting', 'Hjemlevering'].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => sett({ levering: v })}
+                className={`btn btn-sm flex-1 ${
+                  u.levering === v ? 'btn-dark' : 'border border-ink-200 bg-white text-ink-700'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <span className="label">Betaling</span>
+          <div className="flex gap-2">
+            {['Vipps', 'Kontant'].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => sett({ betalingsmate: v })}
+                className={`btn btn-sm flex-1 ${
+                  u.betalingsmate === v ? 'btn-dark' : 'border border-ink-200 bg-white text-ink-700'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {u.levering === 'Hjemlevering' && (
+          <label className="block sm:col-span-2">
+            <span className="label">Adresse</span>
+            <input
+              value={u.adresse}
+              onChange={(e) => sett({ adresse: e.target.value })}
+              placeholder="Vestre Sandslimarka 44"
+              className="field"
+            />
+          </label>
+        )}
+
+        <label className="block">
+          <span className="label">Skal være ferdig</span>
+          <input
+            type="date"
+            value={u.frist}
+            onChange={(e) => sett({ frist: e.target.value })}
+            className="field"
+          />
+        </label>
+
+        <label className="block">
+          <span className="label">Hvem tar den?</span>
+          <select
+            value={u.ansvarlig}
+            onChange={(e) => sett({ ansvarlig: e.target.value })}
+            className="field"
+          >
+            <option value="">Ingen ennå</option>
+            {folk.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block sm:col-span-2">
+          <span className="label">Notat</span>
+          <textarea
+            rows={2}
+            value={u.notat}
+            onChange={(e) => sett({ notat: e.target.value })}
+            placeholder="Farge, mål, hva dere ble enige om."
+            className="field resize-none"
+          />
+        </label>
+
+        <label className="flex items-center gap-2.5 text-sm font-semibold text-ink-700 sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={u.betalt}
+            onChange={(e) => sett({ betalt: e.target.checked })}
+            className="h-4 w-4 rounded border-ink-300 text-brand-600"
+          />
+          Kunden har betalt
+        </label>
+      </div>
+
+      {feil && <p className="text-sm font-semibold text-red-600">{feil}</p>}
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <button type="button" onClick={onAvbryt} className="btn btn-sm border border-ink-200 bg-white">
+          Avbryt
+        </button>
+        <button type="button" onClick={lagre} disabled={lagrer} className="btn-primary btn-sm">
+          {lagrer ? 'Lagrer …' : lagreTekst}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Selve siden                                                        */
+/* ------------------------------------------------------------------ */
+
+export function Bestillinger() {
+  const { supabase, profile, user } = useAdmin();
+  const [bestillinger, setBestillinger] = useState<Order[]>([]);
+  const [linjer, setLinjer] = useState<Record<string, OrderItem[]>>({});
+  const [produkter, setProdukter] = useState<Product[]>([]);
+  const [materialer, setMaterialer] = useState<Material[]>([]);
+  const [folk, setFolk] = useState<TeamMember[]>([]);
+  const [laster, setLaster] = useState(true);
+  const [mangler, setMangler] = useState(false);
+  const [feil, setFeil] = useState('');
+  const [filter, setFilter] = useState('pagang');
+  const [sok, setSok] = useState('');
+  const [nyApen, setNyApen] = useState(false);
+  const [redigerer, setRedigerer] = useState<string | null>(null);
+  const [apen, setApen] = useState<string | null>(null);
 
   const hent = useCallback(async () => {
     if (!supabase) return;
     setLaster(true);
-    const [b, t, v, p, m] = await Promise.all([
+    const [b, v, p, m, t] = await Promise.all([
       supabase.from('orders').select('*').order('created_at', { ascending: false }),
-      supabase.from('team_members').select('*').order('sort'),
       supabase.from('order_items').select('*').order('sort'),
       supabase.from('products').select('*').order('sort'),
       supabase.from('materials').select('*').order('sort'),
+      supabase.from('team_members').select('*').order('sort'),
     ]);
     if (b.error) {
       setMangler(true);
@@ -81,9 +387,9 @@ export function Bestillinger() {
     }
     setMangler(false);
     setBestillinger((b.data as Order[]) ?? []);
-    setFolk((t.data as TeamMember[]) ?? []);
     setProdukter((p.data as Product[]) ?? []);
     setMaterialer((m.data as Material[]) ?? []);
+    setFolk((t.data as TeamMember[]) ?? []);
 
     const samlet: Record<string, OrderItem[]> = {};
     for (const rad of ((v.data as OrderItem[]) ?? [])) {
@@ -97,10 +403,11 @@ export function Bestillinger() {
     hent();
   }, [hent]);
 
+  // Fører noen andre inn en bestilling, ser du den med en gang
   useEffect(() => {
     if (!supabase) return;
-    return lyttPaTabell(supabase, 'orders', ({ type, ny: rad, gammel }) => {
-      const id = String((rad?.id ?? gammel?.id) ?? '');
+    return lyttPaTabell(supabase, 'orders', ({ type, ny, gammel }) => {
+      const id = String((ny?.id ?? gammel?.id) ?? '');
       if (!id) return;
       if (type === 'DELETE') {
         setBestillinger((prev) => prev.filter((o) => o.id !== id));
@@ -108,33 +415,47 @@ export function Bestillinger() {
       }
       setBestillinger((prev) => {
         const finnes = prev.some((o) => o.id === id);
-        if (!finnes) return [rad as Order, ...prev];
-        return prev.map((o) => (o.id === id ? { ...o, ...(rad as Order) } : o));
+        if (!finnes) return [ny as Order, ...prev];
+        return prev.map((o) => (o.id === id ? { ...o, ...(ny as Order) } : o));
       });
     });
   }, [supabase]);
 
-  async function opprett(e: React.FormEvent) {
-    e.preventDefault();
-    if (!supabase || !ny.kunde.trim()) return;
-    const linjeSum = summerLinjer(nyeLinjer);
-    const beskrivelse =
-      ny.hva.trim() ||
-      nyeLinjer.map((l) => `${l.qty}x ${l.name || 'Uten navn'}`).join(', ') ||
-      '';
-    if (!beskrivelse) return;
+  /* ---------------- Lagring ---------------- */
+
+  function tilRader(orderId: string, liste: Linje[]) {
+    return liste
+      .filter((l) => l.name.trim() || l.product_id)
+      .map((l, i) => ({
+        order_id: orderId,
+        product_id: l.product_id,
+        code: l.code,
+        name: l.name.trim() || 'Uten navn',
+        qty: l.qty,
+        unit_price: l.unit_price,
+        unit_cost: l.unit_cost,
+        kind: l.kind,
+        sort: (i + 1) * 10,
+      }));
+  }
+
+  async function opprett(u: Utkast, liste: Linje[]) {
+    if (!supabase) return;
     const { data, error } = await supabase
       .from('orders')
       .insert({
-        kunde: ny.kunde.trim(),
-        telefon: ny.telefon.trim(),
-        adresse: ny.adresse.trim(),
-        hva: beskrivelse,
-        pris: nyeLinjer.length > 0 ? linjeSum.salg : Number(ny.pris) || 0,
-        levering: ny.levering,
-        betalingsmate: ny.betalingsmate,
-        frist: ny.frist || null,
-        ansvarlig: ny.ansvarlig || null,
+        kunde: u.kunde.trim(),
+        telefon: u.telefon.trim(),
+        adresse: u.adresse.trim(),
+        hva: beskriv(liste) || u.notat.trim(),
+        notat: u.notat.trim(),
+        pris: tallFra(u.pris),
+        kostnad: tallFra(u.kostnad),
+        betalt: u.betalt,
+        levering: u.levering,
+        betalingsmate: u.betalingsmate,
+        frist: u.frist || null,
+        ansvarlig: u.ansvarlig || null,
         status: 'ny',
         opprettet_av: profile?.name || user?.email || '',
       })
@@ -143,88 +464,77 @@ export function Bestillinger() {
 
     if (error || !data) {
       setFeil('Klarte ikke å lagre bestillingen.');
-      return;
+      throw new Error('insert');
     }
+
     const ordre = data as Order;
-    setBestillinger((prev) => [ordre, ...prev.filter((o) => o.id !== ordre.id)]);
-
-    if (nyeLinjer.length > 0) {
-      const { data: lagrede } = await supabase
-        .from('order_items')
-        .insert(nyeLinjer.map((l) => ({ ...l, order_id: ordre.id })))
-        .select();
-      setLinjer((prev) => ({ ...prev, [ordre.id]: (lagrede as OrderItem[]) ?? [] }));
+    const rader = tilRader(ordre.id, liste);
+    let lagrede: OrderItem[] = [];
+    if (rader.length > 0) {
+      const res = await supabase.from('order_items').insert(rader).select();
+      lagrede = (res.data as OrderItem[]) ?? [];
     }
-    setNyeLinjer([]);
 
-    setNy({
-      kunde: '',
-      telefon: '',
-      adresse: '',
-      hva: '',
-      pris: '',
-      levering: 'Henting',
-      betalingsmate: 'Vipps',
-      frist: '',
-      ansvarlig: '',
-    });
+    setBestillinger((prev) => [ordre, ...prev.filter((o) => o.id !== ordre.id)]);
+    setLinjer((prev) => ({ ...prev, [ordre.id]: lagrede }));
     setNyApen(false);
-    setApen((data as Order).id);
+    setApen(ordre.id);
+    setFeil('');
   }
 
-  async function endre(id: string, patch: Partial<Order>) {
+  async function lagreEndring(id: string, u: Utkast, liste: Linje[]) {
     if (!supabase) return;
+    const patch = {
+      kunde: u.kunde.trim(),
+      telefon: u.telefon.trim(),
+      adresse: u.adresse.trim(),
+      hva: beskriv(liste) || u.notat.trim(),
+      notat: u.notat.trim(),
+      pris: tallFra(u.pris),
+      kostnad: tallFra(u.kostnad),
+      betalt: u.betalt,
+      levering: u.levering,
+      betalingsmate: u.betalingsmate,
+      frist: u.frist || null,
+      ansvarlig: u.ansvarlig || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('orders').update(patch).eq('id', id);
+    if (error) {
+      setFeil('Klarte ikke å lagre endringen.');
+      throw new Error('update');
+    }
+
+    // Enklest og tryggest: bytt ut alle varelinjene
+    await supabase.from('order_items').delete().eq('order_id', id);
+    const rader = tilRader(id, liste);
+    let lagrede: OrderItem[] = [];
+    if (rader.length > 0) {
+      const res = await supabase.from('order_items').insert(rader).select();
+      lagrede = (res.data as OrderItem[]) ?? [];
+    }
+
     setBestillinger((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+    setLinjer((prev) => ({ ...prev, [id]: lagrede }));
+    setRedigerer(null);
+    setFeil('');
+  }
+
+  async function settStatus(id: string, status: string) {
+    if (!supabase) return;
+    setBestillinger((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
     const { error } = await supabase
       .from('orders')
-      .update({ ...patch, updated_at: new Date().toISOString() })
+      .update({ status, updated_at: new Date().toISOString() })
       .eq('id', id);
-    if (error) setFeil('Klarte ikke å lagre endringen.');
+    if (error) setFeil('Klarte ikke å lagre statusen.');
   }
 
-  /** Prisen på bestillingen følger varelinjene når det finnes noen. */
-  async function oppdaterSum(orderId: string, liste: OrderItem[]) {
-    if (liste.length === 0) return;
-    const sum = summerLinjer(liste).salg;
-    await endre(orderId, { pris: sum });
-  }
-
-  async function leggTilLinje(orderId: string, linje: NyLinje) {
+  async function settBetalt(id: string, betalt: boolean) {
     if (!supabase) return;
-    const { data, error } = await supabase
-      .from('order_items')
-      .insert({ ...linje, order_id: orderId })
-      .select()
-      .single();
-    if (error || !data) {
-      setFeil('Klarte ikke å legge til varelinjen.');
-      return;
-    }
-    const liste = [...(linjer[orderId] ?? []), data as OrderItem];
-    setLinjer((prev) => ({ ...prev, [orderId]: liste }));
-    oppdaterSum(orderId, liste);
-  }
-
-  async function endreLinje(orderId: string, index: number, patch: Partial<NyLinje>) {
-    if (!supabase) return;
-    const liste = [...(linjer[orderId] ?? [])];
-    const rad = liste[index];
-    if (!rad) return;
-    liste[index] = { ...rad, ...patch } as OrderItem;
-    setLinjer((prev) => ({ ...prev, [orderId]: liste }));
-    await supabase.from('order_items').update(patch).eq('id', rad.id);
-    oppdaterSum(orderId, liste);
-  }
-
-  async function slettLinje(orderId: string, index: number) {
-    if (!supabase) return;
-    const liste = [...(linjer[orderId] ?? [])];
-    const rad = liste[index];
-    if (!rad) return;
-    liste.splice(index, 1);
-    setLinjer((prev) => ({ ...prev, [orderId]: liste }));
-    await supabase.from('order_items').delete().eq('id', rad.id);
-    oppdaterSum(orderId, liste);
+    setBestillinger((prev) => prev.map((o) => (o.id === id ? { ...o, betalt } : o)));
+    await supabase.from('orders').update({ betalt }).eq('id', id);
   }
 
   async function slett(id: string) {
@@ -234,44 +544,48 @@ export function Bestillinger() {
     await supabase.from('orders').delete().eq('id', id);
   }
 
+  /* ---------------- Utregninger ---------------- */
+
   const synlige = useMemo(() => {
     const q = sok.trim().toLowerCase();
     return bestillinger.filter((o) => {
-      if (filter === 'aktive' && !AKTIVE.includes(o.status)) return false;
-      if (filter !== 'aktive' && filter !== 'alle' && o.status !== filter) return false;
+      const st = normaliser(o.status);
+      if (filter === 'pagang' && !PAGANG.includes(st)) return false;
+      if (filter === 'ubetalt' && (o.betalt || st === 'avlyst')) return false;
+      if (!['pagang', 'ubetalt', 'alle'].includes(filter) && st !== filter) return false;
       if (!q) return true;
-      return [o.kunde, o.hva, o.telefon, o.adresse, o.notat]
+      return [o.kunde, o.hva, o.telefon, o.notat]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
   }, [bestillinger, filter, sok]);
 
   const tall = useMemo(() => {
-    const aktive = bestillinger.filter((o) => AKTIVE.includes(o.status)).length;
-    const ubetalt = bestillinger.filter(
-      (o) => !o.betalt && ['ferdig', 'levert'].includes(o.status)
-    ).length;
     const naa = new Date();
-    const tjentDenneMnd = bestillinger
-      .filter((o) => {
-        if (!o.betalt) return false;
-        const d = new Date(o.created_at);
-        return d.getMonth() === naa.getMonth() && d.getFullYear() === naa.getFullYear();
-      })
-      .reduce((sum, o) => sum + (Number(o.pris) || 0), 0);
-    return { aktive, ubetalt, tjentDenneMnd };
+    const ferdige = bestillinger.filter((o) => normaliser(o.status) === 'levert');
+    const denneMnd = ferdige.filter((o) => {
+      const d = new Date(o.created_at);
+      return d.getMonth() === naa.getMonth() && d.getFullYear() === naa.getFullYear();
+    });
+    const ubetalt = bestillinger.filter((o) => !o.betalt && normaliser(o.status) !== 'avlyst');
+    return {
+      pagang: bestillinger.filter((o) => PAGANG.includes(normaliser(o.status))).length,
+      ubetaltAntall: ubetalt.length,
+      ubetaltSum: ubetalt.reduce((s, o) => s + Number(o.pris ?? 0), 0),
+      inn: denneMnd.reduce((s, o) => s + Number(o.pris ?? 0), 0),
+      ut: denneMnd.reduce((s, o) => s + Number(o.kostnad ?? 0), 0),
+    };
   }, [bestillinger]);
 
-  // Hva selger best – teller alle linjer i bestillinger som ikke er avlyst
   const bestselgere = useMemo(() => {
     const talt = new Map<
       string,
-      { navn: string; kode: string; antall: number; omsetning: number; fortjeneste: number }
+      { navn: string; kode: string; antall: number; omsetning: number; overskudd: number }
     >();
-    let totaltAntall = 0;
+    let totalt = 0;
 
     for (const o of bestillinger) {
-      if (o.status === 'avlyst') continue;
+      if (normaliser(o.status) === 'avlyst') continue;
       for (const l of linjer[o.id] ?? []) {
         const nokkel = l.product_id ?? `egen:${l.name.toLowerCase().trim()}`;
         const rad = talt.get(nokkel) ?? {
@@ -279,33 +593,62 @@ export function Bestillinger() {
           kode: l.kind === 'galleri' ? l.code ?? '' : '',
           antall: 0,
           omsetning: 0,
-          fortjeneste: 0,
+          overskudd: 0,
         };
         const antall = Number(l.qty) || 0;
         rad.antall += antall;
         rad.omsetning += antall * Number(l.unit_price);
-        rad.fortjeneste += antall * (Number(l.unit_price) - Number(l.unit_cost));
+        rad.overskudd += antall * (Number(l.unit_price) - Number(l.unit_cost));
         talt.set(nokkel, rad);
-        totaltAntall += antall;
+        totalt += antall;
       }
     }
 
     const liste = [...talt.values()].sort((a, b) => b.antall - a.antall);
     return {
       liste,
-      totaltAntall,
+      totalt,
       omsetning: liste.reduce((s, r) => s + r.omsetning, 0),
-      fortjeneste: liste.reduce((s, r) => s + r.fortjeneste, 0),
+      overskudd: liste.reduce((s, r) => s + r.overskudd, 0),
       hoyeste: liste[0]?.antall ?? 1,
     };
   }, [bestillinger, linjer]);
 
+  function utkastFra(o: Order): Utkast {
+    return {
+      kunde: o.kunde ?? '',
+      telefon: o.telefon ?? '',
+      adresse: o.adresse ?? '',
+      notat: o.notat ?? '',
+      levering: o.levering ?? 'Henting',
+      betalingsmate: o.betalingsmate ?? 'Vipps',
+      frist: o.frist ?? '',
+      ansvarlig: o.ansvarlig ?? '',
+      pris: String(Number(o.pris ?? 0)),
+      kostnad: String(Number(o.kostnad ?? 0)),
+      betalt: Boolean(o.betalt),
+    };
+  }
+
+  function linjerFra(o: Order): Linje[] {
+    return (linjer[o.id] ?? []).map((l) => ({
+      lokalId: l.id,
+      product_id: l.product_id,
+      code: l.code ?? '',
+      name: l.name,
+      qty: Number(l.qty) || 1,
+      unit_price: Number(l.unit_price) || 0,
+      unit_cost: Number(l.unit_cost) || 0,
+      kind: (l.kind === 'egen' ? 'egen' : 'galleri') as 'egen' | 'galleri',
+    }));
+  }
+
   if (mangler) {
     return (
       <div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-        Bestillingsoversikten er ikke satt opp ennå. Kjør{' '}
-        <code className="rounded bg-white px-1.5 py-0.5">supabase/schema.sql</code> på nytt i
-        Supabase, så dukker den opp her.
+        Bestillingene er ikke satt opp i databasen ennå. Kjør{' '}
+        <code className="rounded bg-white px-1.5 py-0.5">supabase/okonomi.sql</code> i Supabase, så
+        dukker de opp her.
       </div>
     );
   }
@@ -313,234 +656,75 @@ export function Bestillinger() {
   return (
     <div className="space-y-5">
       {/* Tall */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { t: tall.aktive, d: 'bestillinger på gang' },
-          { t: tall.ubetalt, d: 'venter på betaling' },
-          { t: `${Math.round(tall.tjentDenneMnd)} kr`, d: 'betalt inn denne måneden' },
-        ].map((n) => (
-          <div key={n.d} className="rounded-3xl border border-ink-100 bg-white p-5 shadow-soft">
-            <p className="text-2xl font-bold text-ink-900">{n.t}</p>
-            <p className="mt-0.5 text-sm text-ink-500">{n.d}</p>
-          </div>
-        ))}
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-soft">
+          <p className="text-3xl font-bold text-ink-900">{tall.pagang}</p>
+          <p className="mt-1 text-sm text-ink-500">på gang</p>
+        </div>
+        <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-soft">
+          <p className="text-3xl font-bold text-ink-900">{kr(tall.ubetaltSum)}</p>
+          <p className="mt-1 text-sm text-ink-500">
+            venter på betaling ({tall.ubetaltAntall} stk)
+          </p>
+        </div>
+        <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5">
+          <p className="text-3xl font-bold text-emerald-800">{kr(tall.inn)}</p>
+          <p className="mt-1 text-sm text-emerald-700">solgt for denne måneden</p>
+        </div>
+        <div className="rounded-3xl border border-brand-200 bg-brand-50 p-5">
+          <p className="text-3xl font-bold text-brand-800">{kr(tall.inn - tall.ut)}</p>
+          <p className="mt-1 text-sm text-brand-700">overskudd denne måneden</p>
+        </div>
       </div>
-
-      {/* Ny bestilling */}
-      <section className="overflow-hidden rounded-3xl border border-brand-200 bg-white shadow-soft">
-        <button
-          type="button"
-          onClick={() => setNyApen((v) => !v)}
-          className="flex w-full items-center gap-3 bg-brand-50/70 px-6 py-4 text-left transition-colors hover:bg-brand-50"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-xl font-bold text-white">
-            +
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-base font-semibold text-ink-900">Ny bestilling</span>
-            <span className="mt-0.5 block text-sm text-ink-600">
-              Fyll inn det kunden vil ha når meldingen kommer inn
-            </span>
-          </span>
-          <motion.span animate={{ rotate: nyApen ? 180 : 0 }} className="shrink-0 text-brand-700">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </motion.span>
-        </button>
-
-        <AnimatePresence initial={false}>
-          {nyApen && (
-            <motion.form
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              onSubmit={opprett}
-              className="overflow-hidden"
-            >
-              <div className="grid gap-4 border-t border-brand-100 p-6 sm:grid-cols-2">
-                <div>
-                  <label className="label" htmlFor="b-kunde">
-                    Hvem har bestilt? <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="b-kunde"
-                    value={ny.kunde}
-                    onChange={(e) => setNy({ ...ny, kunde: e.target.value })}
-                    className="field"
-                    placeholder="Navn"
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="b-tlf">
-                    Telefon
-                  </label>
-                  <input
-                    id="b-tlf"
-                    value={ny.telefon}
-                    onChange={(e) => setNy({ ...ny, telefon: e.target.value })}
-                    className="field"
-                    inputMode="tel"
-                    placeholder="Så dere kan svare"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <Varelinjer
-                    linjer={nyeLinjer}
-                    produkter={produkter}
-                    materialer={materialer}
-                    onLeggTil={(l) => setNyeLinjer((prev) => [...prev, l])}
-                    onEndre={(i, patch) =>
-                      setNyeLinjer((prev) => prev.map((l, k) => (k === i ? { ...l, ...patch } : l)))
-                    }
-                    onSlett={(i) => setNyeLinjer((prev) => prev.filter((_, k) => k !== i))}
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="label" htmlFor="b-hva">
-                    Notat om jobben{' '}
-                    {nyeLinjer.length === 0 && <span className="text-red-500">*</span>}
-                  </label>
-                  <textarea
-                    id="b-hva"
-                    rows={2}
-                    value={ny.hva}
-                    onChange={(e) => setNy({ ...ny, hva: e.target.value })}
-                    className="field resize-none"
-                    placeholder="F.eks. «Skal designes fra bunnen. Har sendt mål på SMS.»"
-                  />
-                  {nyeLinjer.length > 0 && !ny.hva.trim() && (
-                    <p className="hint">
-                      Står dette tomt, bruker vi varelinjene som beskrivelse.
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="label" htmlFor="b-adresse">
-                    Adresse
-                  </label>
-                  <input
-                    id="b-adresse"
-                    value={ny.adresse}
-                    onChange={(e) => setNy({ ...ny, adresse: e.target.value })}
-                    className="field"
-                    placeholder="Ved hjemlevering"
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="b-pris">
-                    Avtalt pris
-                  </label>
-                  <input
-                    id="b-pris"
-                    type="number"
-                    value={nyeLinjer.length > 0 ? summerLinjer(nyeLinjer).salg : ny.pris}
-                    onChange={(e) => setNy({ ...ny, pris: e.target.value })}
-                    readOnly={nyeLinjer.length > 0}
-                    className={`field ${nyeLinjer.length > 0 ? 'bg-ink-50 text-ink-600' : ''}`}
-                    placeholder="0"
-                  />
-                  {nyeLinjer.length > 0 && <p className="hint">Regnes ut fra varelinjene.</p>}
-                </div>
-
-                <div>
-                  <span className="label">Levering</span>
-                  <div className="flex gap-2">
-                    {['Henting', 'Hjemlevering'].map((l) => (
-                      <button
-                        key={l}
-                        type="button"
-                        onClick={() => setNy({ ...ny, levering: l })}
-                        className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
-                          ny.levering === l
-                            ? 'border-brand-500 bg-brand-50 text-brand-700'
-                            : 'border-ink-200 bg-white text-ink-500'
-                        }`}
-                      >
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <span className="label">Betaling</span>
-                  <div className="flex gap-2">
-                    {['Vipps', 'Kontant'].map((l) => (
-                      <button
-                        key={l}
-                        type="button"
-                        onClick={() => setNy({ ...ny, betalingsmate: l })}
-                        className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
-                          ny.betalingsmate === l
-                            ? 'border-brand-500 bg-brand-50 text-brand-700'
-                            : 'border-ink-200 bg-white text-ink-500'
-                        }`}
-                      >
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="label" htmlFor="b-frist">
-                    Skal være ferdig
-                  </label>
-                  <input
-                    id="b-frist"
-                    type="date"
-                    value={ny.frist}
-                    onChange={(e) => setNy({ ...ny, frist: e.target.value })}
-                    className="field"
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="b-ansvarlig">
-                    Hvem tar den?
-                  </label>
-                  <select
-                    id="b-ansvarlig"
-                    value={ny.ansvarlig}
-                    onChange={(e) => setNy({ ...ny, ansvarlig: e.target.value })}
-                    className="field"
-                  >
-                    <option value="">Ingen ennå</option>
-                    {folk.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <button
-                    type="submit"
-                    disabled={!ny.kunde.trim() || (!ny.hva.trim() && nyeLinjer.length === 0)}
-                    className="btn-primary"
-                  >
-                    Lagre bestillingen
-                  </button>
-                </div>
-              </div>
-            </motion.form>
-          )}
-        </AnimatePresence>
-      </section>
 
       {feil && (
         <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{feil}</p>
       )}
 
-      {/* Filter og søk */}
+      {/* Ny bestilling */}
+      <div className="rounded-3xl border border-brand-200 bg-white shadow-soft">
+        {nyApen ? (
+          <div className="p-5 sm:p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Ny bestilling</h2>
+            </div>
+            <OrdreSkjema
+              start={tomtUtkast()}
+              startLinjer={[]}
+              produkter={produkter}
+              materialer={materialer}
+              folk={folk}
+              lagreTekst="Lagre bestillingen"
+              onLagre={opprett}
+              onAvbryt={() => setNyApen(false)}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setNyApen(true)}
+            className="flex w-full items-center gap-3 p-5 text-left"
+          >
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-brand-600 text-xl font-bold text-white">
+              +
+            </span>
+            <span>
+              <span className="block font-bold text-ink-900">Ny bestilling</span>
+              <span className="block text-sm text-ink-500">
+                Velg modeller fra galleriet eller skriv inn jobben selv
+              </span>
+            </span>
+          </button>
+        )}
+      </div>
+
+      {/* Filter */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
           {[
-            { id: 'aktive', navn: 'På gang' },
-            ...STATUSER.map((s) => ({ id: s.verdi, navn: s.tekst })),
+            { id: 'pagang', navn: 'På gang' },
+            { id: 'ubetalt', navn: 'Ikke betalt' },
+            { id: 'levert', navn: 'Ferdige' },
             { id: 'alle', navn: 'Alle' },
           ].map((f) => (
             <button
@@ -576,28 +760,250 @@ export function Bestillinger() {
         </div>
       ) : synlige.length === 0 ? (
         <p className="rounded-3xl border border-dashed border-ink-200 bg-white/70 px-6 py-14 text-center text-sm text-ink-500">
-          Ingen bestillinger her. Trykk «Ny bestilling» når det kommer inn en melding.
+          Ingen bestillinger her ennå.
         </p>
       ) : (
         <ul className="space-y-3">
           <AnimatePresence initial={false}>
-            {synlige.map((o) => (
-              <Kort
-                key={o.id}
-                o={o}
-                folk={folk}
-                linjer={linjer[o.id] ?? []}
-                produkter={produkter}
-                materialer={materialer}
-                onLeggTilLinje={(l) => leggTilLinje(o.id, l)}
-                onEndreLinje={(i, patch) => endreLinje(o.id, i, patch)}
-                onSlettLinje={(i) => slettLinje(o.id, i)}
-                apen={apen === o.id}
-                onToggle={() => setApen(apen === o.id ? null : o.id)}
-                onEndre={(patch) => endre(o.id, patch)}
-                onSlett={() => slett(o.id)}
-              />
-            ))}
+            {synlige.map((o) => {
+              const st = statusInfo(o.status);
+              const ferdig = normaliser(o.status) === 'levert';
+              const overskudd = Number(o.pris ?? 0) - Number(o.kostnad ?? 0);
+              const varer = linjer[o.id] ?? [];
+
+              return (
+                <motion.li
+                  key={o.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden rounded-3xl border border-ink-200 bg-white shadow-soft"
+                >
+                  {/* Topp */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApen(apen === o.id ? null : o.id);
+                      setRedigerer(null);
+                    }}
+                    className="w-full px-5 py-4 text-left"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${st.farge}`}
+                          >
+                            {st.tekst}
+                          </span>
+                          <span className="font-bold text-ink-900">{o.kunde || 'Uten navn'}</span>
+                          {o.betalt ? (
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                              Betalt
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                              Ikke betalt
+                            </span>
+                          )}
+                          <span className="text-xs text-ink-400">{visDato(o.created_at)}</span>
+                        </div>
+                        <p className="mt-1.5 line-clamp-2 text-sm text-ink-600">
+                          {o.hva || 'Ingen beskrivelse'}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-ink-900">{kr(Number(o.pris ?? 0))}</p>
+                        <p
+                          className={`text-xs font-semibold ${
+                            overskudd >= 0 ? 'text-emerald-600' : 'text-red-600'
+                          }`}
+                        >
+                          {kr(overskudd)} igjen
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Åpen */}
+                  <AnimatePresence initial={false}>
+                    {apen === o.id && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden border-t border-ink-100 bg-ink-50/40"
+                      >
+                        <div className="space-y-4 p-5">
+                          {redigerer === o.id ? (
+                            <OrdreSkjema
+                              start={utkastFra(o)}
+                              startLinjer={linjerFra(o)}
+                              produkter={produkter}
+                              materialer={materialer}
+                              folk={folk}
+                              lagreTekst="Lagre endringene"
+                              onLagre={(u, liste) => lagreEndring(o.id, u, liste)}
+                              onAvbryt={() => setRedigerer(null)}
+                            />
+                          ) : (
+                            <>
+                              {/* Status */}
+                              <div>
+                                <p className="label">Hvor langt er dere kommet?</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {STATUSER.map((s) => (
+                                    <button
+                                      key={s.verdi}
+                                      type="button"
+                                      onClick={() => settStatus(o.id, s.verdi)}
+                                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                                        normaliser(o.status) === s.verdi
+                                          ? s.farge
+                                          : 'border-ink-200 bg-white text-ink-600 hover:border-brand-300'
+                                      }`}
+                                    >
+                                      {s.tekst}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Varer */}
+                              {varer.length > 0 && (
+                                <div className="rounded-2xl border border-ink-200 bg-white p-4">
+                                  <p className="label">Varer</p>
+                                  <ul className="divide-y divide-ink-100">
+                                    {varer.map((l) => (
+                                      <li key={l.id} className="flex items-center gap-2 py-2">
+                                        {l.kind === 'galleri' && l.code && (
+                                          <span className="shrink-0 rounded-full bg-ink-900 px-2 py-0.5 text-[10px] font-bold text-white">
+                                            {l.code}
+                                          </span>
+                                        )}
+                                        <span className="min-w-0 flex-1 truncate text-sm text-ink-800">
+                                          {l.qty}x {l.name}
+                                        </span>
+                                        <span className="shrink-0 text-sm font-semibold text-ink-900">
+                                          {kr(Number(l.qty) * Number(l.unit_price))}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Penger */}
+                              <div className="grid gap-3 sm:grid-cols-3">
+                                <div className="rounded-2xl bg-white p-3.5">
+                                  <p className="text-[11px] font-semibold text-ink-500">Vi tok betalt</p>
+                                  <p className="mt-0.5 text-lg font-bold text-ink-900">
+                                    {kr(Number(o.pris ?? 0))}
+                                  </p>
+                                </div>
+                                <div className="rounded-2xl bg-white p-3.5">
+                                  <p className="text-[11px] font-semibold text-ink-500">Vi brukte</p>
+                                  <p className="mt-0.5 text-lg font-bold text-ink-900">
+                                    {kr(Number(o.kostnad ?? 0))}
+                                  </p>
+                                </div>
+                                <div
+                                  className={`rounded-2xl p-3.5 ${
+                                    overskudd >= 0 ? 'bg-emerald-50' : 'bg-red-50'
+                                  }`}
+                                >
+                                  <p
+                                    className={`text-[11px] font-semibold ${
+                                      overskudd >= 0 ? 'text-emerald-700' : 'text-red-600'
+                                    }`}
+                                  >
+                                    Overskudd
+                                  </p>
+                                  <p
+                                    className={`mt-0.5 text-lg font-bold ${
+                                      overskudd >= 0 ? 'text-emerald-800' : 'text-red-700'
+                                    }`}
+                                  >
+                                    {kr(overskudd)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {ferdig && (
+                                <p className="rounded-2xl bg-emerald-50 px-4 py-2.5 text-[13px] font-semibold text-emerald-800">
+                                  Ført i økonomien: {kr(Number(o.pris ?? 0))} inn,{' '}
+                                  {kr(Number(o.kostnad ?? 0))} ut.
+                                </p>
+                              )}
+
+                              {/* Detaljer */}
+                              <div className="grid gap-2 text-sm text-ink-600 sm:grid-cols-2">
+                                <p>
+                                  <span className="font-semibold text-ink-800">Levering:</span>{' '}
+                                  {o.levering}
+                                  {o.adresse ? ` · ${o.adresse}` : ''}
+                                </p>
+                                <p>
+                                  <span className="font-semibold text-ink-800">Betaling:</span>{' '}
+                                  {o.betalingsmate}
+                                </p>
+                                {o.telefon && (
+                                  <p>
+                                    <span className="font-semibold text-ink-800">Telefon:</span>{' '}
+                                    <a href={`tel:${o.telefon}`} className="text-brand-700">
+                                      {o.telefon}
+                                    </a>
+                                  </p>
+                                )}
+                                {o.frist && (
+                                  <p>
+                                    <span className="font-semibold text-ink-800">Frist:</span>{' '}
+                                    {visDato(o.frist + 'T00:00:00')}
+                                  </p>
+                                )}
+                                {o.notat && <p className="sm:col-span-2">{o.notat}</p>}
+                              </div>
+
+                              {/* Knapper */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-200/70 pt-3">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(o.betalt)}
+                                    onChange={(e) => settBetalt(o.id, e.target.checked)}
+                                    className="h-4 w-4 rounded border-ink-300 text-brand-600"
+                                  />
+                                  Betalt
+                                </label>
+
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setRedigerer(o.id)}
+                                    className="btn btn-sm border border-ink-200 bg-white text-ink-700"
+                                  >
+                                    Rediger
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => slett(o.id)}
+                                    className="btn btn-sm border border-red-200 bg-white text-red-600 hover:bg-red-50"
+                                  >
+                                    Slett
+                                  </button>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.li>
+              );
+            })}
           </AnimatePresence>
         </ul>
       )}
@@ -608,18 +1014,17 @@ export function Bestillinger() {
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-400">
             Hva selger best
           </p>
-          {bestselgere.totaltAntall > 0 && (
+          {bestselgere.totalt > 0 && (
             <p className="text-xs font-semibold text-ink-500">
-              {bestselgere.totaltAntall} solgt · {kr(bestselgere.omsetning)} · vi har tjent{' '}
-              {kr(bestselgere.fortjeneste)}
+              {bestselgere.totalt} solgt · {kr(bestselgere.omsetning)} · {kr(bestselgere.overskudd)}{' '}
+              i overskudd
             </p>
           )}
         </div>
 
         {bestselgere.liste.length === 0 ? (
           <p className="mt-4 rounded-2xl bg-ink-50 px-4 py-5 text-sm text-ink-500">
-            Ingen varelinjer ført ennå. Åpne en bestilling og legg inn hva som ble solgt – da dukker
-            topplisten opp her.
+            Ingen varer ført ennå. Legg inn en bestilling med varer, så dukker topplisten opp her.
           </p>
         ) : (
           <ul className="mt-4 space-y-2.5">
@@ -628,7 +1033,7 @@ export function Bestillinger() {
                 <div className="flex flex-wrap items-center gap-2">
                   {r.kode && (
                     <span className="rounded-full bg-ink-900 px-2 py-0.5 text-[10px] font-bold text-white">
-                      ID {r.kode}
+                      {r.kode}
                     </span>
                   )}
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-900">
@@ -636,7 +1041,7 @@ export function Bestillinger() {
                   </span>
                   <span className="shrink-0 text-sm font-bold text-ink-900">{r.antall} stk</span>
                   <span className="shrink-0 text-xs font-semibold text-ink-500">
-                    {kr(r.omsetning)} · {kr(r.fortjeneste)} tjent
+                    {kr(r.omsetning)} · {kr(r.overskudd)} igjen
                   </span>
                 </div>
                 <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-ink-100">
@@ -651,288 +1056,5 @@ export function Bestillinger() {
         )}
       </div>
     </div>
-  );
-}
-
-function Kort({
-  o,
-  folk,
-  linjer,
-  produkter,
-  materialer,
-  apen,
-  onToggle,
-  onEndre,
-  onSlett,
-  onLeggTilLinje,
-  onEndreLinje,
-  onSlettLinje,
-}: {
-  o: Order;
-  folk: TeamMember[];
-  linjer: OrderItem[];
-  produkter: Product[];
-  materialer: Material[];
-  apen: boolean;
-  onToggle: () => void;
-  onEndre: (patch: Partial<Order>) => void;
-  onSlett: () => void;
-  onLeggTilLinje: (linje: NyLinje) => void;
-  onEndreLinje: (index: number, patch: Partial<NyLinje>) => void;
-  onSlettLinje: (index: number) => void;
-}) {
-  const s = statusInfo(o.status);
-  const person = folk.find((f) => f.id === o.ansvarlig);
-  const frist = datoTekst(o.frist);
-  const avsluttet = ['levert', 'avlyst'].includes(o.status);
-
-  return (
-    <motion.li
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, height: 0 }}
-      className={`overflow-hidden rounded-3xl border bg-white shadow-soft ${
-        avsluttet ? 'border-ink-100 opacity-70' : 'border-ink-200'
-      }`}
-    >
-      <button type="button" onClick={onToggle} className="w-full px-5 py-4 text-left">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${s.farge}`}>
-                {s.tekst}
-              </span>
-              <h3 className="text-base font-semibold text-ink-900">{o.kunde}</h3>
-              {o.betalt && (
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                  Betalt
-                </span>
-              )}
-            </div>
-            <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-ink-600">{o.hva}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-              {person && (
-                <span className="rounded-full bg-brand-50 px-2.5 py-1 text-brand-700">
-                  {person.name}
-                </span>
-              )}
-              {frist && !avsluttet && (
-                <span
-                  className={`rounded-full px-2.5 py-1 ${
-                    frist.rod ? 'bg-red-50 text-red-600' : 'bg-ink-100 text-ink-500'
-                  }`}
-                >
-                  {frist.tekst}
-                </span>
-              )}
-              {o.levering && (
-                <span className="rounded-full bg-ink-100 px-2.5 py-1 text-ink-500">
-                  {o.levering}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-3">
-            <span className="text-lg font-bold text-ink-900">
-              {Math.round(Number(o.pris) || 0)} kr
-            </span>
-            <motion.span animate={{ rotate: apen ? 180 : 0 }} className="text-ink-400">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </motion.span>
-          </div>
-        </div>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {apen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t border-ink-100 bg-ink-50/50"
-          >
-            <div className="space-y-5 p-5">
-              {/* Status */}
-              <div>
-                <span className="label">Hvor langt er dere kommet?</span>
-                <div className="flex flex-wrap gap-2">
-                  {STATUSER.map((st) => (
-                    <button
-                      key={st.verdi}
-                      type="button"
-                      onClick={() => onEndre({ status: st.verdi })}
-                      className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all ${
-                        o.status === st.verdi
-                          ? st.farge + ' ring-2 ring-offset-1 ring-brand-200'
-                          : 'border-ink-200 bg-white text-ink-500 hover:border-brand-300'
-                      }`}
-                    >
-                      {st.tekst}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Varelinjer
-                    linjer={linjer}
-                    produkter={produkter}
-                    materialer={materialer}
-                    onLeggTil={onLeggTilLinje}
-                    onEndre={onEndreLinje}
-                    onSlett={onSlettLinje}
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="label">Notat om jobben</label>
-                  <textarea
-                    rows={3}
-                    defaultValue={o.hva}
-                    onBlur={(e) => {
-                      if (e.target.value !== o.hva) onEndre({ hva: e.target.value });
-                    }}
-                    className="field resize-y"
-                  />
-                </div>
-
-                <div>
-                  <label className="label">Telefon</label>
-                  <input
-                    defaultValue={o.telefon ?? ''}
-                    onBlur={(e) => {
-                      if (e.target.value !== (o.telefon ?? '')) onEndre({ telefon: e.target.value });
-                    }}
-                    className="field"
-                  />
-                </div>
-                <div>
-                  <label className="label">Adresse</label>
-                  <input
-                    defaultValue={o.adresse ?? ''}
-                    onBlur={(e) => {
-                      if (e.target.value !== (o.adresse ?? '')) onEndre({ adresse: e.target.value });
-                    }}
-                    className="field"
-                  />
-                </div>
-
-                <div>
-                  <label className="label">Avtalt pris</label>
-                  <input
-                    type="number"
-                    key={linjer.length > 0 ? `sum-${summerLinjer(linjer).salg}` : 'manuell'}
-                    defaultValue={
-                      linjer.length > 0 ? summerLinjer(linjer).salg : Number(o.pris) || 0
-                    }
-                    onBlur={(e) => onEndre({ pris: Number(e.target.value) || 0 })}
-                    readOnly={linjer.length > 0}
-                    className={`field ${linjer.length > 0 ? 'bg-ink-50 text-ink-600' : ''}`}
-                  />
-                  {linjer.length > 0 && (
-                    <p className="hint">
-                      Regnes ut fra varelinjene. Vi tjener {kr(summerLinjer(linjer).fortjeneste)} på
-                      denne.
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="label">Skal være ferdig</label>
-                  <input
-                    type="date"
-                    value={o.frist ?? ''}
-                    onChange={(e) => onEndre({ frist: e.target.value || null })}
-                    className="field"
-                  />
-                </div>
-
-                <div>
-                  <label className="label">Hvem tar den?</label>
-                  <select
-                    value={o.ansvarlig ?? ''}
-                    onChange={(e) => onEndre({ ansvarlig: e.target.value || null })}
-                    className="field"
-                  >
-                    <option value="">Ingen ennå</option>
-                    {folk.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <span className="label">Betaling</span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onEndre({ betalt: !o.betalt })}
-                      className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
-                        o.betalt
-                          ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                          : 'border-ink-200 bg-white text-ink-500'
-                      }`}
-                    >
-                      {o.betalt ? 'Betalt ✓' : 'Ikke betalt'}
-                    </button>
-                    <select
-                      value={o.betalingsmate ?? 'Vipps'}
-                      onChange={(e) => onEndre({ betalingsmate: e.target.value })}
-                      className="field w-32"
-                      aria-label="Betalingsmåte"
-                    >
-                      <option>Vipps</option>
-                      <option>Kontant</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="label">Notat</label>
-                  <textarea
-                    rows={2}
-                    defaultValue={o.notat ?? ''}
-                    onBlur={(e) => {
-                      if (e.target.value !== (o.notat ?? '')) onEndre({ notat: e.target.value });
-                    }}
-                    placeholder="Hva som gjenstår, hva dere ble enige om, lenker."
-                    className="field resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200/70 pt-4">
-                <p className="text-xs text-ink-400">
-                  Lagt inn {new Date(o.created_at).toLocaleDateString('nb-NO')}
-                  {o.opprettet_av ? ` av ${o.opprettet_av}` : ''}
-                </p>
-                <div className="flex gap-2">
-                  {o.telefon && (
-                    <a
-                      href={`sms:${o.telefon.replace(/\s/g, '')}`}
-                      className="btn-ghost btn-sm"
-                    >
-                      Send melding
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onSlett}
-                    className="btn btn-sm border border-red-200 bg-white text-red-600 hover:bg-red-50"
-                  >
-                    Slett
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.li>
   );
 }

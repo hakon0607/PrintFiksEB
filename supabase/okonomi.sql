@@ -8,6 +8,9 @@
 alter table public.products add column if not exists cost_extra numeric(10,2) not null default 0;
 alter table public.products add column if not exists cost_price numeric(10,2) not null default 0;
 
+-- 1b. Hva bestillingen kostet oss (materiale og deler)
+alter table public.orders add column if not exists kostnad numeric(10,2) not null default 0;
+
 -- 2. Regnskapstabell
 create table if not exists public.finances (
   id           uuid primary key default gen_random_uuid(),

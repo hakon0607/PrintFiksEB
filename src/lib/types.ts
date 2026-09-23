@@ -163,6 +163,7 @@ export type Order = {
   notat: string | null;
   levering: string | null;
   pris: number | null;
+  kostnad?: number | null;
   betalt: boolean;
   betalingsmate: string | null;
   status: string;
