@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 /**
  * E-post ut fra nettsiden – kvittering til kunden og varsel til oss.
  * Sendes med Resend. Nøkkelen ligger som RESEND_API_KEY i Vercel.
@@ -300,4 +302,87 @@ export async function sendEpost(opts: {
   } catch (e) {
     return { ok: false, feil: e instanceof Error ? e.message : 'Ukjent feil' };
   }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Hvem skal ha varsel når det kommer en bestilling?                  */
+/* ------------------------------------------------------------------ */
+
+export function gyldigEpost(e: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
+}
+
+/** Splitter «a@b.no, c@d.no» og rydder bort tomt og ugyldig. */
+export function lesAdresser(raa: string): string[] {
+  return String(raa ?? '')
+    .split(/[,;\s]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e && gyldigEpost(e));
+}
+
+export type Mottakere = {
+  adresser: string[];
+  fraAnsatte: string[];
+  fraInnstilling: string[];
+  /** Ingen hadde huket av, så vi tok alle ansatte med e-post. */
+  reserveBrukt: boolean;
+  /** Kolonnen varsel_bestilling finnes ikke ennå – SQL-en er ikke kjørt. */
+  manglerKolonne: boolean;
+};
+
+/**
+ * Finner adressene varselet skal til.
+ * Rekkefølge: de som har huket av → ellers alle ansatte med e-post.
+ * E-posten i innstillingene legges alltid til.
+ */
+export async function finnMottakere(
+  service: SupabaseClient,
+  epostBedrift: string
+): Promise<Mottakere> {
+  const fraInnstilling = lesAdresser(epostBedrift);
+  let fraAnsatte: string[] = [];
+  let reserveBrukt = false;
+  let manglerKolonne = false;
+
+  const alle = await service.from('team_members').select('email,varsel_bestilling');
+  if (alle.error) {
+    // Kolonnen finnes ikke ennå – hent i hvert fall e-postene.
+    manglerKolonne = true;
+    const bare = await service.from('team_members').select('email');
+    const rader = ((bare.data as { email: string | null }[]) ?? []).map((r) => r.email ?? '');
+    fraAnsatte = rader.flatMap(lesAdresser);
+    reserveBrukt = fraAnsatte.length > 0;
+  } else {
+    const rader = (alle.data as { email: string | null; varsel_bestilling: boolean | null }[]) ?? [];
+    fraAnsatte = rader.filter((r) => r.varsel_bestilling).flatMap((r) => lesAdresser(r.email ?? ''));
+    if (fraAnsatte.length === 0) {
+      // Ingen har huket av. Da er det bedre å varsle alle enn ingen.
+      fraAnsatte = rader.flatMap((r) => lesAdresser(r.email ?? ''));
+      reserveBrukt = fraAnsatte.length > 0;
+    }
+  }
+
+  const adresser = [...new Set([...fraAnsatte, ...fraInnstilling])];
+  return { adresser, fraAnsatte, fraInnstilling, reserveBrukt, manglerKolonne };
+}
+
+/** Enkel test-e-post vi bruker fra admin for å se at oppsettet virker. */
+export function testEpost(bedrift: string): { emne: string; html: string; tekst: string } {
+  const emne = `Test fra ${bedrift}`;
+  const html = `<!doctype html><html lang="nb"><body style="margin:0;background:#EFF3FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:32px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+    <table role="presentation" width="100%" style="max-width:520px;background:#fff;border-radius:18px;padding:32px;box-shadow:0 12px 32px rgba(20,23,28,.08);">
+      <tr><td align="center">
+        <div style="width:56px;height:56px;line-height:56px;border-radius:999px;background:#E8F7EE;color:#1B8A4B;font-size:28px;">&#10003;</div>
+        <h1 style="margin:18px 0 8px;font-size:22px;color:#14171C;">E-posten virker</h1>
+        <p style="margin:0;font-size:15px;line-height:1.6;color:#5A6270;">
+          Får du denne, kommer varselet fram når noen bestiller på nettsiden.
+        </p>
+        <p style="margin:18px 0 0;font-size:13px;color:#8A919C;">${esc(bedrift)}</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+  const tekst = `E-posten virker. Får du denne, kommer varselet fram når noen bestiller. – ${bedrift}`;
+  return { emne, html, tekst };
 }

@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/server';
-import { kundeEpost, sendEpost, varselEpost, type EpostLinje } from '@/lib/epost';
+import {
+  finnMottakere,
+  gyldigEpost,
+  kundeEpost,
+  sendEpost,
+  varselEpost,
+  type EpostLinje,
+} from '@/lib/epost';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,10 +44,6 @@ function tekst(v: unknown, maks = 400): string {
 function tall(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
-}
-
-function gyldigEpost(e: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 }
 
 function gyldigTelefon(t: string): boolean {
@@ -192,37 +195,50 @@ export async function POST(request: Request) {
   };
 
   // Hvem av oss skal ha varsel?
-  const { data: ansatte } = await service
-    .from('team_members')
-    .select('email,varsel_bestilling')
-    .eq('varsel_bestilling', true);
-
-  const varsler = [
-    ...(((ansatte as { email: string | null }[]) ?? []).map((a) => a.email ?? '')),
-    s.epost_bedrift ?? '',
-  ].filter((e) => e && gyldigEpost(e));
+  const mottakere = await finnMottakere(service, s.epost_bedrift ?? '');
 
   const kunde = kundeEpost(kvittering);
   const varsel = varselEpost(kvittering);
 
-  const [tilKunde] = await Promise.all([
+  const [tilKunde, tilOss] = await Promise.all([
     sendEpost({ til: [epost], emne: kunde.emne, html: kunde.html, tekst: kunde.tekst, avsender }),
-    varsler.length > 0
+    mottakere.adresser.length > 0
       ? sendEpost({
-          til: [...new Set(varsler)],
+          til: mottakere.adresser,
           emne: varsel.emne,
           html: varsel.html,
           tekst: varsel.tekst,
           avsender,
           svarTil: epost,
         })
-      : Promise.resolve({ ok: false }),
+      : Promise.resolve({ ok: false, feil: 'Ingen i bedriften har lagt inn e-postadresse.' }),
   ]);
+
+  // Skriv ned hva som faktisk skjedde, så dere ser det i admin.
+  const status = [
+    tilKunde.ok ? 'Kvittering sendt til kunden' : `Kvittering feilet: ${tilKunde.feil ?? 'ukjent'}`,
+    tilOss.ok
+      ? `Varsel sendt til ${mottakere.adresser.join(', ')}`
+      : `Varsel feilet: ${tilOss.feil ?? 'ukjent'}`,
+  ].join(' | ');
+
+  if (!tilKunde.ok || !tilOss.ok) {
+    console.error('[bestilling] e-post gikk ikke ut', {
+      ordrenr,
+      kunde: tilKunde.feil,
+      varsel: tilOss.feil,
+      mottakere: mottakere.adresser,
+      avsender,
+    });
+  }
+
+  await service.from('orders').update({ epost_status: status.slice(0, 500) }).eq('id', o.id);
 
   return NextResponse.json({
     ok: true,
     ordrenr,
     fastPris: bareFastPris,
     epostSendt: tilKunde.ok,
+    varselSendt: tilOss.ok,
   });
 }

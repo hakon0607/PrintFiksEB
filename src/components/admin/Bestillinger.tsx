@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
@@ -947,6 +948,15 @@ export function Bestillinger() {
                               Fast pris
                             </span>
                           )}
+                          {typeof o.epost_status === 'string' &&
+                            o.epost_status.includes('feilet') && (
+                              <span
+                                title={o.epost_status}
+                                className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700"
+                              >
+                                E-post feilet
+                              </span>
+                            )}
                           {o.betalt ? (
                             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
                               Betalt
@@ -1102,6 +1112,26 @@ export function Bestillinger() {
                                 <p className="rounded-2xl bg-emerald-50 px-4 py-2.5 text-[13px] font-semibold text-emerald-800">
                                   Ført i økonomien: {kr(Number(o.pris ?? 0))} inn,{' '}
                                   {kr(Number(o.kostnad ?? 0))} ut.
+                                </p>
+                              )}
+
+                              {typeof o.epost_status === 'string' && o.epost_status && (
+                                <p
+                                  className={`rounded-2xl px-4 py-2.5 text-[13px] font-semibold ${
+                                    o.epost_status.includes('feilet')
+                                      ? 'bg-red-50 text-red-700'
+                                      : 'bg-ink-50 text-ink-600'
+                                  }`}
+                                >
+                                  E-post: {o.epost_status}
+                                  {o.epost_status.includes('feilet') && (
+                                    <>
+                                      {' '}
+                                      <Link href="/admin/epost" className="underline">
+                                        Sjekk e-postoppsettet
+                                      </Link>
+                                    </>
+                                  )}
                                 </p>
                               )}
 

@@ -37,6 +37,7 @@ const meny = [
   { href: '/admin/galleri', label: 'Galleri', ikon: 'M4 5h16v14H4zM4 15l4.5-4.5L13 15l3-3 4 4' },
   { href: '/admin/tekster', label: 'Tekster', ikon: 'M5 6h14M5 12h14M5 18h9' },
   { href: '/admin/sporsmal', label: 'Spørsmål og svar', ikon: 'M9.5 9a2.5 2.5 0 1 1 3.3 2.4c-.8.3-1.3 1-1.3 1.9v.2M12 17h.01' },
+  { href: '/admin/epost', label: 'E-post', ikon: 'M3 7l9 6 9-6M3 7h18v10H3z' },
   { href: '/admin/ansatte', label: 'Ansatte', ikon: 'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 19v-1.5a3.5 3.5 0 0 0-2.6-3.4' },
   { href: '/admin/profil', label: 'Min profil', ikon: 'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-1A3.5 3.5 0 0 0 8 17.5V19M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7' },
   { href: '/admin/innstillinger', label: 'Kontakt og levering', ikon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15a2 2 0 1 1 0-4 1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6 2 2 0 1 1 13 3a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.6 1.6 0 0 0 21 9a2 2 0 1 1 0 4' },

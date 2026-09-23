@@ -421,6 +421,7 @@ alter table public.orders add column if not exists ordrenr text;
 alter table public.orders add column if not exists kilde text not null default 'admin';   -- nett | telefon | admin
 alter table public.orders add column if not exists krever_godkjenning boolean not null default true;
 alter table public.orders add column if not exists vilkar_godtatt boolean not null default false;
+alter table public.orders add column if not exists epost_status text not null default '';
 
 create unique index if not exists orders_ordrenr_idx on public.orders (ordrenr) where ordrenr is not null;
 

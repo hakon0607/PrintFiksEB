@@ -170,6 +170,7 @@ export type Order = {
   kilde?: string | null;
   krever_godkjenning?: boolean | null;
   vilkar_godtatt?: boolean | null;
+  epost_status?: string | null;
   betalt: boolean;
   betalingsmate: string | null;
   status: string;
