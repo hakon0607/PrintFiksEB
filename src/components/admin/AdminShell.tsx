@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAdmin } from './AdminProvider';
 import { Login } from './Login';
@@ -43,9 +43,26 @@ const meny = [
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const { user, loading, configured, profile, signOut } = useAdmin();
+  const { user, loading, configured, profile, signOut, supabase } = useAdmin();
   const pathname = usePathname();
   const [menyApen, setMenyApen] = useState(false);
+  const [nyeBestillinger, setNyeBestillinger] = useState(0);
+
+  // Teller bestillinger som ikke er sett på ennå
+  const tellNye = useCallback(async () => {
+    if (!supabase || !user) return;
+    const { count } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'ny');
+    setNyeBestillinger(count ?? 0);
+  }, [supabase, user]);
+
+  useEffect(() => {
+    tellNye();
+    const id = window.setInterval(tellNye, 60000);
+    return () => window.clearInterval(id);
+  }, [tellNye]);
 
   if (!configured) return <IkkeKoblet />;
 
@@ -142,6 +159,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     />
                   </svg>
                   <span className="relative">{m.label}</span>
+                  {m.href === '/admin/bestillinger' && nyeBestillinger > 0 && (
+                    <span className="relative ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-brand-600 px-1.5 text-[11px] font-bold text-white">
+                      {nyeBestillinger}
+                    </span>
+                  )}
                 </Link>
               );
             })}

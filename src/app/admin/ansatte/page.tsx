@@ -22,7 +22,15 @@ export default function AnsatteSide() {
         tittelFelt="name"
         tomTekst="Ingen lagt inn ennå. Trykk «Legg til person» og skriv inn navnet."
         harAktiv={false}
-        nyRad={{ name: 'Nytt navn', role: '', bio: '', avatar_url: '', show_on_site: true }}
+        nyRad={{
+          name: 'Nytt navn',
+          role: '',
+          bio: '',
+          avatar_url: '',
+          email: '',
+          show_on_site: true,
+          varsel_bestilling: false,
+        }}
         felter={[
           { key: 'avatar_url', label: 'Bilde', type: 'image', help: 'Valgfritt. Uten bilde vises initialene.' },
           { key: 'name', label: 'Navn', type: 'text' },
@@ -37,6 +45,19 @@ export default function AnsatteSide() {
             label: 'Kort om personen',
             type: 'longtext',
             placeholder: 'En eller to setninger om hva de gjør.',
+          },
+          {
+            key: 'email',
+            label: 'E-post',
+            type: 'text',
+            placeholder: 'navn@example.com',
+            help: 'Brukes til varsel om nye bestillinger. Vises aldri på nettsiden.',
+          },
+          {
+            key: 'varsel_bestilling',
+            label: 'Få e-post ved nye bestillinger',
+            type: 'bool',
+            help: 'Skru på for de som skal varsles når noen bestiller på nettsiden.',
           },
           {
             key: 'show_on_site',

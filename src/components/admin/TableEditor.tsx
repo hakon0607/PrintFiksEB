@@ -12,19 +12,7 @@ import { lyttPaTabell } from '@/lib/realtime';
 export type Felt = {
   key: string;
   label: string;
-  type:
-    | 'text'
-    | 'longtext'
-    | 'number'
-    | 'price'
-    | 'bool'
-    | 'image'
-    | 'images'
-    | 'bildesett'
-    | 'color'
-    | 'select'
-    | 'lines'
-    | 'tid';
+  type: 'text' | 'longtext' | 'number' | 'price' | 'bool' | 'image' | 'images' | 'bildesett' | 'color' | 'select' | 'lines';
   valg?: { verdi: string; tekst: string }[];
   placeholder?: string;
   help?: string;
@@ -51,12 +39,6 @@ type Props = {
   radInfo?: (rad: Record<string, unknown>) => ReactNode;
   /** Boks øverst når raden er åpen, f.eks. regnestykket for margin. */
   radPanel?: (rad: Record<string, unknown>) => ReactNode;
-  /** Kjøres når et felt endres. Returnerer ekstra felter som skal lagres samtidig. */
-  folgeEndring?: (
-    key: string,
-    verdi: unknown,
-    rad: Record<string, unknown>
-  ) => Record<string, unknown> | null;
 };
 
 export function TableEditor({
@@ -73,7 +55,6 @@ export function TableEditor({
   finpuss = false,
   radInfo,
   radPanel,
-  folgeEndring,
 }: Props) {
   const { supabase, profile, user } = useAdmin();
   const [rader, setRader] = useState<Rad[]>([]);
@@ -283,7 +264,6 @@ export function TableEditor({
                   finpuss={finpuss}
                   radInfo={radInfo}
                   radPanel={radPanel}
-                  folgeEndring={folgeEndring}
                 />
               </motion.li>
             ))}
@@ -314,7 +294,6 @@ function RadRedigerer({
   finpuss,
   radInfo,
   radPanel,
-  folgeEndring,
 }: {
   table: string;
   rad: Rad;
@@ -335,11 +314,6 @@ function RadRedigerer({
   finpuss?: boolean;
   radInfo?: (rad: Record<string, unknown>) => ReactNode;
   radPanel?: (rad: Record<string, unknown>) => ReactNode;
-  folgeEndring?: (
-    key: string,
-    verdi: unknown,
-    rad: Record<string, unknown>
-  ) => Record<string, unknown> | null;
 }) {
   const { supabase } = useAdmin();
   const [finpusser, setFinpusser] = useState(false);
@@ -366,17 +340,15 @@ function RadRedigerer({
   );
 
   function endre(key: string, verdi: unknown, straks = false) {
-    const ekstra = folgeEndring?.(key, verdi, rad) ?? null;
-    const patch = ekstra ? { [key]: verdi, ...ekstra } : { [key]: verdi };
-    onLokal(patch);
+    onLokal({ [key]: verdi });
     onTravel(true);
     if (timerRef.current) window.clearTimeout(timerRef.current);
     if (straks) {
-      lagre(patch);
+      lagre({ [key]: verdi });
       return;
     }
     setStatus('lagrer');
-    timerRef.current = window.setTimeout(() => lagre(patch), 650);
+    timerRef.current = window.setTimeout(() => lagre({ [key]: verdi }), 650);
   }
 
   async function finpussNa() {
@@ -717,48 +689,6 @@ export function FeltRedigerer({
           className="field resize-y"
         />
         <p className="hint">{felt.help ?? 'Ett punkt per linje.'}</p>
-      </div>
-    );
-  }
-
-  if (felt.type === 'tid') {
-    const totalt = Math.max(0, Math.round(Number(verdi) || 0));
-    const timer = Math.floor(totalt / 60);
-    const minutter = totalt % 60;
-    return (
-      <div>
-        <span className="label">{felt.label}</span>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <input
-              type="number"
-              min={0}
-              value={timer}
-              onChange={(e) =>
-                onEndre(Math.max(0, Math.round(Number(e.target.value) || 0)) * 60 + minutter)
-              }
-              className="field w-20"
-              aria-label="Timer"
-            />
-            <span className="text-sm font-semibold text-ink-500">t</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <input
-              type="number"
-              min={0}
-              max={59}
-              value={minutter}
-              onChange={(e) => {
-                const m = Math.min(59, Math.max(0, Math.round(Number(e.target.value) || 0)));
-                onEndre(timer * 60 + m);
-              }}
-              className="field w-20"
-              aria-label="Minutter"
-            />
-            <span className="text-sm font-semibold text-ink-500">min</span>
-          </div>
-        </div>
-        {felt.help && <p className="hint">{felt.help}</p>}
       </div>
     );
   }

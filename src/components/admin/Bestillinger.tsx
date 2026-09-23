@@ -55,6 +55,8 @@ function tallFra(v: string): number {
 type Utkast = {
   kunde: string;
   telefon: string;
+  epost: string;
+  sendKvittering: boolean;
   adresse: string;
   notat: string;
   levering: string;
@@ -70,6 +72,8 @@ function tomtUtkast(): Utkast {
   return {
     kunde: '',
     telefon: '',
+    epost: '',
+    sendKvittering: true,
     adresse: '',
     notat: '',
     levering: 'Henting',
@@ -132,8 +136,12 @@ function OrdreSkjema({
   }
 
   async function lagre() {
-    if (!u.kunde.trim()) {
-      setFeil('Skriv hvem som har bestilt.');
+    if (u.kunde.trim().split(/\s+/).filter(Boolean).length < 2) {
+      setFeil('Skriv hele navnet til kunden – fornavn og etternavn.');
+      return;
+    }
+    if (u.telefon.replace(/\D/g, '').length < 8) {
+      setFeil('Skriv mobilnummeret til kunden.');
       return;
     }
     if (linjer.length === 0 && !u.notat.trim()) {
@@ -166,13 +174,28 @@ function OrdreSkjema({
           />
         </label>
         <label className="block">
-          <span className="label">Telefon</span>
+          <span className="label">
+            Mobilnummer <span className="text-red-500">*</span>
+          </span>
           <input
             value={u.telefon}
             onChange={(e) => sett({ telefon: e.target.value })}
-            placeholder="Valgfritt"
+            placeholder="412 34 567"
             className="field"
+            inputMode="tel"
           />
+        </label>
+
+        <label className="block sm:col-span-2">
+          <span className="label">E-post</span>
+          <input
+            value={u.epost}
+            onChange={(e) => sett({ epost: e.target.value })}
+            placeholder="ola@example.com"
+            className="field"
+            type="email"
+          />
+          <span className="hint">Fyll inn hvis kunden skal få kvittering på e-post.</span>
         </label>
       </div>
 
@@ -334,6 +357,23 @@ function OrdreSkjema({
           />
           Kunden har betalt
         </label>
+
+        <label className="flex items-start gap-2.5 text-sm font-semibold text-ink-700 sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={u.sendKvittering}
+            onChange={(e) => sett({ sendKvittering: e.target.checked })}
+            disabled={!u.epost.trim()}
+            className="mt-0.5 h-4 w-4 rounded border-ink-300 text-brand-600"
+          />
+          <span>
+            Send kvittering på e-post til kunden
+            <span className="block text-xs font-normal text-ink-500">
+              Kunden får bestillingsnummer, oppsummering og beskjed om at prisen må godkjennes før
+              vi starter.
+            </span>
+          </span>
+        </label>
       </div>
 
       {feil && <p className="text-sm font-semibold text-red-600">{feil}</p>}
@@ -446,6 +486,8 @@ export function Bestillinger() {
       .insert({
         kunde: u.kunde.trim(),
         telefon: u.telefon.trim(),
+        epost: u.epost.trim(),
+        kilde: 'telefon',
         adresse: u.adresse.trim(),
         hva: beskriv(liste) || u.notat.trim(),
         notat: u.notat.trim(),
@@ -480,6 +522,27 @@ export function Bestillinger() {
     setNyApen(false);
     setApen(ordre.id);
     setFeil('');
+
+    // Kvittering til kunden
+    if (u.sendKvittering && u.epost.trim()) {
+      const { data: okt } = await supabase.auth.getSession();
+      const res = await fetch('/api/kvittering', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${okt.session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ id: ordre.id }),
+      });
+      if (!res.ok) {
+        const svar = await res.json().catch(() => ({}));
+        setFeil(
+          `Bestillingen er lagret, men kvitteringen gikk ikke ut: ${
+            svar?.feil ?? 'ukjent feil'
+          }`
+        );
+      }
+    }
   }
 
   async function lagreEndring(id: string, u: Utkast, liste: Linje[]) {
@@ -487,6 +550,7 @@ export function Bestillinger() {
     const patch = {
       kunde: u.kunde.trim(),
       telefon: u.telefon.trim(),
+      epost: u.epost.trim(),
       adresse: u.adresse.trim(),
       hva: beskriv(liste) || u.notat.trim(),
       notat: u.notat.trim(),
@@ -618,6 +682,8 @@ export function Bestillinger() {
     return {
       kunde: o.kunde ?? '',
       telefon: o.telefon ?? '',
+      epost: o.epost ?? '',
+      sendKvittering: false,
       adresse: o.adresse ?? '',
       notat: o.notat ?? '',
       levering: o.levering ?? 'Henting',
@@ -798,6 +864,16 @@ export function Bestillinger() {
                             {st.tekst}
                           </span>
                           <span className="font-bold text-ink-900">{o.kunde || 'Uten navn'}</span>
+                          {o.ordrenr && (
+                            <span className="rounded-full bg-ink-900 px-2 py-0.5 text-[11px] font-bold text-white">
+                              #{o.ordrenr}
+                            </span>
+                          )}
+                          {o.kilde === 'nett' && (
+                            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-bold text-brand-700">
+                              Fra nettsiden
+                            </span>
+                          )}
                           {o.betalt ? (
                             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
                               Betalt
@@ -954,6 +1030,14 @@ export function Bestillinger() {
                                     <span className="font-semibold text-ink-800">Telefon:</span>{' '}
                                     <a href={`tel:${o.telefon}`} className="text-brand-700">
                                       {o.telefon}
+                                    </a>
+                                  </p>
+                                )}
+                                {o.epost && (
+                                  <p>
+                                    <span className="font-semibold text-ink-800">E-post:</span>{' '}
+                                    <a href={`mailto:${o.epost}`} className="text-brand-700">
+                                      {o.epost}
                                     </a>
                                   </p>
                                 )}

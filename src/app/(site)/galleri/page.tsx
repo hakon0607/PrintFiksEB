@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'Galleri',
   description:
-    'Ferdige 3D-printede modeller du kan kjøpe direkte fra PrintFiksEB. Legg dem i handlelisten og send oss en melding.',
+    'Ferdige 3D-printede modeller du kan kjøpe direkte fra PrintFiksEB. Legg dem i handlelisten og send bestillingen – så tar vi kontakt.',
 };
 
 export default async function GalleriSide({
@@ -34,7 +34,7 @@ export default async function GalleriSide({
           <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-ink-600">
             Dette er modeller vi allerede har laget og kan printe til deg. Prisen du ser er
             ferdig – ingen startpris kommer i tillegg. Hver modell har sin egen ID, og den tar du
-            med i meldingen så vi vet nøyaktig hva du vil ha.
+            med i bestillingen så vi vet nøyaktig hva du vil ha.
           </p>
         </Reveal>
 

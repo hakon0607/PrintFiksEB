@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'Bestill',
   description:
-    'Sett sammen bestillingen din hos PrintFiksEB og se prisen mens du velger. Send en ferdig melding eller ring oss – du får alltid pris før vi starter.',
+    'Sett sammen bestillingen din hos PrintFiksEB og se prisen mens du velger. Send den rett inn til oss, så tar vi kontakt med endelig pris før vi starter.',
 };
 
 export default async function BestillSide({
@@ -26,8 +26,8 @@ export default async function BestillSide({
         <Reveal>
           <h1 className="text-balance text-3xl font-bold sm:text-4xl">Bestill</h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-600">
-            Velg hva du vil ha, så ser du prisen med en gang. Ingenting er bindende – du får
-            endelig pris på melding og bestemmer selv om du vil ha det.
+            Velg hva du vil ha, så ser du prisen med en gang. Ingenting er bindende – vi tar
+            kontakt og gir deg en endelig pris som du må godkjenne før vi starter.
           </p>
         </Reveal>
 

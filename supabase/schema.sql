@@ -136,10 +136,6 @@ alter table public.products add column if not exists tagline text default '';
 alter table public.products add column if not exists highlights text[] not null default '{}';
 alter table public.products add column if not exists cost_extra numeric(10,2) not null default 0;
 alter table public.products add column if not exists cost_price numeric(10,2) not null default 0;
-alter table public.products add column if not exists print_minutes int not null default 0;
-alter table public.products add column if not exists calculated_price numeric(10,2) not null default 0;
-alter table public.products add column if not exists suggested_price numeric(10,2) not null default 0;
-alter table public.products add column if not exists price_mode text not null default 'manual';
 
 -- Gir hver ny modell et tilfeldig 5-sifret ID-nummer hvis dere ikke fyller det ut
 create or replace function public.set_product_code()
@@ -183,6 +179,8 @@ create table if not exists public.team_members (
   sort          int not null default 100,
   created_at    timestamptz not null default now()
 );
+
+alter table public.team_members add column if not exists varsel_bestilling boolean not null default false;
 
 -- ------------------------------------------------------------
 -- 9. Invitasjoner til nye ansatte
@@ -418,6 +416,38 @@ create table if not exists public.orders (
 );
 
 alter table public.orders add column if not exists kostnad numeric(10,2) not null default 0;
+alter table public.orders add column if not exists epost text default '';
+alter table public.orders add column if not exists ordrenr text;
+alter table public.orders add column if not exists kilde text not null default 'admin';   -- nett | telefon | admin
+
+create unique index if not exists orders_ordrenr_idx on public.orders (ordrenr) where ordrenr is not null;
+
+-- Gir hver bestilling et kort nummer kunden kan oppgi
+create or replace function public.set_order_number()
+returns trigger
+language plpgsql
+as $$
+declare
+  forsok int := 0;
+  kandidat text;
+begin
+  if new.ordrenr is null or btrim(new.ordrenr) = '' then
+    loop
+      kandidat := lpad((1000 + floor(random() * 8999))::int::text, 4, '0');
+      exit when not exists (select 1 from public.orders where ordrenr = kandidat);
+      forsok := forsok + 1;
+      exit when forsok > 40;
+    end loop;
+    new.ordrenr := kandidat;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists orders_set_number on public.orders;
+create trigger orders_set_number
+  before insert on public.orders
+  for each row execute function public.set_order_number();
 
 create index if not exists orders_status_idx on public.orders (status, created_at desc);
 
@@ -520,11 +550,13 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('bedrift_slagord',     'Ideer blir virkelighet',               'Slagord',                 'Vises under logoen', 'text', 'Generelt', 20),
   ('bedrift_skole',       'Skranevatnet skole',                   'Skole',                   '', 'text',     'Generelt', 30),
   ('bedrift_sted',        'Sandsli, Bergen',                      'Sted',                    '', 'text',     'Generelt', 40),
-  ('kontakt_telefon',     '41381608',                             'Telefon / SMS',           'Hit sendes bestillingsmeldingen', 'text', 'Kontakt', 10),
+  ('kontakt_telefon',     '41381608',                             'Telefon',                 'Nummeret folk kan ringe eller sende melding til', 'text', 'Kontakt', 10),
   ('kontakt_epost',       '',                                     'E-post',                  'Valgfritt', 'text', 'Kontakt', 20),
   ('vipps_nummer',        '41381608',                             'Vipps-nummer',            '', 'text',     'Kontakt', 30),
   ('vipps_navn',          'PrintFiksEB',                          'Vipps-navn',              '', 'text',     'Kontakt', 40),
-  ('kontakt_meldingstid', 'Meldinger kan du sende når som helst – hele døgnet, alle dager.', 'Når kan folk sende melding?', 'Vises ved SMS-knappen', 'text', 'Kontakt', 42),
+  ('kontakt_meldingstid', 'Bestillinger på nettsiden tar vi imot hele døgnet, alle dager.', 'Når kan folk bestille?', 'Vises ved bestillingsknappen', 'text', 'Kontakt', 42),
+  ('epost_avsender',      'PrintFiksEB <onboarding@resend.dev>', 'Avsender på e-post', 'Slik ser avsenderen ut i kvitteringene. Har dere eget domene verifisert hos Resend, skriv f.eks. PrintFiksEB <post@printfikseb.no>.', 'text', 'Kontakt', 46),
+  ('epost_bedrift',       '',                                     'E-post til bedriften', 'Hit sendes varsel om nye bestillinger, i tillegg til de ansatte som har huket av for varsel.', 'text', 'Kontakt', 48),
   ('kontakt_ringetid',    'Ring mellom 15 og 21, mandag til lørdag.', 'Når kan folk ringe?',   'Vises ved ring-knappen', 'text', 'Kontakt', 44),
   ('kontakt_ringer_tilbake', 'Rekker vi ikke å ta telefonen, ringer vi tilbake så fort vi har tid.', 'Hvis dere ikke svarer', '', 'text', 'Kontakt', 46),
   ('sosial_instagram',    '',                                     'Instagram (lenke)',       'Valgfritt', 'text', 'Kontakt', 50),
@@ -533,9 +565,6 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('pris_startpris_pa',   'ja',                                   'Bruk startpris',          'Skru av for å fjerne startprisen helt', 'bool', 'Priser', 20),
   ('pris_valuta',         'kr',                                   'Valuta',                  '', 'text',     'Priser', 30),
   ('pris_reparasjon',     'Pris etter avtale',                    'Reparasjon – pristekst',  'Vises på reparasjonskortet', 'text', 'Priser', 40),
-  ('pris_filament_gram',  '0.30',                                 'Filament koster oss (kr/g)', 'Hva plasten faktisk koster oss per gram. Brukes til å regne ut anbefalt pris på modellene.', 'number', 'Priser', 50),
-  ('pris_printer_time',   '5',                                    'Printeren koster (kr/time)', 'Strøm og slitasje per time printeren går.', 'number', 'Priser', 60),
-  ('pris_profittfaktor',  '2.8',                                  'Profittfaktor',           'Kostnaden ganges med dette tallet. 2,8 er et vanlig utgangspunkt.', 'number', 'Priser', 70),
   ('levering_radius_km',  '3',                                    'Radius hjemlevering (km)','Målt fra skolen', 'number', 'Levering', 10),
   ('levering_dager_min',  '2',                                    'Leveringstid fra (dager)','Virkedager', 'number', 'Levering', 20),
   ('levering_dager_maks', '4',                                    'Leveringstid til (dager)','Virkedager', 'number', 'Levering', 30),
@@ -543,8 +572,8 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('tekst_hero_tittel',   'Vi printer, fikser og designer det du trenger i 3D',      'Forside – overskrift', '', 'text',     'Tekster', 10),
   ('tekst_hero_ingress',  'PrintFiksEB er en elevbedrift på Skranevatnet skole. Send oss en idé, et mål eller et ødelagt plastdel – så lager vi det. Du får alltid en pris du må godkjenne før vi starter.', 'Forside – ingress', '', 'longtext', 'Tekster', 20),
   ('tekst_om_oss',        'PrintFiksEB er en elevbedrift drevet av 10. klassinger på Skranevatnet skole. Vi startet fordi vi syntes det var rart at så mye kastes når en liten plastdel ryker – og fordi 3D-printing rett og slett er gøy. I dag printer vi reservedeler, holdere, figurer, gaver og egne design for folk i nærmiljøet.', 'Om oss – tekst', '', 'longtext', 'Tekster', 30),
-  ('tekst_reparasjon',    'Har du noe som har knekt? Send oss bilde og mål på SMS, så finner vi ut om vi kan printe en ny del eller lage en løsning. Vi gir alltid pris før vi begynner.', 'Reparasjon – tekst', '', 'longtext', 'Tekster', 40),
-  ('tekst_godkjenning',   'Alle priser på nettsiden er estimat. Du får en endelig pris på melding som du må godkjenne før vi starter å printe.', 'Tekst om prisgodkjenning', '', 'longtext', 'Tekster', 50),
+  ('tekst_reparasjon',    'Har du noe som har knekt? Beskriv det i bestillingen, så tar vi kontakt og finner ut om vi kan printe en ny del eller lage en løsning. Vi gir alltid pris før vi begynner.', 'Reparasjon – tekst', '', 'longtext', 'Tekster', 40),
+  ('tekst_godkjenning',   'Alle priser på nettsiden er estimat. Du får en endelig pris fra oss som du må godkjenne før vi starter å printe.', 'Tekst om prisgodkjenning', '', 'longtext', 'Tekster', 50),
   ('tekst_fikse_tittel',  'Du vet ikke hva en 3D-printer kan fikse',  'Hva vi kan fikse – overskrift', '', 'text', 'Tekster', 60),
   ('tekst_fikse_ingress', 'De fleste tenker på 3D-printing som leker og figurer. Sannheten er at vi lager små plastdeler folk ellers kaster hele produktet for. Her er noen eksempler.', 'Hva vi kan fikse – ingress', '', 'longtext', 'Tekster', 70),
   ('tekst_fikse_ikke',    'Vi printer i plast, så vi kan ikke lage noe som skal tåle høy varme, bære tung vekt eller brukes i mat over tid. Metall, glass og elektronikk fikser vi heller ikke. Er du usikker? Spør oss – vi sier fra hvis det ikke går.', 'Hva vi IKKE kan gjøre', '', 'longtext', 'Tekster', 80),
@@ -586,15 +615,15 @@ where not exists (select 1 from public.delivery_options);
 
 insert into public.faq (question, answer, sort)
 select * from (values
-  ('Hvordan bestiller jeg?', 'Bruk priskalkulatoren eller galleriet, legg det du vil ha i handlelisten, og trykk «Send bestilling». Da får du en ferdig melding du bare sender til oss på SMS. Så svarer vi og avtaler resten.', 10),
+  ('Hvordan bestiller jeg?', 'Bruk bestillingssiden eller galleriet, legg det du vil ha i handlelisten, fyll inn fullt navn, mobilnummer og e-post, og trykk «Send bestilling». Bestillingen kommer rett inn til oss, du får kvittering på e-post med bestillingsnummer, og vi tar kontakt så fort vi kan.', 10),
   ('Hva koster det?', 'Skal vi lage noe for deg koster det 100 kr i startpris per bestilling, pluss 0,80 kr per gram for PLA eller 1,00 kr per gram for PETG. Skal vi designe 3D-filen for deg koster det 100 kr ekstra. Ferdige modeller fra galleriet har fast pris uten startpris.', 20),
-  ('Må jeg vite hvor mange gram modellen er?', 'Nei. Du velger bare omtrent hvor stor den er i kalkulatoren, så gir vi deg en nøyaktig pris på melding etterpå.', 30),
+  ('Må jeg vite hvor mange gram modellen er?', 'Nei. Du velger bare omtrent hvor stor den er, så gir vi deg en nøyaktig pris når vi tar kontakt.', 30),
   ('Hva hvis jeg ikke har en 3D-fil?', 'Da kan du sende oss en detaljert tegning med alle mål, så printer vi etter den. Eller så designer vi filen for deg for 100 kr. Vi kan også komme hjem til deg og ta målene for 50 kr ekstra.', 40),
   ('Hvor lang tid tar det?', 'Vanligvis 2–4 virkedager fra du har godkjent prisen. Store eller kompliserte jobber kan ta litt lenger – da sier vi fra.', 50),
   ('Hvordan betaler jeg?', 'Helst med Vipps. Kontant går også helt fint, men gi beskjed på forhånd så vi har veksel klart.', 60),
   ('Kan dere reparere ting?', 'Ofte ja! Send oss bilde og mål av det som er ødelagt, så sier vi om vi får det til og hva det koster.', 70),
   ('Leverer dere hjem?', 'Ja, for 50 kr innenfor 3 km fra Skranevatnet skole. Henter du selv er det gratis.', 80),
-  ('Kan jeg ringe i stedet for å sende melding?', 'Ja! Meldinger kan du sende når som helst, hele døgnet. Telefonen tar vi mellom 15 og 21, mandag til lørdag. Rekker vi ikke å svare, ringer vi tilbake så fort vi har tid.', 90)
+  ('Kan jeg ringe i stedet for å bestille på nettsiden?', 'Ja! Bestillinger på nettsiden tar vi imot hele døgnet. Telefonen tar vi mellom 15 og 21, mandag til lørdag. Rekker vi ikke å svare, ringer vi tilbake så fort vi har tid, og fører bestillingen inn for deg.', 90)
 ) as v(question, answer, sort)
 where not exists (select 1 from public.faq);
 

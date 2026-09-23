@@ -12,8 +12,8 @@ import {
   type RepairItem,
   type SelectedExtra,
 } from '@/lib/cart';
+import { useRouter } from 'next/navigation';
 import { itemPrice, orderTotals } from '@/lib/pricing';
-import { buildOrderMessage, smsHref } from '@/lib/message';
 import { AnimatedNumber } from './AnimatedNumber';
 import { formatPhone, telHref } from '@/lib/settings';
 import type { DeliveryOption, Material, WeightRange, Extra, Color } from '@/lib/types';
@@ -77,6 +77,7 @@ export function Bestilling(props: Props) {
     forhandsvalgtTekst,
   } = props;
 
+  const router = useRouter();
   const { items, add, remove, setQty, clear, ready } = useCart();
 
   /* ---------------- Det du setter sammen nå ---------------- */
@@ -115,10 +116,11 @@ export function Bestilling(props: Props) {
   const [navn, setNavn] = useState('');
   const [adresse, setAdresse] = useState('');
   const [tlf, setTlf] = useState('');
+  const [epost, setEpost] = useState('');
   const [betaling, setBetaling] = useState('Vipps');
+  const [sender, setSender] = useState(false);
+  const [sendeFeil, setSendeFeil] = useState('');
   const [kommentar, setKommentar] = useState('');
-  const [kopiert, setKopiert] = useState(false);
-  const [visMelding, setVisMelding] = useState(false);
 
   useEffect(() => {
     try {
@@ -128,6 +130,7 @@ export function Bestilling(props: Props) {
         if (d.navn) setNavn(d.navn);
         if (d.adresse) setAdresse(d.adresse);
         if (d.tlf) setTlf(d.tlf);
+        if (d.epost) setEpost(d.epost);
         if (d.betaling) setBetaling(d.betaling);
       }
     } catch {
@@ -137,11 +140,14 @@ export function Bestilling(props: Props) {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(FORM_KEY, JSON.stringify({ navn, adresse, tlf, betaling }));
+      window.localStorage.setItem(
+        FORM_KEY,
+        JSON.stringify({ navn, adresse, tlf, epost, betaling })
+      );
     } catch {
       /* ikke kritisk */
     }
-  }, [navn, adresse, tlf, betaling]);
+  }, [navn, adresse, tlf, epost, betaling]);
 
   const material = materials.find((m) => m.id === materialId) ?? materials[0];
   const farge = colors.find((c) => c.id === fargeId) ?? colors[0];
@@ -180,40 +186,20 @@ export function Bestilling(props: Props) {
     [items, startFee, useStartFee, leveringPris]
   );
 
-  const melding = useMemo(
-    () =>
-      buildOrderMessage(
-        items,
-        {
-          name: navn,
-          address: adresse,
-          phone: tlf,
-          deliveryName: levering?.name ?? '',
-          deliveryPrice: leveringPris,
-          payment: betaling,
-          comment: kommentar,
-        },
-        { startFee: useStartFee ? startFee : 0, businessName, currency }
-      ),
-    [
-      items,
-      navn,
-      adresse,
-      tlf,
-      levering,
-      leveringPris,
-      betaling,
-      kommentar,
-      startFee,
-      useStartFee,
-      businessName,
-      currency,
-    ]
-  );
-
-  const manglerNavn = !navn.trim();
+  const manglerNavn = navn.trim().split(/\s+/).filter(Boolean).length < 2;
+  const manglerTlf = tlf.replace(/\D/g, '').length < 8;
+  const manglerEpost = !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(epost.trim());
   const manglerAdresse = krevAdresse && !adresse.trim();
-  const klar = items.length > 0 && !manglerNavn && !manglerAdresse;
+  const klar =
+    items.length > 0 && !manglerNavn && !manglerTlf && !manglerEpost && !manglerAdresse;
+
+  const mangeltekst = manglerNavn
+    ? 'Skriv hele navnet ditt i steg 3.'
+    : manglerTlf
+      ? 'Skriv mobilnummeret ditt i steg 3.'
+      : manglerEpost
+        ? 'Skriv e-postadressen din i steg 3.'
+        : 'Skriv adressen i steg 3.';
 
   function toggleExtra(id: string) {
     setValgteExtras((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -256,25 +242,94 @@ export function Bestilling(props: Props) {
     setStegApent((prev) => ({ ...prev, 1: false }));
   }
 
-  async function kopier() {
+  async function sendBestilling() {
+    if (!klar || sender) return;
+    setSender(true);
+    setSendeFeil('');
+
+    const varer = items.map((item) => {
+      const p = itemPrice(item);
+      const produkt = item.kind === 'product' ? item : null;
+      return {
+        navn:
+          item.kind === 'product'
+            ? item.title
+            : item.kind === 'repair'
+              ? `Reparasjon: ${item.description}`
+              : beskrivPrint(item),
+        antall: item.qty,
+        pris: p.unknown
+          ? 'Etter avtale'
+          : p.min === p.max
+            ? `${Math.round(p.min)} ${currency}`
+            : `${Math.round(p.min)}–${Math.round(p.max)} ${currency}`,
+        prisMin: p.unknown ? 0 : p.min,
+        prisMaks: p.unknown ? 0 : p.max,
+        produktId: produkt?.productId ?? null,
+        kode: produkt?.code ?? '',
+        type: item.kind === 'product' ? 'galleri' : 'egen',
+      };
+    });
+
+    const sumTekst = totals.hasUnknown
+      ? 'Etter avtale'
+      : totals.isRange
+        ? `${Math.round(totals.totalMin)}–${Math.round(totals.totalMax)} ${currency}`
+        : `${Math.round(totals.totalMin)} ${currency}`;
+
     try {
-      await navigator.clipboard.writeText(melding);
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = melding;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        document.execCommand('copy');
-      } catch {
-        /* brukeren kan markere teksten selv */
+      const res = await fetch('/api/bestilling', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          navn: navn.trim(),
+          telefon: tlf.trim(),
+          epost: epost.trim(),
+          adresse: adresse.trim(),
+          levering: levering?.name ?? 'Henting',
+          betaling,
+          kommentar: kommentar.trim(),
+          varer,
+          sum: sumTekst,
+          sumMin: totals.hasUnknown ? 0 : totals.totalMin,
+          sumMaks: totals.hasUnknown ? 0 : totals.totalMax,
+        }),
+      });
+
+      const svar = await res.json().catch(() => ({}));
+      if (!res.ok || !svar?.ok) {
+        setSendeFeil(svar?.feil || 'Klarte ikke å sende bestillingen. Prøv igjen.');
+        setSender(false);
+        return;
       }
-      document.body.removeChild(ta);
+
+      try {
+        window.sessionStorage.setItem(
+          'printfikseb_kvittering',
+          JSON.stringify({
+            ordrenr: svar.ordrenr,
+            navn: navn.trim(),
+            telefon: tlf.trim(),
+            epost: epost.trim(),
+            adresse: adresse.trim(),
+            levering: levering?.name ?? 'Henting',
+            betaling,
+            kommentar: kommentar.trim(),
+            varer,
+            sum: sumTekst,
+            epostSendt: Boolean(svar.epostSendt),
+          })
+        );
+      } catch {
+        /* ikke kritisk */
+      }
+
+      clear();
+      router.push('/bestilt');
+    } catch {
+      setSendeFeil('Fikk ikke kontakt med oss akkurat nå. Prøv igjen om litt.');
+      setSender(false);
     }
-    setKopiert(true);
-    window.setTimeout(() => setKopiert(false), 2400);
   }
 
   const kanLeggeTil = modus === 'reparasjon' ? !!reparasjon.trim() : true;
@@ -493,7 +548,9 @@ export function Bestilling(props: Props) {
                     placeholder="F.eks. «Håndtaket på oppvaskmaskinkurven har knekt. Det er ca. 6 cm langt.»"
                     className="field resize-none"
                   />
-                  <p className="hint">Send gjerne bilde og mål når du sender meldingen.</p>
+                  <p className="hint">
+                    Har du bilde eller mål? Send det på melding når vi tar kontakt.
+                  </p>
                 </div>
               </motion.div>
             )}
@@ -540,7 +597,7 @@ export function Bestilling(props: Props) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="navn">
-                Navn <span className="text-red-500">*</span>
+                Fullt navn <span className="text-red-500">*</span>
               </label>
               <input
                 id="navn"
@@ -553,17 +610,33 @@ export function Bestilling(props: Props) {
             </div>
             <div>
               <label className="label" htmlFor="tlf">
-                Telefon
+                Mobilnummer <span className="text-red-500">*</span>
               </label>
               <input
                 id="tlf"
                 value={tlf}
                 onChange={(e) => setTlf(e.target.value)}
-                placeholder="Valgfritt"
+                placeholder="412 34 567"
                 className="field"
                 inputMode="tel"
                 autoComplete="tel"
               />
+              <p className="hint">Vi ringer eller sender melding for å avtale detaljene.</p>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="label" htmlFor="epost">
+                E-post <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="epost"
+                type="email"
+                value={epost}
+                onChange={(e) => setEpost(e.target.value)}
+                placeholder="ola@example.com"
+                className="field"
+                autoComplete="email"
+              />
+              <p className="hint">Hit sender vi kvitteringen med det du har bestilt.</p>
             </div>
             <div className="sm:col-span-2">
               <label className="label" htmlFor="adresse">
@@ -807,30 +880,41 @@ export function Bestilling(props: Props) {
           <div className="border-t border-ink-100 bg-ink-50/60 p-5">
             {items.length > 0 && !klar && (
               <p className="mb-3 rounded-2xl bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-700">
-                {manglerNavn ? 'Fyll inn navnet ditt i steg 3.' : 'Fyll inn adressen i steg 3.'}
+                {mangeltekst}
               </p>
             )}
 
-            <a
-              href={klar ? smsHref(phone, melding) : undefined}
-              aria-disabled={!klar}
-              onClick={(e) => {
-                if (!klar) e.preventDefault();
-              }}
-              className={`btn-primary w-full ${klar ? '' : 'pointer-events-none opacity-50'}`}
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.2-.6L3 21l1.8-5.1A8.2 8.2 0 0 1 3.6 11.5 8.4 8.4 0 0 1 12.6 3a8.4 8.4 0 0 1 8.4 8.5z"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Send bestilling
-            </a>
+            {sendeFeil && (
+              <p className="mb-3 rounded-2xl bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">
+                {sendeFeil}
+              </p>
+            )}
 
-            <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={sendBestilling}
+              disabled={!klar || sender}
+              className={`btn-primary w-full ${klar && !sender ? '' : 'opacity-50'}`}
+            >
+              {sender ? (
+                'Sender bestillingen …'
+              ) : (
+                <>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M4 12.5 9.5 18 20 6.5"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Send bestilling
+                </>
+              )}
+            </button>
+
+            <div className="mt-2.5">
               <a href={telHref(phone)} className="btn-ghost w-full">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path
@@ -842,14 +926,6 @@ export function Bestilling(props: Props) {
                 </svg>
                 Ring i stedet
               </a>
-              <button
-                type="button"
-                onClick={kopier}
-                disabled={items.length === 0}
-                className="btn-ghost w-full"
-              >
-                {kopiert ? 'Kopiert ✓' : 'Kopier melding'}
-              </button>
             </div>
 
             <div className="mt-4 space-y-1.5 text-[11px] leading-relaxed text-ink-500">
@@ -860,44 +936,12 @@ export function Bestilling(props: Props) {
                 <span className="font-bold text-brand-600">Telefon</span> {phoneHours}{' '}
                 {callbackText}
               </p>
-              <p className="pt-1">{approvalText}</p>
+              <p className="pt-1">
+                Vi tar kontakt så fort vi kan for å avtale detaljene. {approvalText}
+              </p>
             </div>
 
-            {items.length > 0 && (
-              <div className="mt-3 border-t border-ink-200/70 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setVisMelding((v) => !v)}
-                  className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-ink-500 hover:text-ink-800"
-                >
-                  Se meldingen som sendes
-                  <motion.span animate={{ rotate: visMelding ? 180 : 0 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <path
-                        d="m6 9 6 6 6-6"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </motion.span>
-                </button>
-                <AnimatePresence initial={false}>
-                  {visMelding && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-2xl bg-white p-3.5 font-sans text-[12px] leading-relaxed text-ink-700">
-                        {melding}
-                      </pre>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
+
           </div>
         </div>
 

@@ -68,14 +68,3 @@ do $$ begin
   exception when duplicate_object then null; when undefined_object then null; end;
 end $$;
 
--- 5. Automatisk prisberegning på modellene
-alter table public.products add column if not exists print_minutes int not null default 0;
-alter table public.products add column if not exists calculated_price numeric(10,2) not null default 0;
-alter table public.products add column if not exists suggested_price numeric(10,2) not null default 0;
-alter table public.products add column if not exists price_mode text not null default 'manual';
-
-insert into public.settings (key, value, label, help, type, gruppe, sort) values
-  ('pris_filament_gram', '0.30', 'Filament koster oss (kr/g)', 'Hva plasten faktisk koster oss per gram. Brukes til å regne ut anbefalt pris på modellene.', 'number', 'Priser', 50),
-  ('pris_printer_time',  '5',    'Printeren koster (kr/time)', 'Strøm og slitasje per time printeren går.', 'number', 'Priser', 60),
-  ('pris_profittfaktor', '2.8',  'Profittfaktor', 'Kostnaden ganges med dette tallet. 2,8 er et vanlig utgangspunkt.', 'number', 'Priser', 70)
-on conflict (key) do nothing;

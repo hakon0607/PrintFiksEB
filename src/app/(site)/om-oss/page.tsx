@@ -111,7 +111,7 @@ export default async function OmOssSide({
             {[
               {
                 t: 'Har du en 3D-fil?',
-                d: 'Supert – si fra i meldingen, så sender du den til oss etterpå. Vi tar imot STL, 3MF og STEP.',
+                d: 'Supert – skriv det i bestillingen, så avtaler vi hvordan du sender den når vi tar kontakt. Vi tar imot STL, 3MF og STEP.',
               },
               {
                 t: 'Har du ikke en fil?',
@@ -123,7 +123,7 @@ export default async function OmOssSide({
               },
               {
                 t: 'Pris før vi starter',
-                d: 'Du får alltid et estimat på melding som du må godkjenne. Vi begynner aldri å printe før du har sagt ja.',
+                d: 'Du ser et estimat med en gang, og får endelig pris fra oss som du må godkjenne. Vi begynner aldri å printe før du har sagt ja.',
               },
             ].map((k) => (
               <StaggerItem key={k.t} className="h-full">
@@ -181,15 +181,15 @@ export default async function OmOssSide({
           <Reveal>
             <div className="h-full rounded-3xl border border-ink-100 bg-white p-7 shadow-soft">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-semibold">Send melding</h2>
+                <h2 className="text-xl font-semibold">Bestill på nettsiden</h2>
                 <span className="chip">Åpent 24/7</span>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-ink-700">{meldingstid}</p>
               <p className="mt-2 text-sm leading-relaxed text-ink-500">
-                Bruk bestillingssiden, så lager vi meldingen ferdig for deg.
+                Du fyller inn navn, mobil og e-post – så tar vi kontakt for å avtale resten.
               </p>
               <Link href="/bestill" className="btn-primary mt-5">
-                Lag bestillingen min
+                Bestill nå
               </Link>
             </div>
           </Reveal>
@@ -230,7 +230,7 @@ export default async function OmOssSide({
             <div>
               <h2 className="text-2xl font-bold text-white">Lurer du på noe?</h2>
               <p className="mt-2 text-sm leading-relaxed text-ink-300">
-                Send oss en melding på {formatPhone(telefon)} når som helst – hele døgnet
+                Bestill på nettsiden når som helst, eller ring oss på {formatPhone(telefon)}
                 {epost ? `, eller e-post til ${epost}` : ''}. {ringetid}
               </p>
             </div>

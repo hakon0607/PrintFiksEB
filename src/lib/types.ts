@@ -59,10 +59,6 @@ export type Product = {
   price: number;
   cost_extra?: number | null;
   cost_price?: number | null;
-  print_minutes?: number | null;
-  calculated_price?: number | null;
-  suggested_price?: number | null;
-  price_mode?: string | null;
   image_url: string | null;
   material: string | null;
   weight_g: number | null;
@@ -82,6 +78,7 @@ export type TeamMember = {
   email: string | null;
   avatar_url: string | null;
   show_on_site: boolean;
+  varsel_bestilling?: boolean | null;
   sort: number;
 };
 
@@ -168,6 +165,9 @@ export type Order = {
   levering: string | null;
   pris: number | null;
   kostnad?: number | null;
+  epost?: string | null;
+  ordrenr?: string | null;
+  kilde?: string | null;
   betalt: boolean;
   betalingsmate: string | null;
   status: string;
