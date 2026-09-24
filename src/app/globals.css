@@ -304,3 +304,27 @@ body:has(.site) { background: #F3F6FD; background-image: none; }
 @media (prefers-reduced-motion: reduce) {
   .aurora i, .drop { animation: none !important; }
 }
+
+/* Kvitteringen skal se ordentlig ut om kunden skriver den ut eller lagrer som PDF */
+@media print {
+  .no-print,
+  header,
+  footer,
+  nav {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .shadow-soft,
+  .shadow-lift,
+  .shadow-glow {
+    box-shadow: none !important;
+  }
+  a[href]::after {
+    content: '';
+  }
+}

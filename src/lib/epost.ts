@@ -259,11 +259,82 @@ export function varselEpost(k: Kvittering): { emne: string; html: string; tekst:
 /*  Sending                                                            */
 /* ------------------------------------------------------------------ */
 
-export function harEpostOppsett(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+export type Avsendervei = 'smtp' | 'resend' | 'ingen';
+
+/** Leser SMTP-oppsettet fra miljøvariablene. Gmail er forhåndsutfylt. */
+export function smtpOppsett() {
+  const bruker = (process.env.SMTP_BRUKER || process.env.GMAIL_BRUKER || '').trim();
+  const passord = (process.env.SMTP_PASSORD || process.env.GMAIL_APP_PASSORD || '').replace(/\s+/g, '');
+  if (!bruker || !passord) return null;
+  const vert = (process.env.SMTP_VERT || 'smtp.gmail.com').trim();
+  const port = Number(process.env.SMTP_PORT || 465);
+  return { vert, port, bruker, passord, sikker: port === 465 };
 }
 
-export async function sendEpost(opts: {
+/** Hvilken vei sendes e-posten? */
+export function avsendervei(): Avsendervei {
+  if (smtpOppsett()) return 'smtp';
+  if (process.env.RESEND_API_KEY) return 'resend';
+  return 'ingen';
+}
+
+export function harEpostOppsett(): boolean {
+  return avsendervei() !== 'ingen';
+}
+
+/**
+ * Gmail (og de fleste SMTP-tjenere) overstyrer avsenderadressen til kontoen
+ * som logger inn. Vi beholder derfor bare navnet fra innstillingen.
+ */
+function byggAvsender(onsket: string, konto: string): string {
+  const navn = (onsket.match(/^\s*"?([^"<]+?)"?\s*</) || [])[1]?.trim();
+  return navn ? `"${navn.replace(/"/g, '')}" <${konto}>` : konto;
+}
+
+async function sendMedSmtp(opts: {
+  til: string[];
+  emne: string;
+  html: string;
+  tekst: string;
+  avsender: string;
+  svarTil?: string;
+}): Promise<{ ok: boolean; feil?: string }> {
+  const opp = smtpOppsett();
+  if (!opp) return { ok: false, feil: 'Mangler SMTP-oppsett' };
+  try {
+    const nodemailer = (await import('nodemailer')).default;
+    const sender = nodemailer.createTransport({
+      host: opp.vert,
+      port: opp.port,
+      secure: opp.sikker,
+      auth: { user: opp.bruker, pass: opp.passord },
+      connectionTimeout: 15000,
+      greetingTimeout: 12000,
+      socketTimeout: 20000,
+    });
+    await sender.sendMail({
+      from: byggAvsender(opts.avsender, opp.bruker),
+      to: opts.til.join(', '),
+      subject: opts.emne,
+      html: opts.html,
+      text: opts.tekst,
+      ...(opts.svarTil ? { replyTo: opts.svarTil } : {}),
+    });
+    return { ok: true };
+  } catch (e) {
+    const m = e instanceof Error ? e.message : 'Ukjent SMTP-feil';
+    if (/invalid login|username and password not accepted|535/i.test(m)) {
+      return {
+        ok: false,
+        feil:
+          'SMTP avviste innloggingen. Sjekk at app-passordet er riktig, og at det er laget på samme konto som adressen.',
+      };
+    }
+    return { ok: false, feil: `SMTP: ${m}` };
+  }
+}
+
+async function sendMedResend(opts: {
   til: string[];
   emne: string;
   html: string;
@@ -273,27 +344,19 @@ export async function sendEpost(opts: {
 }): Promise<{ ok: boolean; feil?: string }> {
   const nokkel = process.env.RESEND_API_KEY;
   if (!nokkel) return { ok: false, feil: 'Mangler RESEND_API_KEY' };
-
-  const mottakere = opts.til.map((t) => t.trim()).filter(Boolean);
-  if (mottakere.length === 0) return { ok: false, feil: 'Ingen mottakere' };
-
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${nokkel}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${nokkel}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: opts.avsender || 'PrintFiksEB <onboarding@resend.dev>',
-        to: mottakere,
+        to: opts.til,
         subject: opts.emne,
         html: opts.html,
         text: opts.tekst,
         ...(opts.svarTil ? { reply_to: opts.svarTil } : {}),
       }),
     });
-
     if (!res.ok) {
       const tekst = await res.text().catch(() => '');
       return { ok: false, feil: `Resend svarte ${res.status}: ${tekst.slice(0, 200)}` };
@@ -302,6 +365,35 @@ export async function sendEpost(opts: {
   } catch (e) {
     return { ok: false, feil: e instanceof Error ? e.message : 'Ukjent feil' };
   }
+}
+
+/** Sender e-posten via SMTP hvis det er satt opp, ellers Resend. */
+export async function sendEpost(opts: {
+  til: string[];
+  emne: string;
+  html: string;
+  tekst: string;
+  avsender: string;
+  svarTil?: string;
+}): Promise<{ ok: boolean; feil?: string }> {
+  const mottakere = opts.til.map((t) => t.trim()).filter(Boolean);
+  if (mottakere.length === 0) return { ok: false, feil: 'Ingen mottakere' };
+  const arg = { ...opts, til: mottakere };
+
+  const vei = avsendervei();
+  if (vei === 'ingen') {
+    return { ok: false, feil: 'Ingen e-post er satt opp på serveren' };
+  }
+  if (vei === 'smtp') {
+    const res = await sendMedSmtp(arg);
+    // Faller tilbake til Resend hvis SMTP er nede, men ikke ved feil passord
+    if (!res.ok && process.env.RESEND_API_KEY && !/avviste innloggingen/.test(res.feil ?? '')) {
+      const res2 = await sendMedResend(arg);
+      if (res2.ok) return res2;
+    }
+    return res;
+  }
+  return sendMedResend(arg);
 }
 
 /* ------------------------------------------------------------------ */

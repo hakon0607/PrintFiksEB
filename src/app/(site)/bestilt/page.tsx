@@ -50,6 +50,7 @@ const STEG_FAST = [
 export default function BestiltSide() {
   const [k, setK] = useState<Kvittering | null>(null);
   const [lastet, setLastet] = useState(false);
+  const [kopiert, setKopiert] = useState(false);
 
   useEffect(() => {
     try {
@@ -115,6 +116,74 @@ export default function BestiltSide() {
               Bestilling #{k.ordrenr}
             </span>
           </motion.p>
+        )}
+
+        {lastet && k && (
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.34 }}
+            className="mt-7 rounded-3xl border-2 border-dashed border-amber-300 bg-amber-50/70 p-5 sm:p-6"
+          >
+            <div className="flex items-start gap-4">
+              <span
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber-400/90 text-white"
+                aria-hidden
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-ink-900 sm:text-lg">
+                  Ta vare på kvitteringen
+                </h2>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-ink-700">
+                  Ta et skjermbilde av denne siden nå, eller et bilde med et annet mobilkamera.
+                  Det er kvitteringen din, og den viser bestillingsnummeret vi bruker når vi snakker
+                  sammen.
+                </p>
+                <p className="mt-2 text-[13px] leading-relaxed text-ink-600">
+                  <span className="font-semibold text-ink-800">iPhone:</span> trykk sideknappen og
+                  volum opp samtidig.{' '}
+                  <span className="font-semibold text-ink-800">Android:</span> av/på og volum ned
+                  samtidig.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="btn-dark btn-sm no-print"
+                  >
+                    Lagre som PDF eller skriv ut
+                  </button>
+                  {k.ordrenr && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          navigator.clipboard.writeText(k.ordrenr);
+                          setKopiert(true);
+                          window.setTimeout(() => setKopiert(false), 2500);
+                        } catch {
+                          /* ikke kritisk */
+                        }
+                      }}
+                      className="btn-ghost btn-sm no-print"
+                    >
+                      {kopiert ? 'Kopiert!' : 'Kopier bestillingsnummer'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
         )}
 
         {/* Stegene */}
@@ -195,20 +264,27 @@ export default function BestiltSide() {
               )}
             </div>
 
-            <p className="border-t border-ink-100 px-5 py-4 text-[13px] leading-relaxed text-ink-600">
-              {k.epostSendt
-                ? `Vi har sendt en kvittering til ${k.epost}. Finner du den ikke, sjekk søppelpost.`
-                : 'Ta vare på bestillingsnummeret – oppgi det når vi snakker sammen.'}{' '}
-              Har du bilde av det som skal fikses, eller en 3D-fil? Send det på melding når vi tar
-              kontakt.
-            </p>
+            {k.epostSendt ? (
+              <p className="border-t border-ink-100 px-5 py-4 text-[13px] leading-relaxed text-ink-600">
+                Vi har sendt en kvittering til{' '}
+                <span className="font-semibold text-ink-800">{k.epost}</span>. Finner du den ikke,
+                sjekk søppelpost. Har du bilde av det som skal fikses, eller en 3D-fil? Send det på
+                melding når vi tar kontakt.
+              </p>
+            ) : (
+              <p className="border-t border-amber-200 bg-amber-50 px-5 py-4 text-[13px] leading-relaxed text-amber-900">
+                <span className="font-semibold">Vi fikk ikke sendt e-post til deg denne gangen.</span>{' '}
+                Bestillingen er registrert hos oss uansett, og vi tar kontakt på telefon. Ta vare på
+                skjermbildet av denne siden.
+              </p>
+            )}
           </motion.div>
         )}
 
         {lastet && !k && (
           <div className="mt-8 rounded-3xl border border-ink-100 bg-white p-6 text-center text-sm text-ink-600 shadow-soft">
-            Vi fant ikke detaljene i denne nettleseren, men bestillingen er registrert hos oss. Sjekk
-            e-posten din for kvitteringen.
+            Vi fant ikke detaljene i denne nettleseren, men bestillingen er registrert hos oss.
+            Sjekk e-posten din for kvitteringen – eller ring oss, så finner vi den fram.
           </div>
         )}
 

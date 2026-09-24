@@ -16,6 +16,8 @@ type SisteOrdre = {
 
 type Status = {
   nokkel: boolean;
+  vei: 'smtp' | 'resend' | 'ingen';
+  smtpVert: string;
   avsender: string;
   testavsender: boolean;
   mottakere: string[];
@@ -139,7 +141,7 @@ export function EpostOppsett() {
     return <div className="card p-6 text-sm text-ink-600">Klarte ikke å hente statusen.</div>;
   }
 
-  const alt = status.nokkel && status.mottakere.length > 0;
+  const alt = status.vei === 'smtp' && status.mottakere.length > 0;
 
   return (
     <div className="space-y-5">
@@ -155,22 +157,43 @@ export function EpostOppsett() {
         </div>
 
         <ul className="px-6 py-5">
-          <Punkt ok={status.nokkel} tittel="Nøkkel fra Resend">
-            {status.nokkel ? (
-              <p>Nøkkelen ligger inne på serveren. Den delen er i orden.</p>
-            ) : (
+          <Punkt ok={status.nokkel} tittel="Hvem sender e-posten">
+            {status.vei === 'smtp' && (
               <>
                 <p>
-                  Serveren har ingen nøkkel, så ingen e-post blir sendt i det hele tatt. Dette er
-                  som regel grunnen til at det ikke kommer mail.
+                  Sendes fra{' '}
+                  <span className="font-mono text-[12px] text-ink-800">{status.avsender}</span> via{' '}
+                  {status.smtpVert}. Denne veien når fram til alle, ikke bare dere.
                 </p>
                 <p className="text-ink-500">
-                  Lag en gratis konto på resend.com, lag en API-nøkkel, og legg den inn i Vercel
-                  under Settings → Environment Variables med navnet{' '}
+                  Grensa er rundt 500 e-poster om dagen. Det holder lenge.
+                </p>
+              </>
+            )}
+            {status.vei === 'resend' && (
+              <p>
+                Sendes via Resend. Uten eget domene når e-posten bare fram til adressen
+                Resend-kontoen ble laget med – kundene får ingenting. Sett opp Gmail nedenfor i
+                stedet.
+              </p>
+            )}
+            {status.vei === 'ingen' && (
+              <>
+                <p>
+                  Serveren kan ikke sende e-post i det hele tatt. Ingen kvittering går ut, og dere
+                  får ingen varsel.
+                </p>
+                <p className="text-ink-500">
+                  Fiks: lag en Gmail for bedriften, skru på totrinnsbekreftelse, lag et app-passord,
+                  og legg inn{' '}
                   <code className="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-[11px]">
-                    RESEND_API_KEY
-                  </code>
-                  . Trykk så Redeploy, ellers plukkes den ikke opp.
+                    GMAIL_BRUKER
+                  </code>{' '}
+                  og{' '}
+                  <code className="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-[11px]">
+                    GMAIL_APP_PASSORD
+                  </code>{' '}
+                  i Vercel. Trykk Redeploy etterpå.
                 </p>
               </>
             )}
@@ -213,23 +236,21 @@ export function EpostOppsett() {
             )}
           </Punkt>
 
-          <Punkt ok={!status.testavsender} tittel="Avsenderadresse">
-            <p>
-              Sendes fra{' '}
-              <span className="font-mono text-[12px] text-ink-800">{status.avsender}</span>
-            </p>
-            {status.testavsender && (
+          {status.vei === 'resend' && (
+            <Punkt ok={!status.testavsender} tittel="Avsenderadresse">
               <p>
-                Dette er Resend sin testadresse. Den kan{' '}
-                <strong className="font-semibold text-ink-800">bare</strong> sende til adressen dere
-                laget Resend-kontoen med. Bestiller noen andre, får kunden ingen kvittering.
-                <br />
-                Skal det virke for alle, må dere legge inn domenet deres i Resend under Domains, og
-                deretter endre avsender her i admin til f.eks.{' '}
-                <span className="font-mono text-[12px]">PrintFiksEB &lt;post@printfikseb.no&gt;</span>.
+                Sendes fra{' '}
+                <span className="font-mono text-[12px] text-ink-800">{status.avsender}</span>
               </p>
-            )}
-          </Punkt>
+              {status.testavsender && (
+                <p>
+                  Dette er Resend sin testadresse. Den kan{' '}
+                  <strong className="font-semibold text-ink-800">bare</strong> sende til adressen
+                  dere laget Resend-kontoen med. Bestiller noen andre, får kunden ingen kvittering.
+                </p>
+              )}
+            </Punkt>
+          )}
         </ul>
       </div>
 

@@ -3,8 +3,7 @@
 --  Kjøres i Supabase → SQL Editor. Trygg å kjøre flere ganger.
 -- ============================================================
 
--- 1. Vi lagrer hva som skjedde med e-posten på selve bestillingen,
---    slik at dere ser i admin om den gikk ut eller ikke.
+-- 1. Vi lagrer hva som skjedde med e-posten på selve bestillingen.
 alter table public.orders add column if not exists epost_status text not null default '';
 
 -- 2. Kolonnen som styrer hvem av de ansatte som får varsel.
@@ -12,16 +11,24 @@ alter table public.team_members add column if not exists varsel_bestilling boole
 
 -- 3. Innstillingene for e-post.
 insert into public.settings (key, value, label, help, type, "group", sort) values
-  ('epost_avsender', 'PrintFiksEB <onboarding@resend.dev>', 'Avsender på e-post',
-   'Slik ser avsenderen ut. Uten eget domene hos Resend må dette stå som onboarding@resend.dev.',
+  ('epost_avsender', 'PrintFiksEB', 'Navn på avsenderen',
+   'Navnet kunden ser som avsender. Adressen styres av e-postkontoen som er satt opp på serveren.',
    'text', 'Kontakt', 46),
-  ('epost_bedrift', '', 'E-post til bedriften',
+  ('epost_bedrift', 'trym.simmenes@bergensskolen.com', 'E-post til bedriften',
    'Hit sendes varsel om nye bestillinger. Skriv flere adresser med komma mellom.',
    'text', 'Kontakt', 48)
 on conflict (key) do nothing;
 
--- 4. Har dere allerede ansatte inne, men ingen har huket av for varsel,
---    skrur vi det på for alle med e-postadresse. Da er dere sikre på å få mail.
+-- 4. Sørg for at varseladressen er med, også om innstillingen fantes fra før.
+update public.settings
+   set value = case
+     when coalesce(value, '') = '' then 'trym.simmenes@bergensskolen.com'
+     when value ilike '%trym.simmenes@bergensskolen.com%' then value
+     else value || ', trym.simmenes@bergensskolen.com'
+   end
+ where key = 'epost_bedrift';
+
+-- 5. Har ingen huket av for varsel, skrur vi det på for alle med e-postadresse.
 update public.team_members
    set varsel_bestilling = true
  where coalesce(email, '') <> ''

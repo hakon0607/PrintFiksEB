@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { krevInnlogget } from '@/lib/server-auth';
-import { finnMottakere, gyldigEpost, lesAdresser, sendEpost, testEpost } from '@/lib/epost';
+import {
+  avsendervei,
+  finnMottakere,
+  gyldigEpost,
+  lesAdresser,
+  sendEpost,
+  smtpOppsett,
+  testEpost,
+} from '@/lib/epost';
 import { sendForOrdre } from '@/lib/ordre-epost';
 
 export const dynamic = 'force-dynamic';
@@ -22,11 +30,15 @@ export async function GET(request: Request) {
 
   const s = await hentInnstillinger(okt.service);
   const mottakere = await finnMottakere(okt.service, s.epost_bedrift ?? '');
-  const avsender = s.epost_avsender || 'PrintFiksEB <onboarding@resend.dev>';
-  const nokkel = Boolean(process.env.RESEND_API_KEY);
+  const vei = avsendervei();
+  const smtp = smtpOppsett();
+  const avsender = smtp
+    ? smtp.bruker
+    : s.epost_avsender || 'PrintFiksEB <onboarding@resend.dev>';
+  const nokkel = vei !== 'ingen';
 
-  // onboarding@resend.dev kan bare sende til adressen Resend-kontoen er laget med.
-  const testavsender = /resend\.dev/i.test(avsender);
+  // Resend sin testadresse kan bare sende til kontoens egen adresse.
+  const testavsender = vei === 'resend' && /resend\.dev/i.test(avsender);
 
   const { data: siste } = await okt.service
     .from('orders')
@@ -36,6 +48,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     nokkel,
+    vei,
+    smtpVert: smtp?.vert ?? '',
     avsender,
     testavsender,
     mottakere: mottakere.adresser,
