@@ -150,7 +150,7 @@ export function EpostOppsett() {
           <div>
             <h2 className="text-base font-bold text-ink-900">Får dere mail når noen bestiller?</h2>
             <p className="mt-0.5 text-[13px] text-ink-600">
-              Her ser dere hva som mangler. Alt må være grønt.
+              Kundene får kvitteringen på melding fra dere. E-posten her er varselet til dere selv.
             </p>
           </div>
           <Merke ok={alt} tekst={alt ? 'Klart' : 'Noe mangler'} />
@@ -172,9 +172,9 @@ export function EpostOppsett() {
             )}
             {status.vei === 'resend' && (
               <p>
-                Sendes via Resend. Uten eget domene når e-posten bare fram til adressen
-                Resend-kontoen ble laget med – kundene får ingenting. Sett opp Gmail nedenfor i
-                stedet.
+                Sendes via Resend. Uten eget domene når varselet bare fram til adressen
+                Resend-kontoen ble laget med. Er dere flere, får de andre ingenting. Sett opp Gmail
+                i stedet.
               </p>
             )}
             {status.vei === 'ingen' && (
@@ -246,7 +246,7 @@ export function EpostOppsett() {
                 <p>
                   Dette er Resend sin testadresse. Den kan{' '}
                   <strong className="font-semibold text-ink-800">bare</strong> sende til adressen
-                  dere laget Resend-kontoen med. Bestiller noen andre, får kunden ingen kvittering.
+                  dere laget Resend-kontoen med. De andre i gruppa får ingenting.
                 </p>
               )}
             </Punkt>

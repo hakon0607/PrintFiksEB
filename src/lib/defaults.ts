@@ -138,7 +138,7 @@ export const DEFAULT_SITE: SiteData = {
       id: 'f1',
       question: 'Hvordan bestiller jeg?',
       answer:
-        'Bruk bestillingssiden eller galleriet, legg det du vil ha i handlelisten, fyll inn fullt navn, mobilnummer og e-post, og trykk «Send bestilling». Bestillingen kommer rett inn til oss, du får kvittering på e-post med bestillingsnummer, og vi tar kontakt så fort vi kan.',
+        'Bruk bestillingssiden eller galleriet, legg det du vil ha i handlelisten, fyll inn fullt navn, mobilnummer og e-post, og trykk «Send bestilling». Bestillingen kommer rett inn til oss, du får kvittering på melding med bestillingsnummer, og vi tar kontakt så fort vi kan.',
       active: true,
       sort: 10,
     },

@@ -3,9 +3,7 @@ import { getServiceClient } from '@/lib/supabase/server';
 import {
   finnMottakere,
   gyldigEpost,
-  kundeEpost,
   sendEnkeltvis,
-  sendEpost,
   varselEpost,
   type EpostLinje,
 } from '@/lib/epost';
@@ -167,7 +165,7 @@ export async function POST(request: Request) {
 
   const ordrenr = o.ordrenr ?? '';
 
-  // 3. E-post – kvittering til kunden og varsel til oss
+  // 3. Varsel til oss. Kunden får kvitteringen på melding fra oss.
   const linjer: EpostLinje[] = varer.map((v) => ({
     navn: tekst(v.navn, 160) || 'Uten navn',
     antall: Math.max(1, Math.round(tall(v.antall) || 1)),
@@ -198,13 +196,11 @@ export async function POST(request: Request) {
   // Hvem av oss skal ha varsel?
   const mottakere = await finnMottakere(service, s.epost_bedrift ?? '');
 
-  const kunde = kundeEpost(kvittering);
   const varsel = varselEpost(kvittering);
 
-  const [tilKunde, tilOss] = await Promise.all([
-    sendEpost({ til: [epost], emne: kunde.emne, html: kunde.html, tekst: kunde.tekst, avsender }),
+  const tilOss =
     mottakere.adresser.length > 0
-      ? sendEnkeltvis({
+      ? await sendEnkeltvis({
           til: mottakere.adresser,
           emne: varsel.emne,
           html: varsel.html,
@@ -212,25 +208,22 @@ export async function POST(request: Request) {
           avsender,
           svarTil: epost,
         })
-      : Promise.resolve({
+      : {
           ok: false,
           sendt: [] as string[],
           feilet: [{ til: '(ingen)', feil: 'Ingen i bedriften har lagt inn e-postadresse' }],
-        }),
-  ]);
+        };
 
   // Skriv ned hva som faktisk skjedde, så dere ser det i admin.
-  const status = [
-    tilKunde.ok ? 'Kvittering sendt til kunden' : `Kvittering feilet: ${tilKunde.feil ?? 'ukjent'}`,
-    tilOss.sendt.length > 0 ? `Varsel sendt til ${tilOss.sendt.join(', ')}` : 'Varsel feilet',
-    ...tilOss.feilet.map((f) => `Varsel til ${f.til} feilet: ${f.feil}`),
-  ].join(' | ');
+  const status =
+    tilOss.sendt.length > 0
+      ? `Varsel sendt til ${tilOss.sendt.join(', ')}`
+      : ['Varsel feilet', ...tilOss.feilet.map((f) => `${f.til}: ${f.feil}`)].join(' | ');
 
-  if (!tilKunde.ok || !tilOss.ok) {
-    console.error('[bestilling] e-post gikk ikke ut', {
+  if (!tilOss.ok) {
+    console.error('[bestilling] varselet gikk ikke ut', {
       ordrenr,
-      kunde: tilKunde.feil,
-      varselFeilet: tilOss.feilet,
+      feilet: tilOss.feilet,
       avsender,
     });
   }
@@ -241,8 +234,6 @@ export async function POST(request: Request) {
     ok: true,
     ordrenr,
     fastPris: bareFastPris,
-    epostSendt: tilKunde.ok,
     varselSendt: tilOss.ok,
-    varselTil: tilOss.sendt,
   });
 }

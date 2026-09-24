@@ -321,7 +321,7 @@ export default async function Hjem({
               {
                 n: '2',
                 t: 'Send bestillingen',
-                d: `Fyll inn navn, mobil og e-post, og trykk send. Bestillingen kommer rett inn til oss, og du får kvittering på e-post. Vil du heller ringe, er det like greit: ${formatPhone(telefon)}.`,
+                d: `Fyll inn navn, mobil og e-post, og trykk send. Bestillingen kommer rett inn til oss, og du får kvittering på melding. Vil du heller ringe, er det like greit: ${formatPhone(telefon)}.`,
               },
               {
                 n: '3',
@@ -370,7 +370,7 @@ export default async function Hjem({
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-ink-600">{meldingstid}</p>
                 <p className="mt-2 text-sm leading-relaxed text-ink-500">
-                  Bestillingen kommer rett inn til oss, du får kvittering på e-post, og vi tar
+                  Bestillingen kommer rett inn til oss, du får kvittering på melding, og vi tar
                   kontakt så fort vi kan.
                 </p>
                 <Link href="/bestill" className="btn-primary mt-6 self-start" data-mag>

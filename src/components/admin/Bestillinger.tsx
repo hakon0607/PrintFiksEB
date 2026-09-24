@@ -62,7 +62,6 @@ type Utkast = {
   kunde: string;
   telefon: string;
   epost: string;
-  sendKvittering: boolean;
   adresse: string;
   notat: string;
   betalingsmate: string;
@@ -82,7 +81,6 @@ function tomtUtkast(): Utkast {
     kunde: '',
     telefon: '',
     epost: '',
-    sendKvittering: true,
     adresse: '',
     notat: '',
     betalingsmate: 'Vipps',
@@ -231,7 +229,7 @@ function OrdreSkjema({
             className="field"
             type="email"
           />
-          <span className="hint">Fyll inn hvis kunden skal få kvittering på e-post.</span>
+          <span className="hint">Greit å ha, men kvitteringen sender dere på melding.</span>
         </label>
       </div>
 
@@ -385,22 +383,6 @@ function OrdreSkjema({
           Kunden har betalt
         </label>
 
-        <label className="flex items-start gap-2.5 text-sm font-semibold text-ink-700 sm:col-span-2">
-          <input
-            type="checkbox"
-            checked={u.sendKvittering}
-            onChange={(e) => sett({ sendKvittering: e.target.checked })}
-            disabled={!u.epost.trim()}
-            className="mt-0.5 h-4 w-4 rounded border-ink-300 text-brand-600"
-          />
-          <span>
-            Send kvittering på e-post til kunden
-            <span className="block text-xs font-normal text-ink-500">
-              Kunden får bestillingsnummer, oppsummering og beskjed om at prisen må godkjennes før
-              vi starter.
-            </span>
-          </span>
-        </label>
       </div>
 
       {feil && <p className="text-sm font-semibold text-red-600">{feil}</p>}
@@ -420,6 +402,8 @@ function OrdreSkjema({
 /* ------------------------------------------------------------------ */
 /*  Selve siden                                                        */
 /* ------------------------------------------------------------------ */
+
+type MeldingMal = 'takk' | 'ferdig';
 
 export function Bestillinger() {
   const { supabase, profile, user } = useAdmin();
@@ -441,7 +425,10 @@ export function Bestillinger() {
   const [nyApen, setNyApen] = useState(false);
   const [redigerer, setRedigerer] = useState<string | null>(null);
   const [apen, setApen] = useState<string | null>(null);
-  const [epostSvar, setEpostSvar] = useState<Record<string, string>>({});
+  const [innst, setInnst] = useState<Record<string, string>>({});
+  const [kopiert, setKopiert] = useState<string>('');
+  const [meldingMal, setMeldingMal] = useState<Record<string, MeldingMal>>({});
+  const [meldingUtkast, setMeldingUtkast] = useState<Record<string, string>>({});
 
   const hent = useCallback(async () => {
     if (!supabase) return;
@@ -456,7 +443,17 @@ export function Bestillinger() {
       supabase.from('weight_ranges').select('*').order('sort'),
       supabase.from('extras').select('*').order('sort'),
       supabase.from('delivery_options').select('*').order('sort'),
-      supabase.from('settings').select('key,value').in('key', ['pris_startpris', 'pris_startpris_pa']),
+      supabase
+        .from('settings')
+        .select('key,value')
+        .in('key', [
+          'pris_startpris',
+          'pris_startpris_pa',
+          'bedrift_navn',
+          'kontakt_telefon',
+          'levering_dager_min',
+          'levering_dager_maks',
+        ]),
     ]);
     if (b.error) {
       setMangler(true);
@@ -478,6 +475,7 @@ export function Bestillinger() {
       innst[rad.key] = rad.value;
     }
     setStartpris(num(innst, 'pris_startpris', 100));
+    setInnst(innst);
 
     const samlet: Record<string, OrderItem[]> = {};
     for (const rad of ((v.data as OrderItem[]) ?? [])) {
@@ -580,26 +578,6 @@ export function Bestillinger() {
     setApen(ordre.id);
     setFeil('');
 
-    // Kvittering til kunden
-    if (u.sendKvittering && u.epost.trim()) {
-      const { data: okt } = await supabase.auth.getSession();
-      const res = await fetch('/api/kvittering', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${okt.session?.access_token ?? ''}`,
-        },
-        body: JSON.stringify({ id: ordre.id }),
-      });
-      if (!res.ok) {
-        const svar = await res.json().catch(() => ({}));
-        setFeil(
-          `Bestillingen er lagret, men kvitteringen gikk ikke ut: ${
-            svar?.feil ?? 'ukjent feil'
-          }`
-        );
-      }
-    }
   }
 
   async function lagreEndring(id: string, u: Utkast, liste: Linje[], rundt: Rundt) {
@@ -654,27 +632,101 @@ export function Bestillinger() {
     if (error) setFeil('Klarte ikke å lagre statusen.');
   }
 
-  async function sendKvitteringFor(id: string, mal: 'mottatt' | 'ferdig') {
-    if (!supabase) return;
-    setEpostSvar((p) => ({ ...p, [id]: 'Sender …' }));
-    const { data: okt } = await supabase.auth.getSession();
-    const res = await fetch('/api/kvittering', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${okt.session?.access_token ?? ''}`,
-      },
-      body: JSON.stringify({ id, mal, tilKunde: true, tilOss: false }),
+  /** Bygger meldingen som ren tekst, klar til å lime inn. To maler. */
+  function meldingTekst(o: Order, mal: MeldingMal): string {
+    const varer = linjer[o.id] ?? [];
+    const bedrift = innst.bedrift_navn || 'PrintFiksEB';
+    const tlf = innst.kontakt_telefon || '41381608';
+    const dagerMin = innst.levering_dager_min || '2';
+    const dagerMaks = innst.levering_dager_maks || '4';
+    const fast = o.krever_godkjenning === false;
+    const sum = Math.round(Number(o.pris ?? 0));
+    const nr = o.ordrenr ? ` #${o.ordrenr}` : '';
+    const fornavn = (o.kunde || '').trim().split(/\s+/)[0];
+    const hilsen = fornavn ? `Hei ${fornavn}!` : 'Hei!';
+
+    const varelinjer =
+      varer.length > 0
+        ? varer.map(
+            (l) => `- ${l.qty}x ${l.name}: ${Math.round(Number(l.qty) * Number(l.unit_price))} kr`
+          )
+        : [`- ${o.hva || 'Bestilling'}`];
+
+    if (mal === 'ferdig') {
+      return [
+        hilsen,
+        '',
+        `Bestillingen din${nr} er ferdig. Takk for handelen!`,
+        '',
+        'Dette fikk du:',
+        ...varelinjer,
+        '',
+        `Å betale: ${sum} kr`,
+        `Betales med ${o.betalingsmate || 'Vipps'}.`,
+        '',
+        `Levering: ${o.levering || 'Henting'}${o.adresse ? ` – ${o.adresse}` : ''}`,
+        '',
+        'Velkommen tilbake! Trenger du noe printet, fikset eller designet en annen gang,',
+        `er det bare å ta kontakt på ${tlf}.`,
+        '',
+        `Hilsen ${bedrift}`,
+      ].join('\n');
+    }
+
+    return [
+      hilsen,
+      '',
+      `Takk for bestillingen${nr}. Her er kvitteringen din:`,
+      '',
+      'Dette har du bestilt:',
+      ...varelinjer,
+      '',
+      `${fast ? 'Fast pris' : 'Estimert pris'}: ${sum} kr`,
+      fast
+        ? 'Fast pris fra galleriet, så vi setter i gang med en gang.'
+        : 'Dette er et estimat. Du får endelig pris fra oss som du må godkjenne før vi starter.',
+      '',
+      `Levering: ${o.levering || 'Henting'}${o.adresse ? ` – ${o.adresse}` : ''}`,
+      `Betaling: ${o.betalingsmate || 'Vipps'}`,
+      `Ferdig om ${dagerMin}–${dagerMaks} virkedager.`,
+      '',
+      `Spørsmål? Ring eller send melding til ${tlf}.`,
+      'Ta vare på denne meldingen – den er kvitteringen din.',
+      '',
+      `Hilsen ${bedrift}`,
+    ].join('\n');
+  }
+
+  /** Teksten som vises i boksen – redigert versjon hvis de har endret noe. */
+  function utkastFor(o: Order): string {
+    const mal = meldingMal[o.id] ?? 'takk';
+    const nokkel = `${o.id}-${mal}`;
+    return meldingUtkast[nokkel] ?? meldingTekst(o, mal);
+  }
+
+  function settUtkast(o: Order, tekst: string) {
+    const mal = meldingMal[o.id] ?? 'takk';
+    setMeldingUtkast((p) => ({ ...p, [`${o.id}-${mal}`]: tekst }));
+  }
+
+  function nullstillUtkast(o: Order) {
+    const mal = meldingMal[o.id] ?? 'takk';
+    setMeldingUtkast((p) => {
+      const n = { ...p };
+      delete n[`${o.id}-${mal}`];
+      return n;
     });
-    const svar = await res.json().catch(() => ({}));
-    setEpostSvar((p) => ({
-      ...p,
-      [id]: svar.ok
-        ? mal === 'ferdig'
-          ? 'Ferdig kvittering er sendt til kunden.'
-          : 'Kvitteringen er sendt på nytt.'
-        : `Gikk ikke: ${svar.feil ?? 'ukjent feil'}`,
-    }));
+  }
+
+  async function kopierMelding(o: Order) {
+    const tekst = utkastFor(o);
+    try {
+      await navigator.clipboard.writeText(tekst);
+      setKopiert(o.id);
+      window.setTimeout(() => setKopiert(''), 2500);
+    } catch {
+      window.prompt('Kopier teksten her:', tekst);
+    }
   }
 
   async function settBetalt(id: string, betalt: boolean) {
@@ -765,7 +817,6 @@ export function Bestillinger() {
       kunde: o.kunde ?? '',
       telefon: o.telefon ?? '',
       epost: o.epost ?? '',
-      sendKvittering: false,
       adresse: o.adresse ?? '',
       notat: o.notat ?? '',
       betalingsmate: o.betalingsmate ?? 'Vipps',
@@ -1060,49 +1111,77 @@ export function Bestillinger() {
                                 </div>
                               </div>
 
-                              {/* E-post til kunden */}
-                              {o.epost && (
-                                <div className="rounded-2xl border border-ink-200 bg-white p-4">
-                                  <p className="label">E-post til kunden</p>
-                                  <p className="mb-2.5 text-[13px] leading-relaxed text-ink-600">
-                                    Sendes til{' '}
-                                    <span className="font-mono text-ink-800">{o.epost}</span>
-                                  </p>
-                                  <div className="flex flex-wrap gap-2">
+                              {/* Send på melding */}
+                              <div className="rounded-2xl border border-ink-200 bg-white p-4">
+                                <p className="label">Send på melding</p>
+                                <p className="mb-3 text-[13px] leading-relaxed text-ink-600">
+                                  Velg mal, rett opp prisen hvis den ikke stemmer, og kopier.
+                                </p>
+
+                                <div className="mb-3 flex flex-wrap gap-2">
+                                  {(
+                                    [
+                                      ['takk', 'Takk for bestillingen'],
+                                      ['ferdig', 'Ferdig kvittering'],
+                                    ] as [MeldingMal, string][]
+                                  ).map(([verdi, navn]) => (
                                     <button
+                                      key={verdi}
                                       type="button"
-                                      onClick={() => sendKvitteringFor(o.id, 'ferdig')}
-                                      className="btn-primary btn-sm"
-                                    >
-                                      Send ferdig kvittering
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => sendKvitteringFor(o.id, 'mottatt')}
-                                      className="btn-ghost btn-sm"
-                                    >
-                                      Send vanlig kvittering på nytt
-                                    </button>
-                                  </div>
-                                  <p className="mt-2 text-[12px] leading-relaxed text-ink-500">
-                                    Den ferdige kvitteringen viser prisen som står her nå
-                                    ({kr(Number(o.pris ?? 0))}) som endelig pris, takker for handelen
-                                    og ønsker kunden velkommen tilbake. Sjekk at prisen stemmer før
-                                    dere sender.
-                                  </p>
-                                  {epostSvar[o.id] && (
-                                    <p
-                                      className={`mt-2 rounded-xl px-3 py-2 text-[13px] font-medium ${
-                                        epostSvar[o.id].startsWith('Gikk ikke')
-                                          ? 'bg-red-50 text-red-700'
-                                          : 'bg-emerald-50 text-emerald-800'
+                                      onClick={() =>
+                                        setMeldingMal((p) => ({ ...p, [o.id]: verdi }))
+                                      }
+                                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                                        (meldingMal[o.id] ?? 'takk') === verdi
+                                          ? 'border-brand-600 bg-brand-600 text-white'
+                                          : 'border-ink-200 bg-white text-ink-600 hover:border-brand-300'
                                       }`}
                                     >
-                                      {epostSvar[o.id]}
-                                    </p>
-                                  )}
+                                      {navn}
+                                    </button>
+                                  ))}
                                 </div>
-                              )}
+
+                                <textarea
+                                  value={utkastFor(o)}
+                                  onChange={(e) => settUtkast(o, e.target.value)}
+                                  rows={12}
+                                  spellCheck={false}
+                                  className="field w-full resize-y font-sans text-[13px] leading-relaxed"
+                                />
+
+                                <div className="mt-2.5 flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => kopierMelding(o)}
+                                    className="btn-primary btn-sm"
+                                  >
+                                    {kopiert === o.id ? 'Kopiert!' : 'Kopier meldingen'}
+                                  </button>
+                                  {o.telefon && (
+                                    <a
+                                      href={`sms:${o.telefon.replace(/\s/g, '')}?&body=${encodeURIComponent(
+                                        utkastFor(o)
+                                      )}`}
+                                      className="btn-ghost btn-sm"
+                                    >
+                                      Åpne SMS
+                                    </a>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => nullstillUtkast(o)}
+                                    className="btn-ghost btn-sm"
+                                  >
+                                    Hent malen på nytt
+                                  </button>
+                                </div>
+                                <p className="mt-2 text-[12px] leading-relaxed text-ink-500">
+                                  Prisen kommer fra feltet «Pris» på bestillingen
+                                  ({kr(Number(o.pris ?? 0))}). Endrer du den her, endres den bare i
+                                  meldingen – ikke i bestillingen.
+                                </p>
+                              </div>
 
                               {/* Varer */}
                               {varer.length > 0 && (

@@ -18,7 +18,6 @@ type Kvittering = {
   varer: Vare[];
   sum: string;
   fastPris?: boolean;
-  epostSendt: boolean;
 };
 
 const STEG_VANLIG = [
@@ -145,14 +144,13 @@ export default function BestiltSide() {
                   Ta vare på kvitteringen
                 </h2>
                 <p className="mt-1.5 text-[14px] leading-relaxed text-ink-700">
-                  Ta et skjermbilde av denne siden nå, eller et bilde med et annet mobilkamera.
-                  Det er kvitteringen din, og den viser bestillingsnummeret vi bruker når vi snakker
-                  sammen.
+                  Ta gjerne et skjermbilde av denne siden – men du får også kvitteringen på melding
+                  fra oss, så du mister den ikke om du glemmer det.
                 </p>
                 <p className="mt-2 text-[13px] leading-relaxed text-ink-600">
-                  <span className="font-semibold text-ink-800">iPhone:</span> trykk sideknappen og
-                  volum opp samtidig.{' '}
-                  <span className="font-semibold text-ink-800">Android:</span> av/på og volum ned
+                  Skjermbilde: <span className="font-semibold text-ink-800">iPhone</span> – sideknapp
+                  og volum opp samtidig.{' '}
+                  <span className="font-semibold text-ink-800">Android</span> – av/på og volum ned
                   samtidig.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2.5">
@@ -264,27 +262,18 @@ export default function BestiltSide() {
               )}
             </div>
 
-            {k.epostSendt ? (
-              <p className="border-t border-ink-100 px-5 py-4 text-[13px] leading-relaxed text-ink-600">
-                Vi har sendt en kvittering til{' '}
-                <span className="font-semibold text-ink-800">{k.epost}</span>. Finner du den ikke,
-                sjekk søppelpost. Har du bilde av det som skal fikses, eller en 3D-fil? Send det på
-                melding når vi tar kontakt.
-              </p>
-            ) : (
-              <p className="border-t border-amber-200 bg-amber-50 px-5 py-4 text-[13px] leading-relaxed text-amber-900">
-                <span className="font-semibold">Vi fikk ikke sendt e-post til deg denne gangen.</span>{' '}
-                Bestillingen er registrert hos oss uansett, og vi tar kontakt på telefon. Ta vare på
-                skjermbildet av denne siden.
-              </p>
-            )}
+            <p className="border-t border-ink-100 px-5 py-4 text-[13px] leading-relaxed text-ink-600">
+              Vi sender kvitteringen på melding til{' '}
+              <span className="font-semibold text-ink-800">{k.telefon}</span> når vi tar kontakt.
+              Har du bilde av det som skal fikses, eller en 3D-fil? Send det på melding da.
+            </p>
           </motion.div>
         )}
 
         {lastet && !k && (
           <div className="mt-8 rounded-3xl border border-ink-100 bg-white p-6 text-center text-sm text-ink-600 shadow-soft">
             Vi fant ikke detaljene i denne nettleseren, men bestillingen er registrert hos oss.
-            Sjekk e-posten din for kvitteringen – eller ring oss, så finner vi den fram.
+            Vi tar kontakt på telefon – eller ring oss, så finner vi den fram.
           </div>
         )}
 

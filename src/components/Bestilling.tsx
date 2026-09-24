@@ -333,7 +333,6 @@ export function Bestilling(props: Props) {
             varer,
             sum: sumTekst,
             fastPris: bareFastPris,
-            epostSendt: Boolean(svar.epostSendt),
           })
         );
       } catch {
