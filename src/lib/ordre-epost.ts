@@ -52,6 +52,8 @@ export async function sendForOrdre(
     tilOss: boolean;
     /** «mottatt» = vanlig kvittering, «ferdig» = takk for handelen med endelig pris. */
     mal?: 'mottatt' | 'ferdig';
+    /** Endelig pris, hvis den er rettet i admin før sending. Lagres også på bestillingen. */
+    pris?: number;
   }
 ): Promise<Utfall> {
   const tomt: Utfall = { ok: false, kundeOk: false, varselOk: false, status: '', mottakere: [] };
@@ -67,8 +69,18 @@ export async function sendForOrdre(
     .order('sort');
 
   const s = await innstillinger(service);
-  const avsender = s.epost_avsender || 'PrintFiksEB <onboarding@resend.dev>';
+  const avsender = s.epost_avsender || 'PrintFiksEB <post@printfiks.org>';
   const epost = String(o.epost ?? '').trim();
+
+  // Er prisen rettet i admin, gjelder den – og vi lagrer den på bestillingen.
+  const rettetPris =
+    typeof opsjoner.pris === 'number' && Number.isFinite(opsjoner.pris) && opsjoner.pris >= 0
+      ? Math.round(opsjoner.pris)
+      : null;
+  const sum = rettetPris ?? Number(o.pris ?? 0);
+  if (rettetPris !== null && rettetPris !== Number(o.pris ?? 0)) {
+    await service.from('orders').update({ pris: rettetPris }).eq('id', id);
+  }
 
   const linjer: EpostLinje[] = ((varer as Record<string, unknown>[]) ?? []).map((v) => ({
     navn: String(v.name ?? 'Uten navn'),
@@ -89,7 +101,7 @@ export async function sendForOrdre(
     betaling: String(o.betalingsmate ?? 'Vipps'),
     kommentar: String(o.notat ?? ''),
     linjer,
-    sum: Number(o.pris ?? 0) > 0 ? `${Math.round(Number(o.pris))} kr` : 'Etter avtale',
+    sum: sum > 0 ? `${Math.round(sum)} kr` : 'Etter avtale',
     bedrift: s.bedrift_navn || 'PrintFiksEB',
     bedriftTelefon: s.kontakt_telefon || '41381608',
     nettside: s.nettside_url || opsjoner.origin,

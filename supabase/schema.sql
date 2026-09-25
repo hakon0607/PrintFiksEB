@@ -575,7 +575,7 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('anmeldelser_tittel',      'Hva kundene sier', 'Overskrift over anmeldelsene', '', 'text', 'Forsiden', 62),
   ('anmeldelser_undertittel', 'Ekte tilbakemeldinger fra folk som har handlet hos oss.', 'Linjen under overskriften', '', 'text', 'Forsiden', 64),
   ('anmeldelser_rotasjon',    '6',     'Sekunder per anmeldelse', 'Hvor lenge hver anmeldelse står før den neste kommer. Sett 0 for å slå av automatisk bytte.', 'number', 'Forsiden', 66),
-  ('epost_avsender',      'PrintFiksEB',                          'Navn på avsenderen', 'Navnet kunden ser som avsender. Adressen styres av e-postkontoen som er satt opp på serveren.', 'text', 'Kontakt', 46),
+  ('epost_avsender',      'PrintFiksEB <post@printfiks.org>',     'Avsender kundene ser', 'Må ligge på et domene dere har verifisert hos Resend.', 'text', 'Kontakt', 46),
   ('epost_bedrift',       'trym.simmenes@bergensskolen.com',      'E-post til bedriften', 'Hit sendes varsel om nye bestillinger, i tillegg til de ansatte som har huket av for varsel. Flere adresser skilles med komma.', 'text', 'Kontakt', 48),
   ('kontakt_ringetid',    'Ring mellom 15 og 21, mandag til lørdag.', 'Når kan folk ringe?',   'Vises ved ring-knappen', 'text', 'Kontakt', 44),
   ('kontakt_ringer_tilbake', 'Rekker vi ikke å ta telefonen, ringer vi tilbake så fort vi har tid.', 'Hvis dere ikke svarer', '', 'text', 'Kontakt', 46),

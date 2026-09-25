@@ -10,9 +10,9 @@ alter table public.orders add column if not exists epost_status text not null de
 alter table public.team_members add column if not exists varsel_bestilling boolean not null default false;
 
 -- 3. Innstillingene for e-post.
-insert into public.settings (key, value, label, help, type, "group", sort) values
-  ('epost_avsender', 'PrintFiksEB', 'Navn på avsenderen',
-   'Navnet kunden ser som avsender. Adressen styres av e-postkontoen som er satt opp på serveren.',
+insert into public.settings (key, value, label, help, type, gruppe, sort) values
+  ('epost_avsender', 'PrintFiksEB <post@printfiks.org>', 'Avsender kundene ser',
+   'Må ligge på et domene dere har verifisert hos Resend.',
    'text', 'Kontakt', 46),
   ('epost_bedrift', 'trym.simmenes@bergensskolen.com', 'E-post til bedriften',
    'Hit sendes varsel om nye bestillinger. Skriv flere adresser med komma mellom.',
@@ -36,3 +36,9 @@ update public.team_members
      select 1 from public.team_members t
       where t.varsel_bestilling = true and coalesce(t.email, '') <> ''
    );
+
+-- 6. Nytt domene: sett avsenderen til adressen på printfiks.org.
+update public.settings
+   set value = 'PrintFiksEB <post@printfiks.org>'
+ where key = 'epost_avsender'
+   and (coalesce(value, '') = '' or value ilike '%resend.dev%' or value = 'PrintFiksEB');

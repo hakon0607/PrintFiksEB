@@ -3,7 +3,9 @@ import { getServiceClient } from '@/lib/supabase/server';
 import {
   finnMottakere,
   gyldigEpost,
+  kundeEpost,
   sendEnkeltvis,
+  sendEpost,
   varselEpost,
   type EpostLinje,
 } from '@/lib/epost';
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
 
   const bedrift = s.bedrift_navn || 'PrintFiksEB';
   const bedriftTelefon = s.kontakt_telefon || '41381608';
-  const avsender = s.epost_avsender || 'PrintFiksEB <onboarding@resend.dev>';
+  const avsender = s.epost_avsender || 'PrintFiksEB <post@printfiks.org>';
   const leveringstid = `${s.levering_dager_min || '2'}–${s.levering_dager_maks || '4'} virkedager`;
 
   const hva =
@@ -165,7 +167,7 @@ export async function POST(request: Request) {
 
   const ordrenr = o.ordrenr ?? '';
 
-  // 3. Varsel til oss. Kunden får kvitteringen på melding fra oss.
+  // 3. E-post – bekreftelse til kunden og varsel til oss
   const linjer: EpostLinje[] = varer.map((v) => ({
     navn: tekst(v.navn, 160) || 'Uten navn',
     antall: Math.max(1, Math.round(tall(v.antall) || 1)),
@@ -198,9 +200,12 @@ export async function POST(request: Request) {
 
   const varsel = varselEpost(kvittering);
 
-  const tilOss =
+  const kunde = kundeEpost(kvittering);
+
+  const [tilKunde, tilOss] = await Promise.all([
+    sendEpost({ til: [epost], emne: kunde.emne, html: kunde.html, tekst: kunde.tekst, avsender }),
     mottakere.adresser.length > 0
-      ? await sendEnkeltvis({
+      ? sendEnkeltvis({
           til: mottakere.adresser,
           emne: varsel.emne,
           html: varsel.html,
@@ -208,22 +213,25 @@ export async function POST(request: Request) {
           avsender,
           svarTil: epost,
         })
-      : {
+      : Promise.resolve({
           ok: false,
           sendt: [] as string[],
           feilet: [{ til: '(ingen)', feil: 'Ingen i bedriften har lagt inn e-postadresse' }],
-        };
+        }),
+  ]);
 
   // Skriv ned hva som faktisk skjedde, så dere ser det i admin.
-  const status =
-    tilOss.sendt.length > 0
-      ? `Varsel sendt til ${tilOss.sendt.join(', ')}`
-      : ['Varsel feilet', ...tilOss.feilet.map((f) => `${f.til}: ${f.feil}`)].join(' | ');
+  const status = [
+    tilKunde.ok ? 'Bekreftelse sendt til kunden' : `Bekreftelse feilet: ${tilKunde.feil ?? 'ukjent'}`,
+    tilOss.sendt.length > 0 ? `Varsel sendt til ${tilOss.sendt.join(', ')}` : 'Varsel feilet',
+    ...tilOss.feilet.map((f) => `Varsel til ${f.til} feilet: ${f.feil}`),
+  ].join(' | ');
 
-  if (!tilOss.ok) {
-    console.error('[bestilling] varselet gikk ikke ut', {
+  if (!tilKunde.ok || !tilOss.ok) {
+    console.error('[bestilling] e-post gikk ikke ut', {
       ordrenr,
-      feilet: tilOss.feilet,
+      kunde: tilKunde.feil,
+      varselFeilet: tilOss.feilet,
       avsender,
     });
   }
@@ -234,6 +242,7 @@ export async function POST(request: Request) {
     ok: true,
     ordrenr,
     fastPris: bareFastPris,
+    epostSendt: tilKunde.ok,
     varselSendt: tilOss.ok,
   });
 }

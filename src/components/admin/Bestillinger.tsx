@@ -229,7 +229,7 @@ function OrdreSkjema({
             className="field"
             type="email"
           />
-          <span className="hint">Greit å ha, men kvitteringen sender dere på melding.</span>
+          <span className="hint">Hit sendes bekreftelsen og den ferdige kvitteringen.</span>
         </label>
       </div>
 
@@ -405,6 +405,93 @@ function OrdreSkjema({
 
 type MeldingMal = 'takk' | 'ferdig';
 
+type Bekreftelse = {
+  tittel: string;
+  tekst: string;
+  detalj?: string;
+  knapp: string;
+  handling: () => void;
+};
+
+/** «Er du sikker?» før noe sendes ut til kunden. */
+function BekreftDialog({
+  data,
+  onLukk,
+}: {
+  data: Bekreftelse | null;
+  onLukk: () => void;
+}) {
+  useEffect(() => {
+    if (!data) return;
+    const av = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onLukk();
+    };
+    window.addEventListener('keydown', av);
+    return () => window.removeEventListener('keydown', av);
+  }, [data, onLukk]);
+
+  return (
+    <AnimatePresence>
+      {data && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 grid place-items-center bg-ink-900/45 p-4 backdrop-blur-sm"
+          onClick={onLukk}
+          role="dialog"
+          aria-modal="true"
+          aria-label={data.tittel}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-lift"
+          >
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-100 text-amber-700">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M12 9v4m0 4h.01M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <h2 className="mt-3.5 text-lg font-bold text-ink-900">{data.tittel}</h2>
+            <p className="mt-1.5 text-[14px] leading-relaxed text-ink-600">{data.tekst}</p>
+            {data.detalj && (
+              <p className="mt-3 rounded-xl bg-ink-50 px-3.5 py-2.5 font-mono text-[12.5px] text-ink-700">
+                {data.detalj}
+              </p>
+            )}
+            <div className="mt-5 flex flex-wrap justify-end gap-2.5">
+              <button type="button" onClick={onLukk} className="btn-ghost btn-sm">
+                Avbryt
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => {
+                  data.handling();
+                  onLukk();
+                }}
+                className="btn-primary btn-sm"
+              >
+                {data.knapp}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export function Bestillinger() {
   const { supabase, profile, user } = useAdmin();
   const [bestillinger, setBestillinger] = useState<Order[]>([]);
@@ -429,6 +516,9 @@ export function Bestillinger() {
   const [kopiert, setKopiert] = useState<string>('');
   const [meldingMal, setMeldingMal] = useState<Record<string, MeldingMal>>({});
   const [meldingUtkast, setMeldingUtkast] = useState<Record<string, string>>({});
+  const [epostPris, setEpostPris] = useState<Record<string, string>>({});
+  const [epostSvar, setEpostSvar] = useState<Record<string, string>>({});
+  const [bekreft, setBekreft] = useState<Bekreftelse | null>(null);
 
   const hent = useCallback(async () => {
     if (!supabase) return;
@@ -729,6 +819,49 @@ export function Bestillinger() {
     }
   }
 
+  async function sendKvitteringEpost(o: Order, mal: 'mottatt' | 'ferdig') {
+    if (!supabase) return;
+    const pris = tallFra(epostPris[o.id] ?? String(Math.round(Number(o.pris ?? 0))));
+    setEpostSvar((p) => ({ ...p, [o.id]: 'Sender …' }));
+    const { data: okt } = await supabase.auth.getSession();
+    const res = await fetch('/api/kvittering', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${okt.session?.access_token ?? ''}`,
+      },
+      body: JSON.stringify({ id: o.id, mal, pris }),
+    });
+    const svar = await res.json().catch(() => ({}));
+    if (svar.ok) {
+      setEpostSvar((p) => ({
+        ...p,
+        [o.id]:
+          mal === 'ferdig'
+            ? `Ferdig kvittering sendt til ${o.epost} med ${kr(pris)}.`
+            : `Bekreftelsen er sendt på nytt til ${o.epost}.`,
+      }));
+      // prisen kan ha blitt rettet – hent den inn i listen igjen
+      setBestillinger((prev) => prev.map((x) => (x.id === o.id ? { ...x, pris } : x)));
+    } else {
+      setEpostSvar((p) => ({ ...p, [o.id]: `Gikk ikke: ${svar.feil ?? 'ukjent feil'}` }));
+    }
+  }
+
+  function sporFor(o: Order, mal: 'mottatt' | 'ferdig') {
+    const pris = tallFra(epostPris[o.id] ?? String(Math.round(Number(o.pris ?? 0))));
+    setBekreft({
+      tittel: mal === 'ferdig' ? 'Send ferdig kvittering?' : 'Send bekreftelsen på nytt?',
+      tekst:
+        mal === 'ferdig'
+          ? `Kunden får en e-post om at bestillingen er ferdig, med ${kr(pris)} som endelig pris. Denne kan ikke trekkes tilbake.`
+          : `Kunden får bekreftelsen på bestillingen en gang til.`,
+      detalj: `Til ${o.epost}${o.ordrenr ? ` · bestilling #${o.ordrenr}` : ''}`,
+      knapp: mal === 'ferdig' ? 'Ja, send kvitteringen' : 'Ja, send på nytt',
+      handling: () => sendKvitteringEpost(o, mal),
+    });
+  }
+
   async function settBetalt(id: string, betalt: boolean) {
     if (!supabase) return;
     setBestillinger((prev) => prev.map((o) => (o.id === id ? { ...o, betalt } : o)));
@@ -859,6 +992,8 @@ export function Bestillinger() {
 
   return (
     <div className="space-y-5">
+      <BekreftDialog data={bekreft} onLukk={() => setBekreft(null)} />
+
       {/* Tall */}
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-soft">
@@ -1110,6 +1245,67 @@ export function Bestillinger() {
                                   ))}
                                 </div>
                               </div>
+
+                              {/* Kvittering på e-post */}
+                              {o.epost && (
+                                <div className="rounded-2xl border border-ink-200 bg-white p-4">
+                                  <p className="label">Kvittering på e-post</p>
+                                  <p className="mb-3 text-[13px] leading-relaxed text-ink-600">
+                                    Går til{' '}
+                                    <span className="font-mono text-ink-800">{o.epost}</span>. Rett
+                                    prisen først hvis den ikke stemmer – den lagres på bestillingen
+                                    når dere sender.
+                                  </p>
+
+                                  <div className="flex flex-wrap items-end gap-3">
+                                    <label className="block">
+                                      <span className="label">Endelig pris</span>
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="text"
+                                          inputMode="numeric"
+                                          value={
+                                            epostPris[o.id] ??
+                                            String(Math.round(Number(o.pris ?? 0)))
+                                          }
+                                          onChange={(e) =>
+                                            setEpostPris((p) => ({ ...p, [o.id]: e.target.value }))
+                                          }
+                                          className="field w-32"
+                                        />
+                                        <span className="text-sm font-semibold text-ink-600">kr</span>
+                                      </div>
+                                    </label>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => sporFor(o, 'ferdig')}
+                                      className="btn-primary btn-sm"
+                                    >
+                                      Send ferdig kvittering
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => sporFor(o, 'mottatt')}
+                                      className="btn-ghost btn-sm"
+                                    >
+                                      Send bekreftelsen på nytt
+                                    </button>
+                                  </div>
+
+                                  {epostSvar[o.id] && (
+                                    <p
+                                      className={`mt-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium ${
+                                        epostSvar[o.id].startsWith('Gikk ikke')
+                                          ? 'bg-red-50 text-red-700'
+                                          : 'bg-emerald-50 text-emerald-800'
+                                      }`}
+                                    >
+                                      {epostSvar[o.id]}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Send på melding */}
                               <div className="rounded-2xl border border-ink-200 bg-white p-4">

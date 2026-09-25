@@ -5,8 +5,9 @@ import { sendForOrdre } from '@/lib/ordre-epost';
 export const dynamic = 'force-dynamic';
 
 /**
- * Sender kvittering til kunden – og varsel til oss – for en bestilling
- * vi har opprettet selv i admin.
+ * Sender kvittering til kunden på e-post.
+ * mal «ferdig» = takk for handelen med endelig pris.
+ * pris = prisen slik den står i admin når knappen trykkes.
  */
 export async function POST(request: Request) {
   const okt = await krevInnlogget(request);
@@ -14,27 +15,24 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     id?: string;
-    tilKunde?: boolean;
-    tilOss?: boolean;
     mal?: 'mottatt' | 'ferdig';
+    pris?: number;
   };
   if (!body.id) return NextResponse.json({ feil: 'Mangler bestilling.' }, { status: 400 });
 
   const utfall = await sendForOrdre(okt.service, body.id, {
     origin: new URL(request.url).origin,
-    tilKunde: body.tilKunde !== false,
-    tilOss: body.tilOss !== false,
+    tilKunde: true,
+    tilOss: false,
     mal: body.mal === 'ferdig' ? 'ferdig' : 'mottatt',
+    pris: typeof body.pris === 'number' ? body.pris : undefined,
   });
 
-  if (!utfall.status && utfall.feil) {
-    return NextResponse.json({ feil: utfall.feil }, { status: 400 });
-  }
-  if (!utfall.ok) {
+  if (!utfall.kundeOk) {
     return NextResponse.json(
       { feil: utfall.feil ?? 'Klarte ikke å sende.', status: utfall.status },
       { status: 500 }
     );
   }
-  return NextResponse.json({ ok: true, status: utfall.status, mottakere: utfall.mottakere });
+  return NextResponse.json({ ok: true, status: utfall.status });
 }

@@ -26,6 +26,8 @@ type Status = {
   reserveBrukt: boolean;
   manglerKolonne: boolean;
   bedrift: string;
+  epostBedrift: string;
+  avsenderInnstilling: string;
   siste: SisteOrdre[];
 };
 
@@ -80,6 +82,10 @@ export function EpostOppsett() {
   const [sender, setSender] = useState(false);
   const [svar, setSvar] = useState<{ ok: boolean; tekst: string } | null>(null);
   const [sendtPaNytt, setSendtPaNytt] = useState<Record<string, string>>({});
+  const [mottakere, setMottakere] = useState('');
+  const [avsender, setAvsender] = useState('');
+  const [lagrer, setLagrer] = useState(false);
+  const [lagretSvar, setLagretSvar] = useState('');
 
   const token = useCallback(async () => {
     if (!supabase) return '';
@@ -90,7 +96,12 @@ export function EpostOppsett() {
   const hent = useCallback(async () => {
     setLaster(true);
     const res = await fetch('/api/epost', { headers: { Authorization: `Bearer ${await token()}` } });
-    if (res.ok) setStatus(await res.json());
+    if (res.ok) {
+      const data = (await res.json()) as Status;
+      setStatus(data);
+      setMottakere(data.epostBedrift ?? '');
+      setAvsender(data.avsenderInnstilling ?? '');
+    }
     setLaster(false);
   }, [token]);
 
@@ -117,6 +128,22 @@ export function EpostOppsett() {
     } else {
       setSvar({ ok: false, tekst: data.feil || 'Klarte ikke å sende.' });
     }
+  }
+
+  async function lagreOppsett(e: React.FormEvent) {
+    e.preventDefault();
+    setLagrer(true);
+    setLagretSvar('');
+    const res = await fetch('/api/epost', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` },
+      body: JSON.stringify({ lagre: { mottakere, avsender } }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setLagrer(false);
+    setLagretSvar(data.ok ? 'Lagret.' : data.feil || 'Klarte ikke å lagre.');
+    window.setTimeout(() => setLagretSvar(''), 4000);
+    hent();
   }
 
   async function sendPaNytt(o: SisteOrdre) {
@@ -252,6 +279,56 @@ export function EpostOppsett() {
             </Punkt>
           )}
         </ul>
+      </div>
+
+      <div className="card p-6">
+        <h2 className="text-base font-bold text-ink-900">Hvem får varsel om nye bestillinger?</h2>
+        <p className="mt-1 text-[13px] leading-relaxed text-ink-600">
+          Skriv adressene som skal ha beskjed når noen bestiller. Flere adresser skilles med komma.
+          Ansatte som har huket av for varsel under Ansatte får det i tillegg.
+        </p>
+
+        <form onSubmit={lagreOppsett} className="mt-4 space-y-3">
+          <label className="block">
+            <span className="label">E-post til bedriften</span>
+            <input
+              type="text"
+              value={mottakere}
+              onChange={(e) => setMottakere(e.target.value)}
+              placeholder="post@printfiks.org, trym.simmenes@bergensskolen.com"
+              className="field w-full"
+            />
+          </label>
+
+          <label className="block">
+            <span className="label">Avsender kundene ser</span>
+            <input
+              type="text"
+              value={avsender}
+              onChange={(e) => setAvsender(e.target.value)}
+              placeholder="PrintFiksEB &lt;post@printfiks.org&gt;"
+              className="field w-full"
+            />
+            <span className="hint">
+              Adressen må ligge på et domene dere har verifisert hos Resend.
+            </span>
+          </label>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="submit" className="btn-primary btn-sm" disabled={lagrer}>
+              {lagrer ? 'Lagrer …' : 'Lagre'}
+            </button>
+            {lagretSvar && (
+              <span
+                className={`text-[13px] font-medium ${
+                  lagretSvar === 'Lagret.' ? 'text-emerald-700' : 'text-red-700'
+                }`}
+              >
+                {lagretSvar}
+              </span>
+            )}
+          </div>
+        </form>
       </div>
 
       <div className="card p-6">

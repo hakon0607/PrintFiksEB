@@ -349,7 +349,7 @@ async function sendMedResend(opts: {
       method: 'POST',
       headers: { Authorization: `Bearer ${nokkel}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: opts.avsender || 'PrintFiksEB <onboarding@resend.dev>',
+        from: opts.avsender || 'PrintFiksEB <post@printfiks.org>',
         to: opts.til,
         subject: opts.emne,
         html: opts.html,

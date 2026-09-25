@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   const smtp = smtpOppsett();
   const avsender = smtp
     ? smtp.bruker
-    : s.epost_avsender || 'PrintFiksEB <onboarding@resend.dev>';
+    : s.epost_avsender || 'PrintFiksEB <post@printfiks.org>';
   const nokkel = vei !== 'ingen';
 
   // Resend sin testadresse kan bare sende til kontoens egen adresse.
@@ -55,6 +55,8 @@ export async function GET(request: Request) {
     mottakere: mottakere.adresser,
     fraAnsatte: mottakere.fraAnsatte,
     fraInnstilling: mottakere.fraInnstilling,
+    epostBedrift: s.epost_bedrift ?? '',
+    avsenderInnstilling: s.epost_avsender ?? '',
     reserveBrukt: mottakere.reserveBrukt,
     manglerKolonne: mottakere.manglerKolonne,
     bedrift: s.bedrift_navn || 'PrintFiksEB',
@@ -67,7 +69,35 @@ export async function POST(request: Request) {
   const okt = await krevInnlogget(request);
   if (okt.feil) return okt.feil;
 
-  const body = (await request.json().catch(() => ({}))) as { til?: string; ordreId?: string };
+  const body = (await request.json().catch(() => ({}))) as {
+    til?: string;
+    ordreId?: string;
+    lagre?: { mottakere?: string; avsender?: string };
+  };
+
+  // Lagre hvem som skal ha varsel, og hvem e-posten kommer fra
+  if (body.lagre) {
+    const oppdater: { key: string; value: string }[] = [];
+    if (typeof body.lagre.mottakere === 'string') {
+      oppdater.push({ key: 'epost_bedrift', value: lesAdresser(body.lagre.mottakere).join(', ') });
+    }
+    if (typeof body.lagre.avsender === 'string') {
+      oppdater.push({ key: 'epost_avsender', value: body.lagre.avsender.trim().slice(0, 200) });
+    }
+    for (const rad of oppdater) {
+      const { error } = await okt.service
+        .from('settings')
+        .update({ value: rad.value })
+        .eq('key', rad.key);
+      if (error) {
+        return NextResponse.json(
+          { feil: `Klarte ikke å lagre ${rad.key}: ${error.message}` },
+          { status: 500 }
+        );
+      }
+    }
+    return NextResponse.json({ ok: true, lagret: true });
+  }
 
   // Send varselet for en konkret bestilling på nytt.
   if (body.ordreId) {
@@ -84,7 +114,7 @@ export async function POST(request: Request) {
   }
 
   const s = await hentInnstillinger(okt.service);
-  const avsender = s.epost_avsender || 'PrintFiksEB <onboarding@resend.dev>';
+  const avsender = s.epost_avsender || 'PrintFiksEB <post@printfiks.org>';
   const bedrift = s.bedrift_navn || 'PrintFiksEB';
 
   let til = lesAdresser(body.til ?? '');

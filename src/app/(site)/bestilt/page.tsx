@@ -122,36 +122,33 @@ export default function BestiltSide() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.34 }}
-            className="mt-7 rounded-3xl border-2 border-dashed border-amber-300 bg-amber-50/70 p-5 sm:p-6"
+            className="mt-7 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 sm:p-6"
           >
             <div className="flex items-start gap-4">
               <span
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber-400/90 text-white"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-500 text-white"
                 aria-hidden
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                   <path
-                    d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"
+                    d="M3 7l9 6 9-6M3 7h18v10H3z"
                     stroke="currentColor"
                     strokeWidth="2"
                     strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
-                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
                 </svg>
               </span>
               <div className="min-w-0">
                 <h2 className="text-base font-bold text-ink-900 sm:text-lg">
-                  Ta vare på kvitteringen
+                  Bekreftelsen er sendt
                 </h2>
                 <p className="mt-1.5 text-[14px] leading-relaxed text-ink-700">
-                  Ta gjerne et skjermbilde av denne siden – men du får også kvitteringen på melding
-                  fra oss, så du mister den ikke om du glemmer det.
+                  Du får en bekreftelse på e-post med en gang, med bestillingsnummer og oversikt over
+                  det du har bestilt. Finner du den ikke, sjekk søppelpost.
                 </p>
                 <p className="mt-2 text-[13px] leading-relaxed text-ink-600">
-                  Skjermbilde: <span className="font-semibold text-ink-800">iPhone</span> – sideknapp
-                  og volum opp samtidig.{' '}
-                  <span className="font-semibold text-ink-800">Android</span> – av/på og volum ned
-                  samtidig.
+                  Når bestillingen er ferdig, sender vi en kvittering med endelig pris.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2.5">
                   <button
@@ -159,7 +156,7 @@ export default function BestiltSide() {
                     onClick={() => window.print()}
                     className="btn-dark btn-sm no-print"
                   >
-                    Lagre som PDF eller skriv ut
+                    Lagre som PDF
                   </button>
                   {k.ordrenr && (
                     <button
@@ -263,9 +260,9 @@ export default function BestiltSide() {
             </div>
 
             <p className="border-t border-ink-100 px-5 py-4 text-[13px] leading-relaxed text-ink-600">
-              Vi sender kvitteringen på melding til{' '}
-              <span className="font-semibold text-ink-800">{k.telefon}</span> når vi tar kontakt.
-              Har du bilde av det som skal fikses, eller en 3D-fil? Send det på melding da.
+              Bekreftelsen er sendt til{' '}
+              <span className="font-semibold text-ink-800">{k.epost}</span>. Har du bilde av det som
+              skal fikses, eller en 3D-fil? Send det på melding når vi tar kontakt.
             </p>
           </motion.div>
         )}
@@ -273,7 +270,7 @@ export default function BestiltSide() {
         {lastet && !k && (
           <div className="mt-8 rounded-3xl border border-ink-100 bg-white p-6 text-center text-sm text-ink-600 shadow-soft">
             Vi fant ikke detaljene i denne nettleseren, men bestillingen er registrert hos oss.
-            Vi tar kontakt på telefon – eller ring oss, så finner vi den fram.
+            Sjekk e-posten din for bekreftelsen – eller ring oss, så finner vi den fram.
           </div>
         )}
 
