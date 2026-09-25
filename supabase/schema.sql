@@ -207,6 +207,18 @@ create table if not exists public.faq (
   sort     int not null default 100
 );
 
+-- Anmeldelser fra kunder, vises på forsiden
+create table if not exists public.reviews (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null default '',
+  place      text not null default '',
+  quote      text not null default '',
+  stars      int  not null default 5,
+  active     boolean not null default true,
+  sort       int  not null default 100,
+  created_at timestamptz not null default now()
+);
+
 
 -- ------------------------------------------------------------
 -- 11. Hemmeligheter (API-nøkler)
@@ -272,7 +284,7 @@ declare
 begin
   foreach t in array array[
     'settings','materials','weight_ranges','extras',
-    'delivery_options','products','team_members','faq','examples','colors'
+    'delivery_options','products','team_members','faq','examples','colors','reviews'
   ]
   loop
     execute format('drop trigger if exists marker_endring_trigger on public.%I', t);
@@ -333,6 +345,7 @@ alter table public.products         enable row level security;
 alter table public.team_members     enable row level security;
 alter table public.invites          enable row level security;
 alter table public.faq              enable row level security;
+alter table public.reviews          enable row level security;
 alter table public.examples         enable row level security;
 alter table public.colors           enable row level security;
 
@@ -342,7 +355,7 @@ declare
 begin
   foreach t in array array[
     'settings','materials','weight_ranges','extras',
-    'delivery_options','products','team_members','faq','examples','colors'
+    'delivery_options','products','team_members','faq','examples','colors','reviews'
   ]
   loop
     execute format('drop policy if exists "les_offentlig" on public.%I', t);
@@ -533,7 +546,7 @@ declare
 begin
   foreach t in array array[
     'settings','materials','weight_ranges','extras','delivery_options',
-    'products','team_members','faq','examples','colors','tasks','orders','order_items','finances','profiles','site_status'
+    'products','team_members','faq','examples','colors','reviews','tasks','orders','order_items','finances','profiles','site_status'
   ]
   loop
     begin
@@ -558,6 +571,10 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
   ('vipps_nummer',        '41381608',                             'Vipps-nummer',            '', 'text',     'Kontakt', 30),
   ('vipps_navn',          'PrintFiksEB',                          'Vipps-navn',              '', 'text',     'Kontakt', 40),
   ('kontakt_meldingstid', 'Bestillinger på nettsiden tar vi imot hele døgnet, alle dager.', 'Når kan folk bestille?', 'Vises ved bestillingsknappen', 'text', 'Kontakt', 42),
+  ('anmeldelser_pa',          'true',  'Vis anmeldelser på forsiden', 'Skru av hvis dere ikke har noen ennå, eller ikke vil vise dem.', 'bool',   'Forsiden', 60),
+  ('anmeldelser_tittel',      'Hva kundene sier', 'Overskrift over anmeldelsene', '', 'text', 'Forsiden', 62),
+  ('anmeldelser_undertittel', 'Ekte tilbakemeldinger fra folk som har handlet hos oss.', 'Linjen under overskriften', '', 'text', 'Forsiden', 64),
+  ('anmeldelser_rotasjon',    '6',     'Sekunder per anmeldelse', 'Hvor lenge hver anmeldelse står før den neste kommer. Sett 0 for å slå av automatisk bytte.', 'number', 'Forsiden', 66),
   ('epost_avsender',      'PrintFiksEB',                          'Navn på avsenderen', 'Navnet kunden ser som avsender. Adressen styres av e-postkontoen som er satt opp på serveren.', 'text', 'Kontakt', 46),
   ('epost_bedrift',       'trym.simmenes@bergensskolen.com',      'E-post til bedriften', 'Hit sendes varsel om nye bestillinger, i tillegg til de ansatte som har huket av for varsel. Flere adresser skilles med komma.', 'text', 'Kontakt', 48),
   ('kontakt_ringetid',    'Ring mellom 15 og 21, mandag til lørdag.', 'Når kan folk ringe?',   'Vises ved ring-knappen', 'text', 'Kontakt', 44),

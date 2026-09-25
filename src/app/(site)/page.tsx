@@ -5,6 +5,7 @@ import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
 import { PrinterAnimation } from '@/components/PrinterAnimation';
 import { ProductCard } from '@/components/ProductCard';
+import { Anmeldelser } from '@/components/Anmeldelser';
 import { SplitText } from '@/components/glass/SplitText';
 import { CountUp } from '@/components/glass/CountUp';
 import { Tilt } from '@/components/glass/Tilt';
@@ -39,6 +40,7 @@ export default async function Hjem({
   const ringerTilbake = text(s, 'kontakt_ringer_tilbake');
   const hjemlevering =
     site.deliveryOptions.find((d) => Number(d.price) > 0) ?? { name: 'Hjemlevering', price: 50 };
+  const visAnmeldelser = bool(s, 'anmeldelser_pa', true) && site.reviews.length > 0;
   const utvalgte = site.products.filter((p) => p.featured).slice(0, 3);
   const nyeste = (utvalgte.length ? utvalgte : site.products).slice(0, 3);
 
@@ -434,6 +436,16 @@ export default async function Hjem({
             </Stagger>
           </div>
         </section>
+      )}
+
+      {/* ---------------- ANMELDELSER ---------------- */}
+      {visAnmeldelser && (
+        <Anmeldelser
+          anmeldelser={site.reviews}
+          tittel={text(s, 'anmeldelser_tittel', 'Hva kundene sier')}
+          undertittel={text(s, 'anmeldelser_undertittel', '')}
+          sekunder={num(s, 'anmeldelser_rotasjon', 6)}
+        />
       )}
 
       {/* ---------------- CTA ---------------- */}

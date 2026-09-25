@@ -126,6 +126,17 @@ export type Example = {
   sort: number;
 };
 
+export type Review = {
+  id: string;
+  name: string;
+  place: string;
+  quote: string;
+  stars: number;
+  active: boolean;
+  sort: number;
+  created_at?: string;
+};
+
 export type SiteData = {
   settings: Record<string, string>;
   materials: Material[];
@@ -137,6 +148,7 @@ export type SiteData = {
   faq: Faq[];
   colors: Color[];
   examples: Example[];
+  reviews: Review[];
   connected: boolean;
 };
 

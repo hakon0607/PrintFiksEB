@@ -13,6 +13,7 @@ import type {
   Faq,
   Example,
   Color,
+  Review,
 } from './types';
 
 async function safe<T>(promise: PromiseLike<{ data: T[] | null; error: unknown }>, fallback: T[]) {
@@ -45,6 +46,7 @@ async function hentAlt(): Promise<SiteData> {
       faq,
       examples,
       colors,
+      reviews,
     ] =
       await Promise.all([
         sb.from('settings').select('key,value').then((r) => r),
@@ -88,6 +90,15 @@ async function hentAlt(): Promise<SiteData> {
           sb.from('colors').select('*').eq('active', true).order('sort') as never,
           DEFAULT_SITE.colors
         ),
+        safe<Review>(
+          sb
+            .from('reviews')
+            .select('*')
+            .eq('active', true)
+            .order('sort')
+            .order('created_at', { ascending: false }) as never,
+          []
+        ),
       ]);
 
     const settings = { ...DEFAULT_SETTINGS };
@@ -110,6 +121,7 @@ async function hentAlt(): Promise<SiteData> {
       faq,
       examples,
       colors,
+      reviews,
       connected,
     };
   } catch {

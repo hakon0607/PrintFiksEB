@@ -6,6 +6,10 @@ import type { SiteData } from './types';
  * Så snart Supabase er satt opp hentes alt derfra i stedet.
  */
 export const DEFAULT_SETTINGS: Record<string, string> = {
+  anmeldelser_pa: 'true',
+  anmeldelser_tittel: 'Hva kundene sier',
+  anmeldelser_undertittel: 'Ekte tilbakemeldinger fra folk som har handlet hos oss.',
+  anmeldelser_rotasjon: '6',
   bedrift_navn: 'PrintFiksEB',
   bedrift_slagord: 'Ideer blir virkelighet',
   bedrift_skole: 'Skranevatnet skole',
@@ -51,6 +55,8 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
 export const DEFAULT_SITE: SiteData = {
   settings: DEFAULT_SETTINGS,
   connected: false,
+  // Tomt med vilje – her legger dere inn ekte tilbakemeldinger fra kundene deres.
+  reviews: [],
   materials: [
     {
       id: 'pla',

@@ -12,7 +12,19 @@ import { lyttPaTabell } from '@/lib/realtime';
 export type Felt = {
   key: string;
   label: string;
-  type: 'text' | 'longtext' | 'number' | 'price' | 'bool' | 'image' | 'images' | 'bildesett' | 'color' | 'select' | 'lines';
+  type:
+    | 'text'
+    | 'longtext'
+    | 'number'
+    | 'price'
+    | 'bool'
+    | 'image'
+    | 'images'
+    | 'bildesett'
+    | 'color'
+    | 'select'
+    | 'stars'
+    | 'lines';
   valg?: { verdi: string; tekst: string }[];
   placeholder?: string;
   help?: string;
@@ -714,6 +726,42 @@ export function FeltRedigerer({
           </span>
           {på ? 'På' : 'Av'}
         </button>
+        {felt.help && <p className="hint">{felt.help}</p>}
+      </div>
+    );
+  }
+
+  if (felt.type === 'stars') {
+    const valgt = Math.max(0, Math.min(5, Math.round(Number(verdi ?? 0))));
+    return (
+      <div>
+        <span className="label">{felt.label}</span>
+        <div className="flex items-center gap-1.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onEndre(n, true)}
+              aria-label={`${n} av 5 stjerner`}
+              aria-pressed={valgt === n}
+              className="rounded-lg p-1 transition-transform hover:scale-110"
+            >
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                aria-hidden
+                className={n <= valgt ? 'text-amber-400' : 'text-ink-200'}
+              >
+                <path
+                  fill="currentColor"
+                  d="M12 2.6l2.9 5.9 6.5.95-4.7 4.58 1.11 6.47L12 17.45 6.19 20.5 7.3 14.03 2.6 9.45l6.5-.95L12 2.6z"
+                />
+              </svg>
+            </button>
+          ))}
+          <span className="ml-2 text-sm font-semibold text-ink-600">{valgt} av 5</span>
+        </div>
         {felt.help && <p className="hint">{felt.help}</p>}
       </div>
     );

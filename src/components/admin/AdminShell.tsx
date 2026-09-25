@@ -35,6 +35,7 @@ const meny = [
   },
   { href: '/admin/priser', label: 'Priser', ikon: 'M12 3v18M7 7h7.5a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8' },
   { href: '/admin/galleri', label: 'Galleri', ikon: 'M4 5h16v14H4zM4 15l4.5-4.5L13 15l3-3 4 4' },
+  { href: '/admin/anmeldelser', label: 'Anmeldelser', ikon: 'M12 3.6l2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85z' },
   { href: '/admin/tekster', label: 'Tekster', ikon: 'M5 6h14M5 12h14M5 18h9' },
   { href: '/admin/sporsmal', label: 'Spørsmål og svar', ikon: 'M9.5 9a2.5 2.5 0 1 1 3.3 2.4c-.8.3-1.3 1-1.3 1.9v.2M12 17h.01' },
   { href: '/admin/epost', label: 'E-post', ikon: 'M3 7l9 6 9-6M3 7h18v10H3z' },
