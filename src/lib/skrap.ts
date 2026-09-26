@@ -56,6 +56,10 @@ export function finnDesigner(html: string, nettsted: string): string {
       /"(?:designer|author|creator|uploader)"\s*:\s*\{[^{}]{0,200}?"(?:name|handle|nickname|username)"\s*:\s*"([^"]{2,60})"/i
     ) ?? [])[1],
     meta(html, 'author', 'article:author'),
+    // Innlimt tekst: en linje som bare sier «by Navn» eller «Designed by Navn»
+    (html.match(/^\s*(?:designed\s+by|created\s+by|by|av)\s+([\p{L}\p{N}_\-. ]{2,40})\s*$/imu) ?? [])[1],
+    // «... by Navn - Thingiverse» i tittelen
+    (html.match(/\bby\s+([\p{L}\p{N}_\-.]{2,40})\s*[-–|]\s*(?:Thingiverse|Printables|MakerWorld)/iu) ?? [])[1],
   ];
   for (const k of kandidater) {
     const v = (k ?? '').trim();

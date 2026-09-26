@@ -18,6 +18,7 @@ type Svar = {
     nettsted: string;
     designer: string;
     kjent: boolean;
+    via?: string;
     originalTittel: string;
     bilde: string;
     vektFunnet: number | null;
@@ -62,6 +63,8 @@ export function Importer({ onLagt }: { onLagt?: () => void }) {
   const [lagrer, setLagrer] = useState(false);
   const [ferdig, setFerdig] = useState('');
   const [brukBilde, setBrukBilde] = useState(true);
+  const [limInn, setLimInn] = useState(false);
+  const [tekst, setTekst] = useState('');
 
   const token = useCallback(async () => {
     if (!supabase) return '';
@@ -69,7 +72,7 @@ export function Importer({ onLagt }: { onLagt?: () => void }) {
     return data.session?.access_token ?? '';
   }, [supabase]);
 
-  async function hent(e: React.FormEvent) {
+  async function hent(e: React.FormEvent, medTekst = false) {
     e.preventDefault();
     setHenter(true);
     setFeil('');
@@ -78,14 +81,16 @@ export function Importer({ onLagt }: { onLagt?: () => void }) {
     const res = await fetch('/api/importer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify(medTekst ? { url, tekst } : { url }),
     });
     const data = await res.json().catch(() => ({}));
     setHenter(false);
     if (!res.ok || !data.ok) {
       setFeil(data.feil || data.error || 'Klarte ikke å hente fra den lenken.');
+      if (data.kanLimeInn) setLimInn(true);
       return;
     }
+    setLimInn(false);
     setSvar(data as Svar);
     setBrukBilde(Boolean(data.kilde?.bilde) && data.lisens?.salg === 'ja');
   }
@@ -185,9 +190,34 @@ export function Importer({ onLagt }: { onLagt?: () => void }) {
               </form>
 
               {feil && (
-                <p className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700">
+                <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium leading-relaxed text-red-700">
                   {feil}
                 </p>
+              )}
+
+              {limInn && (
+                <form onSubmit={(e) => hent(e, true)} className="mt-3 space-y-2.5">
+                  <label className="block">
+                    <span className="label">Lim inn teksten fra modellsiden</span>
+                    <textarea
+                      value={tekst}
+                      onChange={(e) => setTekst(e.target.value)}
+                      rows={6}
+                      placeholder="Åpne modellsiden, trykk Ctrl+A og Ctrl+C, og lim inn her. Ta med navn, beskrivelse og lisens."
+                      className="field w-full resize-y text-[13px]"
+                    />
+                    <span className="hint">
+                      Lenken over lagres fortsatt på modellen, så krediteringen blir riktig.
+                    </span>
+                  </label>
+                  <button
+                    type="submit"
+                    className="btn-primary btn-sm"
+                    disabled={henter || tekst.trim().length < 20}
+                  >
+                    {henter ? 'Leser …' : 'Bruk denne teksten'}
+                  </button>
+                </form>
               )}
               {ferdig && (
                 <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800">
@@ -235,6 +265,8 @@ export function Importer({ onLagt }: { onLagt?: () => void }) {
                         </p>
                         <p className="mt-2 text-[12px] text-ink-500">
                           Fra {svar.kilde.nettsted}
+                          {svar.kilde.via === 'leser' ? ' (via lesetjeneste)' : ''}
+                          {svar.kilde.via === 'innlimt' ? ' (innlimt tekst)' : ''}
                           {svar.kilde.designer ? ` · ${svar.kilde.designer}` : ''} ·{' '}
                           <span className="text-ink-400">{svar.kilde.originalTittel}</span>
                         </p>

@@ -20,31 +20,50 @@ type Funnet = {
   nettsted: string;
 };
 
-async function hentSide(url: string): Promise<{ html: string } | { feil: string }> {
+async function proev(url: string, via: 'direkte' | 'leser'): Promise<{ html: string } | { feil: string }> {
+  // MakerWorld og Printables stenger ute servere. Da går vi via en lesetjeneste
+  // som åpner siden i en ekte nettleser og gir oss innholdet tilbake.
+  const adresse = via === 'leser' ? `https://r.jina.ai/${url}` : url;
   try {
-    const res = await fetch(url, {
+    const res = await fetch(adresse, {
       redirect: 'follow',
-      signal: AbortSignal.timeout(20000),
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
-        'Accept-Language': 'en,nb;q=0.8',
-        Accept: 'text/html,application/xhtml+xml',
-      },
+      signal: AbortSignal.timeout(via === 'leser' ? 32000 : 15000),
+      headers:
+        via === 'leser'
+          ? { 'X-Return-Format': 'html', Accept: 'text/html,text/plain' }
+          : {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+              'Accept-Language': 'en,nb;q=0.8',
+              Accept: 'text/html,application/xhtml+xml',
+            },
     });
-    if (!res.ok) {
-      return {
-        feil:
-          res.status === 403 || res.status === 429
-            ? 'Siden ville ikke slippe oss inn. Prøv igjen om litt, eller fyll inn selv.'
-            : `Siden svarte ${res.status}.`,
-      };
-    }
+    if (!res.ok) return { feil: `${via} svarte ${res.status}` };
     const html = (await res.text()).slice(0, 900000);
+    if (html.trim().length < 200) return { feil: `${via} ga nesten ingenting` };
     return { html };
   } catch {
-    return { feil: 'Fikk ikke kontakt med siden. Sjekk at lenken er riktig.' };
+    return { feil: `${via} svarte ikke i tide` };
   }
+}
+
+/** Prøver først rett på, så via lesetjenesten. */
+async function hentSide(url: string): Promise<{ html: string; via: string } | { feil: string }> {
+  const grunner: string[] = [];
+
+  const direkte = await proev(url, 'direkte');
+  if ('html' in direkte && /og:title|<title>/i.test(direkte.html)) {
+    return { html: direkte.html, via: 'direkte' };
+  }
+  grunner.push('feil' in direkte ? direkte.feil : 'direkte ga ingen tittel');
+
+  const leser = await proev(url, 'leser');
+  if ('html' in leser) return { html: leser.html, via: 'leser' };
+  grunner.push(leser.feil);
+
+  return {
+    feil: `Kom ikke inn på siden (${grunner.join(', ')}). Åpne modellsiden i nettleseren, marker alt med Ctrl+A, kopier, og lim det inn i feltet under i stedet.`,
+  };
 }
 
 /** Pen butikkpris: 49, 69, 99, 149 ... */
@@ -88,28 +107,50 @@ export async function POST(request: Request) {
   if (okt.feil) return okt.feil;
   const service = okt.service;
 
-  const body = (await request.json().catch(() => ({}))) as { url?: string };
+  const body = (await request.json().catch(() => ({}))) as { url?: string; tekst?: string };
   const raa = String(body.url ?? '').trim();
-  if (!raa) return NextResponse.json({ feil: 'Lim inn en lenke først.' }, { status: 400 });
-
-  let url: URL;
-  try {
-    url = new URL(raa.startsWith('http') ? raa : `https://${raa}`);
-  } catch {
-    return NextResponse.json({ feil: 'Det ser ikke ut som en lenke.' }, { status: 400 });
-  }
-  if (!/^https?:$/.test(url.protocol)) {
-    return NextResponse.json({ feil: 'Bare vanlige nettadresser går.' }, { status: 400 });
+  const limt = String(body.tekst ?? '').trim();
+  if (!raa && !limt) {
+    return NextResponse.json({ feil: 'Lim inn en lenke først.' }, { status: 400 });
   }
 
-  const side = await hentSide(url.toString());
-  if ('feil' in side) return NextResponse.json({ feil: side.feil }, { status: 502 });
-  const html = side.html;
+  let url: URL | null = null;
+  if (raa) {
+    try {
+      url = new URL(raa.startsWith('http') ? raa : `https://${raa}`);
+    } catch {
+      return NextResponse.json({ feil: 'Det ser ikke ut som en lenke.' }, { status: 400 });
+    }
+    if (!/^https?:$/.test(url.protocol)) {
+      return NextResponse.json({ feil: 'Bare vanlige nettadresser går.' }, { status: 400 });
+    }
+  }
 
-  const nettsted = url.hostname.replace(/^www\./, '');
+  let html: string;
+  let via = 'innlimt';
+  if (limt) {
+    // De har limt inn teksten fra siden selv
+    html = limt.slice(0, 200000);
+  } else {
+    const side = await hentSide(url!.toString());
+    if ('feil' in side) {
+      return NextResponse.json({ feil: side.feil, kanLimeInn: true }, { status: 502 });
+    }
+    html = side.html;
+    via = side.via;
+  }
+
+  const nettsted = url ? url.hostname.replace(/^www\./, '') : 'innlimt tekst';
   const funnet: Funnet = {
-    tittel: meta(html, 'og:title', 'twitter:title') || (html.match(/<title>([^<]{2,160})</i) ?? [])[1] || '',
-    beskrivelse: meta(html, 'og:description', 'description', 'twitter:description'),
+    tittel:
+      meta(html, 'og:title', 'twitter:title') ||
+      (html.match(/<title>([^<]{2,160})</i) ?? [])[1] ||
+      (html.match(/^\s*#\s+(.{2,160})$/m) ?? [])[1] ||
+      (html.match(/^Title:\s*(.{2,160})$/mi) ?? [])[1] ||
+      (limt ? limt.split('\n').map((l) => l.trim()).find((l) => l.length > 2 && l.length < 120) ?? '' : ''),
+    beskrivelse:
+      meta(html, 'og:description', 'description', 'twitter:description') ||
+      (limt ? limt.replace(/\s+/g, ' ').slice(0, 1500) : ''),
     bilde: meta(html, 'og:image', 'og:image:secure_url', 'twitter:image'),
     designer: finnDesigner(html, nettsted),
     vekt: finnVekt(html),
@@ -216,10 +257,11 @@ Svar med JSON:
   return NextResponse.json({
     ok: true,
     kilde: {
-      url: url.toString(),
+      url: url ? url.toString() : '',
       nettsted: funnet.nettsted,
       designer: funnet.designer,
       kjent: KJENTE.some((k) => funnet.nettsted.endsWith(k)),
+      via,
       originalTittel: funnet.tittel,
       bilde: funnet.bilde,
       vektFunnet: funnet.vekt,
