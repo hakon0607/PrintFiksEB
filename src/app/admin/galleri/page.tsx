@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAdmin } from '@/components/admin/AdminProvider';
 import { AiNokkel } from '@/components/admin/AiNokkel';
+import { Importer } from '@/components/admin/Importer';
 import { TableEditor, type Felt } from '@/components/admin/TableEditor';
 import { regnMargin } from '@/lib/margin';
 import { kr } from '@/lib/settings';
@@ -117,6 +118,8 @@ export default function GalleriAdmin() {
       </div>
 
       <AiNokkel />
+
+      <Importer />
 
       <TableEditor
         table="products"

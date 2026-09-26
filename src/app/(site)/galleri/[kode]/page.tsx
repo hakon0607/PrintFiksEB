@@ -72,6 +72,30 @@ export default async function ModellSide({
           />
         </div>
 
+        {/* Kreditering – CC BY-lisenser krever at designeren nevnes */}
+        {product.source_url && (
+          <p className="mt-8 rounded-2xl border border-ink-100 bg-white/70 px-5 py-4 text-[13px] leading-relaxed text-ink-500">
+            Modellen er tegnet av{' '}
+            <span className="font-semibold text-ink-700">
+              {product.kilde_designer || 'en designer på nett'}
+            </span>{' '}
+            og delt under{' '}
+            <span className="font-semibold text-ink-700">
+              {product.kilde_lisens || 'en åpen lisens'}
+            </span>
+            . Vi printer den.{' '}
+            <a
+              href={product.source_url}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="font-semibold text-brand-700 underline underline-offset-4"
+            >
+              Se originalen
+            </a>
+            .
+          </p>
+        )}
+
         {andre.length > 0 && (
           <section className="mt-20">
             <Reveal>

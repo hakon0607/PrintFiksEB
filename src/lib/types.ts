@@ -59,6 +59,8 @@ export type Product = {
   price: number;
   cost_extra?: number | null;
   cost_price?: number | null;
+  kilde_designer?: string | null;
+  kilde_lisens?: string | null;
   image_url: string | null;
   material: string | null;
   weight_g: number | null;
