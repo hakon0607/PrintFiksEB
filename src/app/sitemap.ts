@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://printfiks.org';
+import { SIDE_URL as BASE } from '@/lib/side-url';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const na = new Date();

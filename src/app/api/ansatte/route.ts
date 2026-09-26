@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/server';
+import { SIDE_URL } from '@/lib/side-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Skriv inn en gyldig e-postadresse.' }, { status: 400 });
   }
 
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const origin = SIDE_URL || new URL(request.url).origin;
 
   let userId: string | null = null;
   let passord: string | null = null;

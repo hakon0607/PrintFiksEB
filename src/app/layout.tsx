@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { CartProvider } from '@/lib/cart';
+import { SIDE_URL } from '@/lib/side-url';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://printfiks.org'),
+  metadataBase: new URL(SIDE_URL),
   title: {
     default: 'PrintFiksEB – 3D-print, reparasjon og design i Bergen',
     template: '%s · PrintFiksEB',
