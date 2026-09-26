@@ -3,7 +3,7 @@ import './globals.css';
 import { CartProvider } from '@/lib/cart';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://printfiks.org'),
   title: {
     default: 'PrintFiksEB – 3D-print, reparasjon og design i Bergen',
     template: '%s · PrintFiksEB',
@@ -30,16 +30,20 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico' },
+      { url: '/favicon.ico', sizes: '16x16 24x24 32x32 48x48 64x64' },
+      { url: '/icon-48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/icon-96.png', sizes: '96x96', type: 'image/png' },
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-    apple: '/apple-icon.png',
+    shortcut: '/favicon.ico',
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
   },
+  manifest: '/site.webmanifest',
 };
 
 export const viewport: Viewport = {
-  themeColor: '#2559C7',
+  themeColor: '#6499F7',
   width: 'device-width',
   initialScale: 1,
 };
