@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ProductCard } from './ProductCard';
+import { ProductCard, type Tetthet } from './ProductCard';
 import type { Product } from '@/lib/types';
 
 export function GalleryGrid({
@@ -22,6 +22,26 @@ export function GalleryGrid({
 
   const [kategori, setKategori] = useState('Alle');
   const [sok, setSok] = useState('');
+
+  // Hvor mange kort ved siden av hverandre på mobil. Huskes til neste gang.
+  const [kolonner, setKolonner] = useState<Tetthet>(1);
+  useEffect(() => {
+    try {
+      const lagret = Number(window.localStorage.getItem('printfikseb_kolonner'));
+      if (lagret === 1 || lagret === 2 || lagret === 3) setKolonner(lagret);
+    } catch {
+      /* ikke kritisk */
+    }
+  }, []);
+
+  function velgKolonner(n: Tetthet) {
+    setKolonner(n);
+    try {
+      window.localStorage.setItem('printfikseb_kolonner', String(n));
+    } catch {
+      /* ikke kritisk */
+    }
+  }
 
   const filtrert = useMemo(() => {
     const q = sok.trim().toLowerCase();
@@ -62,7 +82,45 @@ export function GalleryGrid({
           </div>
         )}
 
-        <div className="relative sm:w-64">
+        <div className="flex items-center gap-3">
+          {/* Bare på mobil – på større skjermer er det allerede 2 og 3 i bredden */}
+          <div
+            className="flex shrink-0 items-center gap-1 rounded-full border border-ink-200 bg-white p-1 sm:hidden"
+            role="group"
+            aria-label="Hvor mange modeller ved siden av hverandre"
+          >
+            {([1, 2, 3] as Tetthet[]).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => velgKolonner(n)}
+                aria-pressed={kolonner === n}
+                aria-label={`${n} i bredden`}
+                className={`grid h-9 w-9 place-items-center rounded-full transition-colors ${
+                  kolonner === n ? 'bg-brand-600 text-white' : 'text-ink-500 hover:bg-ink-50'
+                }`}
+              >
+                <svg width="17" height="17" viewBox="0 0 18 18" aria-hidden fill="currentColor">
+                  {n === 1 && <rect x="2" y="2" width="14" height="14" rx="2.5" />}
+                  {n === 2 && (
+                    <>
+                      <rect x="2" y="2" width="6" height="14" rx="2" />
+                      <rect x="10" y="2" width="6" height="14" rx="2" />
+                    </>
+                  )}
+                  {n === 3 && (
+                    <>
+                      <rect x="1.5" y="2" width="4" height="14" rx="1.5" />
+                      <rect x="7" y="2" width="4" height="14" rx="1.5" />
+                      <rect x="12.5" y="2" width="4" height="14" rx="1.5" />
+                    </>
+                  )}
+                </svg>
+              </button>
+            ))}
+          </div>
+
+          <div className="relative flex-1 sm:w-64">
           <svg
             width="16"
             height="16"
@@ -81,6 +139,7 @@ export function GalleryGrid({
             className="field pl-10"
             aria-label="Søk i galleriet"
           />
+          </div>
         </div>
       </div>
 
@@ -93,7 +152,16 @@ export function GalleryGrid({
           </p>
         </div>
       ) : (
-        <motion.div layout className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <motion.div
+          layout
+          className={`mt-8 grid sm:grid-cols-2 lg:grid-cols-3 ${
+            kolonner === 3
+              ? 'grid-cols-3 gap-2.5 sm:gap-5'
+              : kolonner === 2
+                ? 'grid-cols-2 gap-3 sm:gap-5'
+                : 'grid-cols-1 gap-5'
+          }`}
+        >
           <AnimatePresence mode="popLayout">
             {filtrert.map((p) => (
               <motion.div
@@ -105,7 +173,7 @@ export function GalleryGrid({
                 transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 className="h-full"
               >
-                <ProductCard product={p} currency={currency} />
+                <ProductCard product={p} currency={currency} tetthet={kolonner} />
               </motion.div>
             ))}
           </AnimatePresence>
