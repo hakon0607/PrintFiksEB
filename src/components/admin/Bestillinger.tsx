@@ -8,6 +8,15 @@ import { lyttPaTabell } from '@/lib/realtime';
 import { kr } from '@/lib/settings';
 import { Handlekurv, bareGalleri, beskriv, summer, type Linje, type Rundt } from './Handlekurv';
 import { num } from '@/lib/settings';
+import {
+  SLAG_NAVN,
+  SLAG_REKKE,
+  STANDARD_SMS_HENTING,
+  flett,
+  fornavn,
+  visTidspunkt,
+  type Slag,
+} from '@/lib/utsendt';
 import type {
   Color,
   DeliveryOption,
@@ -15,6 +24,7 @@ import type {
   Material,
   Order,
   OrderItem,
+  OrderMessage,
   Product,
   TeamMember,
   WeightRange,
@@ -47,6 +57,15 @@ const PAGANG = ['ny', 'godkjent', 'produksjon'];
 
 function visDato(iso: string): string {
   return new Date(iso).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' });
+}
+
+/** +4794194278 – SMS-lenker vil ha nummeret uten mellomrom. */
+function telefonTilLenke(nr: string | null | undefined): string {
+  const reint = String(nr ?? '').replace(/[^\d+]/g, '');
+  if (!reint) return '';
+  if (reint.startsWith('+')) return reint;
+  if (reint.length === 8) return `+47${reint}`;
+  return reint;
 }
 
 function tallFra(v: string): number {
@@ -513,11 +532,15 @@ export function Bestillinger() {
   const [epostPris, setEpostPris] = useState<Record<string, string>>({});
   const [epostSvar, setEpostSvar] = useState<Record<string, string>>({});
   const [bekreft, setBekreft] = useState<Bekreftelse | null>(null);
+  const [utsendt, setUtsendt] = useState<Record<string, OrderMessage[]>>({});
+  const [innstillinger, setInnstillinger] = useState<Record<string, string>>({});
+  const [smsSvar, setSmsSvar] = useState<Record<string, string>>({});
+  const [manglerLogg, setManglerLogg] = useState(false);
 
   const hent = useCallback(async () => {
     if (!supabase) return;
     setLaster(true);
-    const [b, v, p, m, t, f, w, e, d, inn] = await Promise.all([
+    const [b, v, p, m, t, f, w, e, d, inn, u] = await Promise.all([
       supabase.from('orders').select('*').order('created_at', { ascending: false }),
       supabase.from('order_items').select('*').order('sort'),
       supabase.from('products').select('*').order('sort'),
@@ -527,7 +550,18 @@ export function Bestillinger() {
       supabase.from('weight_ranges').select('*').order('sort'),
       supabase.from('extras').select('*').order('sort'),
       supabase.from('delivery_options').select('*').order('sort'),
-      supabase.from('settings').select('key,value').in('key', ['pris_startpris', 'pris_startpris_pa']),
+      supabase
+        .from('settings')
+        .select('key,value')
+        .in('key', [
+          'pris_startpris',
+          'pris_startpris_pa',
+          'bedrift_navn',
+          'kontakt_telefon',
+          'henting_adresse',
+          'sms_henting',
+        ]),
+      supabase.from('order_messages').select('*').order('created_at', { ascending: false }),
     ]);
     if (b.error) {
       setMangler(true);
@@ -549,6 +583,22 @@ export function Bestillinger() {
       innst[rad.key] = rad.value;
     }
     setStartpris(num(innst, 'pris_startpris', 100));
+    setInnstillinger(innst);
+
+    // Historikken over hva kunden har fått. Tabellen kan mangle hvis
+    // SQL-en ikke er kjørt ennå – da sier vi det, i stedet for å late
+    // som ingenting er sendt.
+    if (u.error) {
+      setManglerLogg(true);
+      setUtsendt({});
+    } else {
+      setManglerLogg(false);
+      const logg: Record<string, OrderMessage[]> = {};
+      for (const rad of ((u.data as OrderMessage[]) ?? [])) {
+        (logg[rad.order_id] ||= []).push(rad);
+      }
+      setUtsendt(logg);
+    }
 
     const samlet: Record<string, OrderItem[]> = {};
     for (const rad of ((v.data as OrderItem[]) ?? [])) {
@@ -579,6 +629,20 @@ export function Bestillinger() {
       });
     });
   }, [supabase]);
+
+  // Sender én av oss en kvittering, ser de andre det med en gang
+  useEffect(() => {
+    if (!supabase || manglerLogg) return;
+    return lyttPaTabell(supabase, 'order_messages', ({ type, ny }) => {
+      if (type === 'DELETE' || !ny?.order_id) return;
+      const rad = ny as unknown as OrderMessage;
+      setUtsendt((prev) => {
+        const liste = prev[rad.order_id] ?? [];
+        if (liste.some((r) => r.id === rad.id)) return prev;
+        return { ...prev, [rad.order_id]: [rad, ...liste] };
+      });
+    });
+  }, [supabase, manglerLogg]);
 
   /* ---------------- Lagring ---------------- */
 
@@ -705,6 +769,105 @@ export function Bestillinger() {
     if (error) setFeil('Klarte ikke å lagre statusen.');
   }
 
+  /* ---------------- Hva har kunden alt fått? ---------------- */
+
+  const hentLogg = useCallback(
+    async (id: string) => {
+      if (!supabase || manglerLogg) return;
+      const { data } = await supabase
+        .from('order_messages')
+        .select('*')
+        .eq('order_id', id)
+        .order('created_at', { ascending: false });
+      if (data) setUtsendt((p) => ({ ...p, [id]: data as OrderMessage[] }));
+    },
+    [supabase, manglerLogg]
+  );
+
+  function historikk(id: string): OrderMessage[] {
+    return utsendt[id] ?? [];
+  }
+
+  /** Siste gang vi sendte denne typen melding – og det gikk bra. */
+  function sisteAv(id: string, slag: Slag): OrderMessage | undefined {
+    return historikk(id).find((r) => r.slag === slag && r.ok);
+  }
+
+  function antallAv(id: string, slag: Slag): number {
+    return historikk(id).filter((r) => r.slag === slag && r.ok).length;
+  }
+
+  /** Prisen som står i feltet akkurat nå, ellers prisen på bestillingen. */
+  function endeligPris(o: Order): number {
+    return tallFra(epostPris[o.id] ?? String(Math.round(Number(o.pris ?? 0))));
+  }
+
+  function smsTekst(o: Order): string {
+    const pris = endeligPris(o);
+    const mal = innstillinger.sms_henting || STANDARD_SMS_HENTING;
+    return flett(mal, {
+      kunde: fornavn(o.kunde),
+      navn: String(o.kunde ?? ''),
+      bedrift: innstillinger.bedrift_navn || 'PrintFiksEB',
+      adresse: innstillinger.henting_adresse || 'Vestre Sandslimarka 44',
+      pris: pris > 0 ? kr(pris) : 'etter avtale',
+      ordrenr: o.ordrenr ?? '',
+      telefon: innstillinger.kontakt_telefon || '',
+    });
+  }
+
+  function smsLenke(o: Order): string {
+    const nr = telefonTilLenke(o.telefon);
+    return `sms:${nr}?&body=${encodeURIComponent(smsTekst(o))}`;
+  }
+
+  /**
+   * SMS-en sendes fra telefonen, så serveren må få vite at den gikk ut.
+   * keepalive, fordi nettleseren hopper rett over i meldingsappen.
+   */
+  async function registrerSms(o: Order, hvordan: 'app' | 'manuelt') {
+    if (!supabase) return;
+    const pris = endeligPris(o);
+    setSmsSvar((p) => ({
+      ...p,
+      [o.id]:
+        hvordan === 'app'
+          ? 'Meldingsappen åpnes – husk å trykke send der.'
+          : 'Notert som sendt.',
+    }));
+    const { data: okt } = await supabase.auth.getSession();
+    await fetch('/api/utsendt', {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${okt.session?.access_token ?? ''}`,
+      },
+      body: JSON.stringify({
+        id: o.id,
+        slag: 'henting',
+        kanal: 'sms',
+        til: telefonTilLenke(o.telefon),
+        detalj: [
+          pris > 0 ? `${Math.round(pris)} kr` : 'uten pris',
+          hvordan === 'manuelt' ? 'notert manuelt' : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      }),
+    }).catch(() => undefined);
+    hentLogg(o.id);
+  }
+
+  async function kopierSms(o: Order) {
+    try {
+      await navigator.clipboard.writeText(smsTekst(o));
+      setSmsSvar((p) => ({ ...p, [o.id]: 'Teksten er kopiert – lim den inn i meldingen.' }));
+    } catch {
+      setSmsSvar((p) => ({ ...p, [o.id]: 'Nettleseren nektet å kopiere. Marker teksten selv.' }));
+    }
+  }
+
   async function sendKvitteringEpost(o: Order, mal: 'mottatt' | 'ferdig') {
     if (!supabase) return;
     const pris = tallFra(epostPris[o.id] ?? String(Math.round(Number(o.pris ?? 0))));
@@ -729,19 +892,26 @@ export function Bestillinger() {
       }));
       // prisen kan ha blitt rettet – hent den inn i listen igjen
       setBestillinger((prev) => prev.map((x) => (x.id === o.id ? { ...x, pris } : x)));
+      hentLogg(o.id);
     } else {
       setEpostSvar((p) => ({ ...p, [o.id]: `Gikk ikke: ${svar.feil ?? 'ukjent feil'}` }));
     }
   }
 
   function sporFor(o: Order, mal: 'mottatt' | 'ferdig') {
-    const pris = tallFra(epostPris[o.id] ?? String(Math.round(Number(o.pris ?? 0))));
+    const pris = endeligPris(o);
+    const slag: Slag = mal === 'ferdig' ? 'ferdig' : 'bekreftelse';
+    const forrige = sisteAv(o.id, slag);
+    const antall = antallAv(o.id, slag);
     setBekreft({
       tittel: mal === 'ferdig' ? 'Send ferdig kvittering?' : 'Send bekreftelsen på nytt?',
       tekst:
-        mal === 'ferdig'
+        (forrige
+          ? `Denne er sendt til kunden ${antall === 1 ? 'én gang' : `${antall} ganger`} alt – sist ${visTidspunkt(forrige.created_at)}. Send bare på nytt hvis noe var feil. `
+          : '') +
+        (mal === 'ferdig'
           ? `Kunden får en e-post om at bestillingen er ferdig, med ${kr(pris)} som endelig pris. Denne kan ikke trekkes tilbake.`
-          : `Kunden får bekreftelsen på bestillingen en gang til.`,
+          : `Kunden får bekreftelsen på bestillingen en gang til.`),
       detalj: `Til ${o.epost}${o.ordrenr ? ` · bestilling #${o.ordrenr}` : ''}`,
       knapp: mal === 'ferdig' ? 'Ja, send kvitteringen' : 'Ja, send på nytt',
       handling: () => sendKvitteringEpost(o, mal),
@@ -1044,6 +1214,22 @@ export function Bestillinger() {
                               Fast pris
                             </span>
                           )}
+                          {sisteAv(o.id, 'ferdig') && (
+                            <span
+                              title={`Ferdig kvittering sendt ${visTidspunkt(sisteAv(o.id, 'ferdig')!.created_at)}`}
+                              className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700"
+                            >
+                              Kvittering sendt
+                            </span>
+                          )}
+                          {sisteAv(o.id, 'henting') && (
+                            <span
+                              title={`SMS om henting sendt ${visTidspunkt(sisteAv(o.id, 'henting')!.created_at)}`}
+                              className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-bold text-brand-700"
+                            >
+                              SMS sendt
+                            </span>
+                          )}
                           {typeof o.epost_status === 'string' &&
                             o.epost_status.includes('feilet') && (
                               <span
@@ -1132,63 +1318,206 @@ export function Bestillinger() {
                                 </div>
                               </div>
 
-                              {/* Kvittering på e-post */}
-                              {o.epost && (
-                                <div className="rounded-2xl border border-ink-200 bg-white p-4">
-                                  <p className="label">Kvittering på e-post</p>
-                                  <p className="mb-3 text-[13px] leading-relaxed text-ink-600">
-                                    Går til{' '}
-                                    <span className="font-mono text-ink-800">{o.epost}</span>. Rett
-                                    prisen først hvis den ikke stemmer – den lagres på bestillingen
-                                    når dere sender.
+                              {/* Hva har kunden alt fått? */}
+                              <div className="rounded-2xl border border-ink-200 bg-white p-4">
+                                <p className="label">Sendt til kunden</p>
+                                {manglerLogg ? (
+                                  <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-amber-800">
+                                    Historikken er ikke satt opp ennå. Kjør{' '}
+                                    <span className="font-mono">supabase/utsendt.sql</span> i
+                                    Supabase, så står det her hva kunden har fått og når.
                                   </p>
+                                ) : (
+                                  <ul className="space-y-1.5">
+                                    {SLAG_REKKE.map((slag) => {
+                                      const siste = sisteAv(o.id, slag);
+                                      const antall = antallAv(o.id, slag);
+                                      return (
+                                        <li
+                                          key={slag}
+                                          className="flex flex-wrap items-baseline gap-x-2 text-[13px]"
+                                        >
+                                          <span
+                                            className={`inline-flex h-4 w-4 shrink-0 translate-y-0.5 items-center justify-center rounded-full text-[9px] font-bold text-white ${
+                                              siste ? 'bg-emerald-500' : 'bg-ink-200'
+                                            }`}
+                                          >
+                                            {siste ? '✓' : ''}
+                                          </span>
+                                          <span className="font-semibold text-ink-800">
+                                            {SLAG_NAVN[slag]}
+                                          </span>
+                                          {siste ? (
+                                            <span className="text-ink-600">
+                                              {visTidspunkt(siste.created_at)}
+                                              {siste.til ? ` · ${siste.til}` : ''}
+                                              {antall > 1 ? ` · sendt ${antall} ganger` : ''}
+                                            </span>
+                                          ) : (
+                                            <span className="text-ink-400">ikke sendt</span>
+                                          )}
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                )}
 
-                                  <div className="flex flex-wrap items-end gap-3">
-                                    <label className="block">
-                                      <span className="label">Endelig pris</span>
-                                      <div className="flex items-center gap-2">
-                                        <input
-                                          type="text"
-                                          inputMode="numeric"
-                                          value={
-                                            epostPris[o.id] ??
-                                            String(Math.round(Number(o.pris ?? 0)))
+                                {historikk(o.id).some((r) => !r.ok) && (
+                                  <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-red-700">
+                                    {historikk(o.id).filter((r) => !r.ok).length} forsøk gikk ikke
+                                    gjennom. Siste feil:{' '}
+                                    {historikk(o.id).find((r) => !r.ok)?.detalj ?? 'ukjent'}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Si fra til kunden – pris, kvittering og henting */}
+                              {(o.epost || o.telefon) && (
+                                <div className="rounded-2xl border border-ink-200 bg-white p-4">
+                                  <p className="label">Si fra til kunden</p>
+
+                                  <label className="mb-4 block">
+                                    <span className="label">Endelig pris</span>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={
+                                          epostPris[o.id] ?? String(Math.round(Number(o.pris ?? 0)))
+                                        }
+                                        onChange={(e) =>
+                                          setEpostPris((p) => ({ ...p, [o.id]: e.target.value }))
+                                        }
+                                        className="field w-32"
+                                      />
+                                      <span className="text-sm font-semibold text-ink-600">kr</span>
+                                    </div>
+                                    <span className="hint">
+                                      Brukes både i kvitteringen og i SMS-en. Prisen lagres på
+                                      bestillingen når dere sender kvitteringen.
+                                    </span>
+                                  </label>
+
+                                  {/* E-post */}
+                                  {o.epost && (
+                                    <div className="border-t border-ink-100 pt-4">
+                                      <p className="mb-3 text-[13px] leading-relaxed text-ink-600">
+                                        Kvittering til{' '}
+                                        <span className="font-mono text-ink-800">{o.epost}</span>.
+                                      </p>
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        <button
+                                          type="button"
+                                          onClick={() => sporFor(o, 'ferdig')}
+                                          className={
+                                            sisteAv(o.id, 'ferdig')
+                                              ? 'btn-ghost btn-sm'
+                                              : 'btn-primary btn-sm'
                                           }
-                                          onChange={(e) =>
-                                            setEpostPris((p) => ({ ...p, [o.id]: e.target.value }))
-                                          }
-                                          className="field w-32"
-                                        />
-                                        <span className="text-sm font-semibold text-ink-600">kr</span>
+                                        >
+                                          {sisteAv(o.id, 'ferdig')
+                                            ? 'Send ferdig kvittering igjen'
+                                            : 'Send ferdig kvittering'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => sporFor(o, 'mottatt')}
+                                          className="btn-ghost btn-sm"
+                                        >
+                                          Send bekreftelsen på nytt
+                                        </button>
+                                        {sisteAv(o.id, 'ferdig') && (
+                                          <span className="text-[13px] font-medium text-emerald-700">
+                                            Allerede sendt{' '}
+                                            {visTidspunkt(sisteAv(o.id, 'ferdig')!.created_at)}
+                                          </span>
+                                        )}
                                       </div>
-                                    </label>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => sporFor(o, 'ferdig')}
-                                      className="btn-primary btn-sm"
-                                    >
-                                      Send ferdig kvittering
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => sporFor(o, 'mottatt')}
-                                      className="btn-ghost btn-sm"
-                                    >
-                                      Send bekreftelsen på nytt
-                                    </button>
-                                  </div>
+                                      {epostSvar[o.id] && (
+                                        <p
+                                          className={`mt-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium ${
+                                            epostSvar[o.id].startsWith('Gikk ikke')
+                                              ? 'bg-red-50 text-red-700'
+                                              : 'bg-emerald-50 text-emerald-800'
+                                          }`}
+                                        >
+                                          {epostSvar[o.id]}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
 
-                                  {epostSvar[o.id] && (
-                                    <p
-                                      className={`mt-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium ${
-                                        epostSvar[o.id].startsWith('Gikk ikke')
-                                          ? 'bg-red-50 text-red-700'
-                                          : 'bg-emerald-50 text-emerald-800'
-                                      }`}
-                                    >
-                                      {epostSvar[o.id]}
-                                    </p>
+                                  {/* SMS: klar til henting */}
+                                  {o.telefon && (
+                                    <div className="mt-4 border-t border-ink-100 pt-4">
+                                      <p className="mb-2 text-[13px] leading-relaxed text-ink-600">
+                                        Klar til henting. Knappen åpner meldingsappen med nummeret
+                                        og teksten ferdig utfylt – dere trykker send selv.
+                                      </p>
+
+                                      {endeligPris(o) <= 0 && (
+                                        <p className="mb-3 rounded-xl bg-amber-50 px-3.5 py-2.5 text-[13px] font-medium text-amber-800">
+                                          Prisen er ikke satt. Sett den over, ellers står det
+                                          «etter avtale» i meldingen.
+                                        </p>
+                                      )}
+
+                                      <p className="mb-3 whitespace-pre-wrap rounded-xl bg-ink-50 px-3.5 py-3 text-[13px] leading-relaxed text-ink-700">
+                                        {smsTekst(o)}
+                                      </p>
+
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        <a
+                                          href={smsLenke(o)}
+                                          onClick={() => registrerSms(o, 'app')}
+                                          className={
+                                            sisteAv(o.id, 'henting')
+                                              ? 'btn-ghost btn-sm'
+                                              : 'btn-primary btn-sm'
+                                          }
+                                        >
+                                          {sisteAv(o.id, 'henting')
+                                            ? `Send SMS igjen (${o.telefon})`
+                                            : `Send SMS til ${o.telefon}`}
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => kopierSms(o)}
+                                          className="btn-ghost btn-sm"
+                                        >
+                                          Kopier teksten
+                                        </button>
+                                        {!sisteAv(o.id, 'henting') && (
+                                          <button
+                                            type="button"
+                                            onClick={() => registrerSms(o, 'manuelt')}
+                                            className="text-[13px] font-semibold text-ink-500 underline hover:text-ink-800"
+                                          >
+                                            Notér som sendt
+                                          </button>
+                                        )}
+                                        {sisteAv(o.id, 'henting') && (
+                                          <span className="text-[13px] font-medium text-emerald-700">
+                                            Allerede sendt{' '}
+                                            {visTidspunkt(sisteAv(o.id, 'henting')!.created_at)}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {smsSvar[o.id] && (
+                                        <p className="mt-3 rounded-xl bg-brand-50 px-3.5 py-2.5 text-[13px] font-medium text-brand-800">
+                                          {smsSvar[o.id]}
+                                        </p>
+                                      )}
+
+                                      <p className="hint mt-2">
+                                        Sender du fra en annen telefon, kopier teksten og trykk
+                                        «Notér som sendt» – da ser de andre at kunden har fått
+                                        beskjed. Hentested og teksten endrer dere under
+                                        Innstillinger → Levering.
+                                      </p>
+                                    </div>
                                   )}
                                 </div>
                               )}
@@ -1272,25 +1601,15 @@ export function Bestillinger() {
                                 </p>
                               )}
 
-                              {typeof o.epost_status === 'string' && o.epost_status && (
-                                <p
-                                  className={`rounded-2xl px-4 py-2.5 text-[13px] font-semibold ${
-                                    o.epost_status.includes('feilet')
-                                      ? 'bg-red-50 text-red-700'
-                                      : 'bg-ink-50 text-ink-600'
-                                  }`}
-                                >
-                                  E-post: {o.epost_status}
-                                  {o.epost_status.includes('feilet') && (
-                                    <>
-                                      {' '}
-                                      <Link href="/admin/epost" className="underline">
-                                        Sjekk e-postoppsettet
-                                      </Link>
-                                    </>
-                                  )}
-                                </p>
-                              )}
+                              {typeof o.epost_status === 'string' &&
+                                o.epost_status.includes('feilet') && (
+                                  <p className="rounded-2xl bg-red-50 px-4 py-2.5 text-[13px] font-semibold text-red-700">
+                                    E-post: {o.epost_status}{' '}
+                                    <Link href="/admin/epost" className="underline">
+                                      Sjekk e-postoppsettet
+                                    </Link>
+                                  </p>
+                                )}
 
                               {/* Detaljer */}
                               <div className="grid gap-2 text-sm text-ink-600 sm:grid-cols-2">

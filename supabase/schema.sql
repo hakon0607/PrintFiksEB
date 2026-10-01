@@ -680,4 +680,51 @@ select * from (values
 ) as v(name, hex, sort)
 where not exists (select 1 from public.colors);
 
+-- ------------------------------------------------------------
+-- 19. Historikk: hva har vi sendt til kunden?
+--     Så ingen sender samme kvittering to ganger.
+-- ------------------------------------------------------------
+create table if not exists public.order_messages (
+  id          uuid primary key default gen_random_uuid(),
+  order_id    uuid not null references public.orders(id) on delete cascade,
+  slag        text not null,                   -- bekreftelse | ferdig | henting | varsel
+  kanal       text not null default 'epost',   -- epost | sms
+  til         text default '',
+  ok          boolean not null default true,
+  detalj      text default '',
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists order_messages_order_idx
+  on public.order_messages (order_id, created_at desc);
+
+alter table public.order_messages enable row level security;
+
+drop policy if exists "utsendt_ansatte" on public.order_messages;
+create policy "utsendt_ansatte" on public.order_messages
+  for all to authenticated using (true) with check (true);
+
+do $$
+begin
+  begin
+    execute 'alter publication supabase_realtime add table public.order_messages';
+  exception
+    when duplicate_object then null;
+    when undefined_object then null;
+  end;
+end $$;
+
+insert into public.settings (key, value, label, help, type, gruppe, sort) values
+  ('henting_adresse',
+   'Vestre Sandslimarka 44',
+   'Hentested',
+   'Adressen kunden henter bestillingen på. Brukes i SMS-en «klar til henting».',
+   'text', 'Levering', 70),
+  ('sms_henting',
+   'Hei {kunde}! Bestillingen din fra {bedrift} er klar til henting i {adresse}. Prisen er {pris}. Gi gjerne beskjed før du kommer, så står den klar.',
+   'SMS: klar til henting',
+   'Teksten knappen «Klar til henting» i Bestillinger lager. Disse byttes ut automatisk: {kunde} {bedrift} {adresse} {pris} {ordrenr} {telefon}',
+   'longtext', 'Levering', 72)
+on conflict (key) do nothing;
+
 -- Ferdig!

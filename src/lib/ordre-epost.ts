@@ -9,6 +9,7 @@ import {
   type EpostLinje,
   type Kvittering,
 } from './epost';
+import { loggUtsendt, type NyUtsendt } from './utsendt';
 
 /**
  * Bygger kvitteringen ut fra en bestilling som allerede ligger i basen,
@@ -165,6 +166,28 @@ export async function sendForOrdre(
   }
 
   await service.from('orders').update({ epost_status: status.slice(0, 500) }).eq('id', id);
+
+  // Skriv det inn i historikken, så ingen sender samme kvittering to ganger.
+  const logg: NyUtsendt[] = [];
+  if (opsjoner.tilKunde && epost) {
+    logg.push({
+      orderId: id,
+      slag: ferdig ? 'ferdig' : 'bekreftelse',
+      kanal: 'epost',
+      til: epost,
+      ok: k.ok,
+      detalj: k.ok ? `${Math.round(sum)} kr` : (k.feil ?? 'ukjent feil'),
+    });
+  }
+  if (opsjoner.tilOss) {
+    for (const adresse of v.sendt) {
+      logg.push({ orderId: id, slag: 'varsel', kanal: 'epost', til: adresse, ok: true });
+    }
+    for (const f of v.feilet) {
+      logg.push({ orderId: id, slag: 'varsel', kanal: 'epost', til: f.til, ok: false, detalj: f.feil });
+    }
+  }
+  await loggUtsendt(service, logg);
 
   return {
     ok: (!opsjoner.tilKunde || k.ok) && (!opsjoner.tilOss || v.ok),

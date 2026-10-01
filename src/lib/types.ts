@@ -169,6 +169,18 @@ export type Task = {
   created_at: string;
 };
 
+/** En melding vi har sendt på en bestilling – e-post eller SMS. */
+export type OrderMessage = {
+  id: string;
+  order_id: string;
+  slag: string;
+  kanal: string;
+  til: string | null;
+  ok: boolean;
+  detalj: string | null;
+  created_at: string;
+};
+
 export type Order = {
   id: string;
   kunde: string;

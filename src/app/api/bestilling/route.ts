@@ -9,6 +9,7 @@ import {
   varselEpost,
   type EpostLinje,
 } from '@/lib/epost';
+import { loggUtsendt, type NyUtsendt } from '@/lib/utsendt';
 
 export const dynamic = 'force-dynamic';
 
@@ -237,6 +238,34 @@ export async function POST(request: Request) {
   }
 
   await service.from('orders').update({ epost_status: status.slice(0, 500) }).eq('id', o.id);
+
+  // Historikk, så admin ser hva kunden faktisk har fått
+  const logg: NyUtsendt[] = [
+    {
+      orderId: o.id,
+      slag: 'bekreftelse',
+      kanal: 'epost',
+      til: epost,
+      ok: tilKunde.ok,
+      detalj: tilKunde.ok ? 'Sendt automatisk da bestillingen kom inn' : (tilKunde.feil ?? 'ukjent feil'),
+    },
+    ...tilOss.sendt.map((adresse) => ({
+      orderId: o.id,
+      slag: 'varsel' as const,
+      kanal: 'epost' as const,
+      til: adresse,
+      ok: true,
+    })),
+    ...tilOss.feilet.map((f) => ({
+      orderId: o.id,
+      slag: 'varsel' as const,
+      kanal: 'epost' as const,
+      til: f.til,
+      ok: false,
+      detalj: f.feil,
+    })),
+  ];
+  await loggUtsendt(service, logg);
 
   return NextResponse.json({
     ok: true,
