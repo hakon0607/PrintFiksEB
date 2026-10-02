@@ -24,6 +24,8 @@ export type Kvittering = {
   leveringstid: string;
   /** Bare ferdige modeller til fast pris? Da trengs ingen godkjenning. */
   fastPris?: boolean;
+  /** Bilder kunden la ved. Bare varselet til oss viser dem. */
+  bilder?: string[];
 };
 
 function esc(s: string): string {
@@ -229,6 +231,18 @@ export function varselEpost(k: Kvittering): { emne: string; html: string; tekst:
         ${k.adresse ? `<div><strong>Adresse:</strong> ${esc(k.adresse)}</div>` : ''}
         <div><strong>Levering:</strong> ${esc(k.levering)} · <strong>Betaling:</strong> ${esc(k.betaling)}</div>
         ${k.kommentar ? `<div style="margin-top:10px;background:#F6F8FC;border-radius:12px;padding:12px 14px;">${esc(k.kommentar)}</div>` : ''}
+        ${
+          (k.bilder?.length ?? 0) > 0
+            ? `<div style="margin-top:14px;"><strong>Kunden la ved ${k.bilder!.length === 1 ? '1 bilde' : `${k.bilder!.length} bilder`}:</strong><div style="margin-top:8px;">${k.bilder!
+                .map(
+                  (u, i) =>
+                    `<a href="${esc(u)}" style="display:inline-block;margin:0 8px 8px 0;"><img src="${esc(
+                      u
+                    )}" alt="Vedlegg ${i + 1}" width="120" style="border-radius:12px;border:1px solid #E2E6EE;display:block;" /></a>`
+                )
+                .join('')}</div></div>`
+            : ''
+        }
         <p style="margin:18px 0 0;font-size:13px;color:#697285;">${
           k.fastPris
             ? 'Fast pris fra galleriet – ingen godkjenning trengs, bare sett i gang.'
@@ -248,6 +262,7 @@ export function varselEpost(k: Kvittering): { emne: string; html: string; tekst:
     k.adresse ? `Adresse: ${k.adresse}` : '',
     `Levering: ${k.levering} · Betaling: ${k.betaling}`,
     k.kommentar ? `Melding: ${k.kommentar}` : '',
+    ...(k.bilder ?? []).map((u, i) => `Vedlegg ${i + 1}: ${u}`),
   ]
     .filter(Boolean)
     .join('\n');

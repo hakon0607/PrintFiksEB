@@ -10,6 +10,7 @@ import {
   type EpostLinje,
 } from '@/lib/epost';
 import { loggUtsendt, type NyUtsendt } from '@/lib/utsendt';
+import { lagreBilder } from '@/lib/bestillingsbilder';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,8 @@ type Innsendt = {
   sumMin?: unknown;
   sumMaks?: unknown;
   varer?: unknown;
+  /** Opptil 2 bilder som data-URL-er. Valideres i lagreBilder. */
+  bilder?: unknown;
 };
 
 function tekst(v: unknown, maks = 400): string {
@@ -168,6 +171,13 @@ export async function POST(request: Request) {
 
   const ordrenr = o.ordrenr ?? '';
 
+  // 2b. Bildene kunden la ved – mål, skisse eller den ødelagte delen.
+  //     De kommer som data-URL-er og lastes opp her, med service-nøkkelen.
+  const bildeUrler = await lagreBilder(service, ordrenr, body.bilder);
+  if (bildeUrler.length > 0) {
+    await service.from('orders').update({ bilder: bildeUrler }).eq('id', o.id);
+  }
+
   // 3. E-post – bekreftelse til kunden og varsel til oss
   const linjer: EpostLinje[] = varer.map((v) => ({
     navn: tekst(v.navn, 160) || 'Uten navn',
@@ -194,6 +204,7 @@ export async function POST(request: Request) {
     nettside: s.nettside_url || new URL(request.url).origin,
     leveringstid,
     fastPris: bareFastPris,
+    bilder: bildeUrler,
   };
 
   // Hvem av oss skal ha varsel?

@@ -108,6 +108,7 @@ export async function sendForOrdre(
     nettside: s.nettside_url || opsjoner.origin,
     leveringstid: `${s.levering_dager_min || '2'}–${s.levering_dager_maks || '4'} virkedager`,
     fastPris: o.krever_godkjenning === false,
+    bilder: Array.isArray(o.bilder) ? (o.bilder as string[]) : [],
   };
 
   const mottakere = await finnMottakere(service, s.epost_bedrift ?? '');

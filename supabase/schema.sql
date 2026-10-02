@@ -727,4 +727,32 @@ insert into public.settings (key, value, label, help, type, gruppe, sort) values
    'longtext', 'Levering', 72)
 on conflict (key) do nothing;
 
+-- ------------------------------------------------------------
+-- 20. Bilder kunden legger ved bestillingen (mål, skisse, ødelagt del)
+-- ------------------------------------------------------------
+alter table public.orders
+  add column if not exists bilder text[] not null default '{}';
+
+insert into storage.buckets (id, name, public)
+values ('bestillingsbilder', 'bestillingsbilder', true)
+on conflict (id) do nothing;
+
+drop policy if exists "bestillingsbilder_les" on storage.objects;
+create policy "bestillingsbilder_les" on storage.objects
+  for select using (bucket_id = 'bestillingsbilder');
+
+-- Kunder laster ikke opp hit selv – det går via serveren med
+-- service-nøkkelen. Dermed finnes ingen åpen opplastingsadresse.
+drop policy if exists "bestillingsbilder_skriv" on storage.objects;
+create policy "bestillingsbilder_skriv" on storage.objects
+  for insert to authenticated with check (bucket_id = 'bestillingsbilder');
+
+drop policy if exists "bestillingsbilder_oppdater" on storage.objects;
+create policy "bestillingsbilder_oppdater" on storage.objects
+  for update to authenticated using (bucket_id = 'bestillingsbilder');
+
+drop policy if exists "bestillingsbilder_slett" on storage.objects;
+create policy "bestillingsbilder_slett" on storage.objects
+  for delete to authenticated using (bucket_id = 'bestillingsbilder');
+
 -- Ferdig!

@@ -17,6 +17,8 @@ import { itemPrice, orderTotals } from '@/lib/pricing';
 import { AnimatedNumber } from './AnimatedNumber';
 import { formatPhone, telHref } from '@/lib/settings';
 import type { DeliveryOption, Material, WeightRange, Extra, Color } from '@/lib/types';
+import { BildeFelt } from './BildeFelt';
+import type { Krympet } from '@/lib/bilde';
 
 type Props = {
   materials: Material[];
@@ -125,6 +127,7 @@ export function Bestilling(props: Props) {
   const [sender, setSender] = useState(false);
   const [sendeFeil, setSendeFeil] = useState('');
   const [kommentar, setKommentar] = useState('');
+  const [bilder, setBilder] = useState<Krympet[]>([]);
 
   useEffect(() => {
     try {
@@ -303,6 +306,7 @@ export function Bestilling(props: Props) {
           levering: levering?.name ?? 'Henting',
           betaling,
           kommentar: kommentar.trim(),
+          bilder: bilder.map((b) => b.dataUrl),
           varer,
           sum: sumTekst,
           sumMin: totals.hasUnknown ? 0 : totals.totalMin,
@@ -702,6 +706,9 @@ export function Bestilling(props: Props) {
                 placeholder="F.eks. ønsket farge, eller når du trenger det."
                 className="field resize-none"
               />
+            </div>
+            <div className="sm:col-span-2">
+              <BildeFelt bilder={bilder} onChange={setBilder} />
             </div>
           </div>
         </Steg>

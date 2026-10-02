@@ -197,6 +197,8 @@ export type Order = {
   krever_godkjenning?: boolean | null;
   vilkar_godtatt?: boolean | null;
   epost_status?: string | null;
+  /** Bilder kunden la ved bestillingen – mål, skisse eller ødelagt del. */
+  bilder?: string[] | null;
   betalt: boolean;
   betalingsmate: string | null;
   status: string;

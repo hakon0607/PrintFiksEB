@@ -7,6 +7,7 @@ import { useAdmin } from './AdminProvider';
 import { lyttPaTabell } from '@/lib/realtime';
 import { kr } from '@/lib/settings';
 import { Handlekurv, bareGalleri, beskriv, summer, type Linje, type Rundt } from './Handlekurv';
+import { OrdreBilder } from './OrdreBilder';
 import { num } from '@/lib/settings';
 import {
   SLAG_NAVN,
@@ -1214,6 +1215,11 @@ export function Bestillinger() {
                               Fast pris
                             </span>
                           )}
+                          {(o.bilder?.length ?? 0) > 0 && (
+                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700">
+                              {o.bilder!.length === 1 ? '1 bilde' : `${o.bilder!.length} bilder`}
+                            </span>
+                          )}
                           {sisteAv(o.id, 'ferdig') && (
                             <span
                               title={`Ferdig kvittering sendt ${visTidspunkt(sisteAv(o.id, 'ferdig')!.created_at)}`}
@@ -1317,6 +1323,18 @@ export function Bestillinger() {
                                   ))}
                                 </div>
                               </div>
+
+                              {/* Bilder kunden la ved */}
+                              <OrdreBilder
+                                ordreId={o.id}
+                                ordrenr={o.ordrenr ?? ''}
+                                bilder={o.bilder ?? []}
+                                onChange={(nye) =>
+                                  setBestillinger((prev) =>
+                                    prev.map((x) => (x.id === o.id ? { ...x, bilder: nye } : x))
+                                  )
+                                }
+                              />
 
                               {/* Hva har kunden alt fått? */}
                               <div className="rounded-2xl border border-ink-200 bg-white p-4">
