@@ -498,11 +498,6 @@ export function DekselGenerator({
             )}
           </div>
 
-          {!tre && !lag.length && (
-            <p className="studio-hud pointer-events-none mt-2 text-center !normal-case !tracking-normal text-[13px]">
-              Legg til bilde, tekst eller symbol – eller tegn rett på dekselet
-            </p>
-          )}
           {!tre && valgtLag && modus === 'flytt' && (
             <p className="studio-hud pointer-events-none mt-2 text-center">
               {valgtLag.type !== 'tegning' ? (

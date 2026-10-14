@@ -4,7 +4,7 @@
  * Selve dekselet på skjermen. Lagene ligger som SVG, så alt flyttes i sanntid
  * mens du drar. «Slik blir det printet» vises når du slipper.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Analyse } from '@/lib/deksel/analyse';
 import type { Rammer } from '@/lib/deksel/svg';
 import { sti } from '@/lib/deksel/svg';
@@ -88,6 +88,15 @@ export function Lerret({
   const silSti = sti([a.silhuett, ...a.hull]);
   const tryggSti = sti(a.trygg.flat());
   const valgtLag = lag.find((l) => l.id === valgt) ?? null;
+
+  // midten av sonen der man kan tegne, og kameraet – til «Lag ditt design her»
+  const sone = useMemo(() => {
+    const pts = a.trygg.flatMap((p) => p[0]);
+    const us = pts.map((p) => p[0]), vs = pts.map((p) => p[1]);
+    const kam = [...a.hull].sort((x, y) => y.length - x.length)[0];
+    const kamSenter = kam ? [kam.reduce((s, p) => s + p[0], 0) / kam.length, kam.reduce((s, p) => s + p[1], 0) / kam.length] : null;
+    return { cu: (Math.min(...us) + Math.max(...us)) / 2, cv: (Math.min(...vs) + Math.max(...vs)) / 2, b: Math.max(...us) - Math.min(...us), kam: kamSenter };
+  }, [a]);
 
   function tilSvg(e: { clientX: number; clientY: number }): Pkt {
     const svg = svgRef.current!;
@@ -384,6 +393,25 @@ export function Lerret({
 
       {(visLevende || !lag.length || valgt) && (
         <path d={tryggSti} fill="none" stroke={kontrast} strokeOpacity="0.75" strokeWidth={1.2 * hud} strokeDasharray={`${5 * hud} ${4 * hud}`} fillRule="evenodd" style={{ pointerEvents: 'none' }} />
+      )}
+
+      {/* tomt deksel: vis hvor man kan lage designet */}
+      {!lag.length && (
+        <g style={{ pointerEvents: 'none' }} fontFamily="ui-sans-serif, system-ui, sans-serif" textAnchor="middle">
+          <g transform={`translate(${sone.cu} ${-sone.cv})`}>
+            <g transform={`translate(0 ${-sone.b * 0.33}) scale(${sone.b / 150})`} stroke="#0891B2" strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={0.75}>
+              <path d="M-9 9l2.6-0.6 11-11a2.1 2.1 0 0 0-3-3l-11 11z" transform="translate(1 -1) scale(1.6)" />
+            </g>
+            <text y={-sone.b * 0.03} fontSize={sone.b * 0.115} fontWeight={800} fill="#0E7490" opacity={0.85}>Lag ditt</text>
+            <text y={sone.b * 0.11} fontSize={sone.b * 0.115} fontWeight={800} fill="#0E7490" opacity={0.85}>design her</text>
+            <text y={sone.b * 0.22} fontSize={sone.b * 0.045} fill="#64748B">Tegn, skriv eller last opp et bilde</text>
+            <text y={sone.b * 0.28} fontSize={sone.b * 0.045} fill="#64748B">innenfor den stiplede linjen</text>
+          </g>
+          {sone.kam && (
+            <text x={sone.kam[0]} y={-sone.kam[1]} fontSize={sone.b * 0.04} fontWeight={700} letterSpacing={sone.b * 0.004}
+              fill="#67E8F9" dominantBaseline="middle" fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace">KAMERA</text>
+          )}
+        </g>
       )}
 
       {/* usynlige treffflater – det du tar tak i */}
