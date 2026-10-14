@@ -5,6 +5,7 @@ import { text } from '@/lib/settings';
 import { GalleryGrid } from '@/components/GalleryGrid';
 import { Reveal } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
+import { hentDekselProdukt } from '@/lib/deksel/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,12 @@ export default async function GalleriSide({
 }) {
   const site = await getSiteFor(searchParams);
   const valuta = text(site.settings, 'pris_valuta', 'kr');
+  // dekselet vises med en gang, også før noen har trykket «Publiser»
+  let produkter = site.products;
+  if (!produkter.some((p) => p.spesial === 'deksel')) {
+    const deksel = await hentDekselProdukt(site.settings);
+    if (deksel) produkter = [...produkter, deksel];
+  }
   const kategori = typeof searchParams?.kategori === 'string' ? searchParams.kategori : undefined;
   // Måneden i Norge – bestemmer hvilket sesongtema som kommer øverst
   const maaned = Number(
@@ -45,7 +52,7 @@ export default async function GalleriSide({
 
         <div className="mt-10">
           <GalleryGrid
-            products={site.products}
+            products={produkter}
             currency={valuta}
             startKategori={kategori}
             maaned={maaned}

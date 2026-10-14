@@ -9,8 +9,8 @@ import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
 import { temaFor } from '@/lib/temaer';
 import { DekselGenerator } from '@/components/DekselGenerator';
-import { erDekselProdukt } from '@/lib/deksel/produkt';
-import { hentDekselModeller } from '@/lib/deksel/server';
+import { DEKSEL_KODE, erDekselProdukt } from '@/lib/deksel/produkt';
+import { hentDekselModeller, hentDekselProdukt } from '@/lib/deksel/server';
 import { lesFilamenter } from '@/lib/deksel/farger';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,9 @@ export async function generateMetadata({
   params: { kode: string };
 }): Promise<Metadata> {
   const site = await getSiteFor();
-  const p = site.products.find((x) => x.code === params.kode);
+  const p =
+    site.products.find((x) => x.code === params.kode) ??
+    (params.kode === DEKSEL_KODE ? await hentDekselProdukt(site.settings) : null);
   if (!p) return { title: 'Fant ikke modellen' };
   return {
     title: p.name,
@@ -42,7 +44,9 @@ export default async function ModellSide({
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
   const site = await getSiteFor(searchParams);
-  const product = site.products.find((p) => p.code === params.kode);
+  let product = site.products.find((p) => p.code === params.kode);
+  // dekselet virker selv om det ikke er publisert ennå
+  if (!product && params.kode === DEKSEL_KODE) product = (await hentDekselProdukt(site.settings)) ?? undefined;
   if (!product) notFound();
 
   const valuta = text(site.settings, 'pris_valuta', 'kr');

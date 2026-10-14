@@ -3,6 +3,7 @@
 import { DekselModeller } from '@/components/admin/DekselModeller';
 import { DekselProdukt } from '@/components/admin/DekselProdukt';
 import { SettingsEditor } from '@/components/admin/SettingsEditor';
+import { DekselStatus } from '@/components/admin/DekselStatus';
 
 export default function DekslerSide() {
   return (
@@ -15,6 +16,8 @@ export default function DekslerSide() {
           Bestillinger, med knappen «Last ned printfil».
         </p>
       </div>
+
+      <DekselStatus />
 
       <section className="space-y-3">
         <h2 className="text-xl font-bold">1. Produktet</h2>
