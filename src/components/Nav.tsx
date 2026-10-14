@@ -41,7 +41,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
       className="sticky top-0 z-50 px-3 pt-2.5 sm:px-4"
     >
       <nav
-        className={`glass-nav glass-rim mx-auto flex w-full max-w-6xl items-center justify-between gap-4 rounded-full pl-4 pr-2.5 ${
+        className={`glass-nav glass-rim mx-auto flex w-full max-w-6xl items-center justify-between gap-2 rounded-full pl-3 pr-2 sm:gap-4 sm:pl-4 sm:pr-2.5 ${
           scrolled ? 'is-scrolled h-[54px] max-w-[1080px]' : 'h-[60px]'
         }`}
       >
@@ -63,7 +63,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
               priority
             />
           </span>
-          <span className="text-base font-bold tracking-tight sm:hidden">{businessName}</span>
+          <span className="text-base font-bold tracking-tight max-[379px]:hidden sm:hidden">{businessName}</span>
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
@@ -90,7 +90,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
           })}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <a
             href={telHref(phone)}
             className="btn-ghost btn-sm hidden lg:inline-flex"
@@ -109,7 +109,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
 
           <a
             href={telHref(phone)}
-            className="btn-ghost btn-sm lg:hidden"
+            className="btn-ghost btn-sm max-sm:!px-3 lg:hidden"
             aria-label={`Ring oss på ${formatPhone(phone)}`}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -142,7 +142,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="btn-ghost btn-sm md:hidden"
+            className="btn-ghost btn-sm max-sm:!px-3 md:hidden"
             aria-label="Meny"
             aria-expanded={open}
           >

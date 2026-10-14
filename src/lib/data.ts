@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { getPublicServerClient } from './supabase/server';
 import { DEFAULT_SITE, DEFAULT_SETTINGS } from './defaults';
 import { dekselFraPris, erDekselProdukt } from './deksel/produkt';
+import { erPepperkakeProdukt, pepperkakeFraPris, STANDARD_PRIS } from './pepperkake/pris';
 import type {
   SiteData,
   Material,
@@ -145,7 +146,15 @@ async function hentAlt(): Promise<SiteData> {
                 Number(settings.deksel_pris_per_farge ?? 10) || 0
               ),
             }
-          : p
+          : erPepperkakeProdukt(p)
+            ? {
+                // pepperkakeformen: prisen i admin gjelder 7 × 7 cm, kortet viser «fra»
+                ...p,
+                spesial: 'pepperkake' as const,
+                pris_standard: Number(p.price) || STANDARD_PRIS,
+                price: pepperkakeFraPris(Number(p.price) || STANDARD_PRIS),
+              }
+            : p
       ),
       team,
       faq,

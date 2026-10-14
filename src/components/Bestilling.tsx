@@ -20,6 +20,7 @@ import type { DeliveryOption, Material, WeightRange, Extra, Color } from '@/lib/
 import { BildeFelt } from './BildeFelt';
 import type { Krympet } from '@/lib/bilde';
 import { DekselMiniatyr } from './DekselMiniatyr';
+import { PepperkakeMiniatyr } from './pepperkake/Miniatyr';
 
 type Props = {
   materials: Material[];
@@ -196,7 +197,7 @@ export function Bestilling(props: Props) {
 
   // Bare ferdige modeller fra galleriet = fast pris, ingen godkjenning
   const bareFastPris =
-    items.length > 0 && items.every((i) => i.kind === 'product' || i.kind === 'deksel');
+    items.length > 0 && items.every((i) => i.kind === 'product' || i.kind === 'deksel' || i.kind === 'pepperkake');
 
   const manglerNavn = navn.trim().split(/\s+/).filter(Boolean).length < 2;
   const manglerTlf = tlf.replace(/\D/g, '').length < 8;
@@ -270,9 +271,10 @@ export function Bestilling(props: Props) {
       const p = itemPrice(item);
       const produkt = item.kind === 'product' ? item : null;
       const deksel = item.kind === 'deksel' ? item : null;
+      const pepperkake = item.kind === 'pepperkake' ? item : null;
       return {
         navn:
-          item.kind === 'product' || item.kind === 'deksel'
+          item.kind === 'product' || item.kind === 'deksel' || item.kind === 'pepperkake'
             ? item.title
             : item.kind === 'repair'
               ? `Reparasjon: ${item.description}`
@@ -287,7 +289,9 @@ export function Bestilling(props: Props) {
         prisMaks: p.unknown ? 0 : p.max,
         produktId: produkt?.productId ?? null,
         kode: produkt?.code ?? '',
-        type: item.kind === 'product' ? 'galleri' : item.kind === 'deksel' ? 'deksel' : 'egen',
+        type:
+          item.kind === 'product' ? 'galleri' : item.kind === 'deksel' ? 'deksel' : item.kind === 'pepperkake' ? 'pepperkake' : 'egen',
+        pepperkake: pepperkake ? { punkter: pepperkake.punkter, lukket: pepperkake.lukket } : undefined,
         deksel: deksel
           ? {
               modellId: deksel.modellId,
@@ -367,9 +371,9 @@ export function Bestilling(props: Props) {
   const kanLeggeTil = modus === 'reparasjon' ? !!reparasjon.trim() : true;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr] lg:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-start">
       {/* ===================== VENSTRE: valgene ===================== */}
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         {/* ---- 1. Hva skal vi lage ---- */}
         <Steg
           nummer={1}
@@ -728,7 +732,7 @@ export function Bestilling(props: Props) {
       </div>
 
       {/* ===================== HØYRE: kalkulator + bestilling ===================== */}
-      <div className="space-y-4 lg:sticky lg:top-20">
+      <div className="min-w-0 space-y-4 lg:sticky lg:top-20">
         {/* --- Kalkulatoren: står ved siden av valgene --- */}
         <AnimatePresence initial={false}>
           {stegApent[1] && (
@@ -1237,6 +1241,8 @@ function Linje({
       ? `ID ${(item as ProductItem).code}`
       : item.kind === 'deksel'
         ? `${item.modellNavn} · ${item.farger.map((f) => f.navn.toLowerCase()).join(', ')}`
+        : item.kind === 'pepperkake'
+          ? `Din egen tegning · hvit${item.lukket ? '' : ' · åpen form'}`
         : item.kind === 'repair'
           ? (item as RepairItem).description
           : beskrivPrint(item as PrintItem);
@@ -1252,6 +1258,11 @@ function Linje({
             ramme={item.ramme}
             className="h-11 w-auto"
           />
+        </div>
+      )}
+      {item.kind === 'pepperkake' && (
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ink-50">
+          <PepperkakeMiniatyr punkter={item.punkter} lukket={item.lukket} className="h-10 w-10" />
         </div>
       )}
       {bilde && (

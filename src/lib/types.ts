@@ -65,8 +65,11 @@ export type Product = {
   material: string | null;
   weight_g: number | null;
   category: string | null;
-  /** Satt av serveren for dekselproduktet (ID «deksel»): prisen er «fra»-pris. */
-  spesial?: 'deksel';
+  /** Satt av serveren for dekselproduktet (ID «deksel») og pepperkakeformen
+   *  (ID «pepperkake»): prisen er «fra»-pris. */
+  spesial?: 'deksel' | 'pepperkake';
+  /** Pepperkakeform: prisen for standardstørrelsen 7 × 7 cm (prisen i admin). */
+  pris_standard?: number;
   /** Versjoner (størrelser o.l.). Tom liste = bare én versjon. Se lib/versjoner.ts */
   variants?: unknown;
   featured: boolean;

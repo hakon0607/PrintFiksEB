@@ -32,7 +32,9 @@ export function ProductCard({
   const smalest = tetthet === 3;
   const tema = temaId ? TEMAER.find((t) => t.id === temaId) ?? null : null;
   const spenn = prisspenn(product);
-  const erDeksel = product.spesial === 'deksel';
+  const erPepperkake = product.spesial === 'pepperkake';
+  // dekselet og pepperkakeformen lager kunden selv – kortet lenker til produktsiden
+  const erDeksel = product.spesial === 'deksel' || erPepperkake;
   const harVersjoner = spenn.antall > 0 || erDeksel;
   const lenke = product.code ? `/galleri/${product.code}` : '/galleri';
   const prisTekst =
@@ -223,7 +225,7 @@ export function ProductCard({
                 smal ? '!px-3.5 !py-2 !text-[13px] sm:!px-5 sm:!py-3 sm:!text-sm' : ''
               }`}
             >
-              {erDeksel ? 'Lag ditt eget' : 'Velg versjon'}
+              {erPepperkake ? 'Tegn din egen' : erDeksel ? 'Lag ditt eget' : 'Velg versjon'}
             </Link>
           ) : (
             <button

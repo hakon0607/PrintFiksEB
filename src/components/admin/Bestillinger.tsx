@@ -9,6 +9,7 @@ import { kr } from '@/lib/settings';
 import { Handlekurv, bareGalleri, beskriv, summer, type Linje, type Rundt } from './Handlekurv';
 import { OrdreBilder } from './OrdreBilder';
 import { DekselPrintfil, erDekselDesign } from './DekselPrintfil';
+import { PepperkakePrintfil, erPepperkakeDesign } from './PepperkakePrintfil';
 import { num } from '@/lib/settings';
 import {
   SLAG_NAVN,
@@ -662,6 +663,7 @@ export function Bestillinger() {
         unit_cost: l.unit_cost,
         kind: l.kind,
         sort: (i + 1) * 10,
+        ...(l.design ? { design: l.design } : {}),
       }));
   }
 
@@ -1059,6 +1061,7 @@ export function Bestillinger() {
       unit_price: Number(l.unit_price) || 0,
       unit_cost: Number(l.unit_cost) || 0,
       kind: (l.kind === 'egen' ? 'egen' : 'galleri') as 'egen' | 'galleri',
+      design: l.design ?? undefined,
     }));
   }
 
@@ -1602,6 +1605,9 @@ export function Bestillinger() {
                                         </span>
                                         {erDekselDesign(l.design) && (
                                           <DekselPrintfil design={l.design} ordrenr={o.ordrenr ?? ''} />
+                                        )}
+                                        {erPepperkakeDesign(l.design) && (
+                                          <PepperkakePrintfil design={l.design} ordrenr={o.ordrenr ?? ''} antall={Number(l.qty) || 1} />
                                         )}
                                       </li>
                                     ))}

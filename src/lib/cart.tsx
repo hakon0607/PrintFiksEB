@@ -70,7 +70,23 @@ export type DekselItem = {
   note?: string;
 };
 
-export type CartItem = PrintItem | ProductItem | RepairItem | DekselItem;
+/** En pepperkakeform kunden har tegnet selv. */
+export type PepperkakeItem = {
+  kind: 'pepperkake';
+  key: string;
+  qty: number;
+  title: string;
+  price: number;
+  /** Midtlinja av streken i mm (x mot høyre, y nedover) */
+  punkter: [number, number][];
+  lukket: boolean;
+  /** Størrelse i mm */
+  bredde: number;
+  hoyde: number;
+  note?: string;
+};
+
+export type CartItem = PrintItem | ProductItem | RepairItem | DekselItem | PepperkakeItem;
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 

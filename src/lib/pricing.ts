@@ -3,7 +3,7 @@ import type { CartItem, PrintItem, SelectedExtra } from './cart';
 export type PriceSpan = { min: number; max: number; unknown?: boolean };
 
 export function itemPrice(item: CartItem): PriceSpan {
-  if (item.kind === 'product' || item.kind === 'deksel') {
+  if (item.kind === 'product' || item.kind === 'deksel' || item.kind === 'pepperkake') {
     const p = item.price * item.qty;
     return { min: p, max: p };
   }
@@ -70,7 +70,7 @@ export function orderTotals(
   // Startprisen gjelder bare når vi skal lage noe.
   // Ferdige modeller fra galleriet har fast pris og får ingen startpris.
   // ferdige modeller og dekseldesign har fast pris – ingen startpris
-  const kreverStartpris = items.some((i) => i.kind !== 'product' && i.kind !== 'deksel');
+  const kreverStartpris = items.some((i) => i.kind !== 'product' && i.kind !== 'deksel' && i.kind !== 'pepperkake');
   const startFee = kreverStartpris ? opts.startFee : 0;
   const deliveryFee = opts.deliveryFee;
 

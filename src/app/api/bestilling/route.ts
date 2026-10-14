@@ -11,6 +11,8 @@ import {
 } from '@/lib/epost';
 import { loggUtsendt, type NyUtsendt } from '@/lib/utsendt';
 import { lagreBilder, lagreDekseldesign } from '@/lib/bestillingsbilder';
+import { rensForm } from '@/lib/pepperkake/sti';
+import { maal, pepperkakePris, PEPPERKAKE_KODE } from '@/lib/pepperkake/pris';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +24,9 @@ type Vare = {
   prisMaks?: unknown;
   produktId?: unknown;
   kode?: unknown;
-  type?: unknown;        // galleri | egen | deksel
+  type?: unknown;        // galleri | egen | deksel | pepperkake
+  /** Bare for pepperkakeformer kunden har tegnet */
+  pepperkake?: { punkter?: unknown; lukket?: unknown };
   /** Bare for dekseldesign fra dekselgeneratoren */
   deksel?: {
     modellId?: unknown;
@@ -91,7 +95,7 @@ export async function POST(request: Request) {
   // Bare ferdige modeller fra galleriet = fast pris, ingen godkjenning
   const bareFastPris =
     varer.length > 0 &&
-    varer.every((v) => ['galleri', 'deksel'].includes(tekst(v.type, 20))) &&
+    varer.every((v) => ['galleri', 'deksel', 'pepperkake'].includes(tekst(v.type, 20))) &&
     !beskrivelse;
 
   if (navn.split(' ').filter(Boolean).length < 2) {
@@ -108,6 +112,41 @@ export async function POST(request: Request) {
   }
   if (varer.length === 0 && !beskrivelse) {
     return NextResponse.json({ feil: 'Legg til minst én ting, eller beskriv hva du vil ha.' }, { status: 400 });
+  }
+
+  // Pepperkakeformer: tegningen sjekkes, og prisen regnes ut på nytt her etter
+  // størrelsen – så den alltid følger prisen i galleriet.
+  const pepperkaker = new Map<number, { form: NonNullable<ReturnType<typeof rensForm>>; pris: number; bredde: number; hoyde: number }>();
+  if (varer.some((v) => tekst(v.type, 20) === 'pepperkake')) {
+    const { data: pk } = await service
+      .from('products')
+      .select('price')
+      .eq('code', PEPPERKAKE_KODE)
+      .maybeSingle();
+    const standard = Number((pk as { price?: unknown } | null)?.price) || undefined;
+    let justering = 0;
+    for (let i = 0; i < varer.length; i++) {
+      const v = varer[i];
+      if (tekst(v.type, 20) !== 'pepperkake') continue;
+      const form = rensForm(v.pepperkake);
+      if (!form) {
+        return NextResponse.json({ feil: 'Tegningen av pepperkakeformen mangler. Fjern den fra bestillingen og tegn den på nytt.' }, { status: 400 });
+      }
+      const m = maal(form.punkter);
+      const pris = pepperkakePris(m.arealCm2, standard);
+      const antall = Math.max(1, Math.round(tall(v.antall) || 1));
+      const linjesum = pris * antall; // prisMin/prisMaks er summen for linja
+      justering += linjesum - tall(v.prisMin);
+      pepperkaker.set(i, { form, pris, bredde: Math.round(m.bredde * 10) / 10, hoyde: Math.round(m.hoyde * 10) / 10 });
+      v.prisMin = linjesum;
+      v.prisMaks = linjesum;
+      v.pris = `${linjesum} kr`;
+    }
+    if (justering !== 0) {
+      body.sumMin = tall(body.sumMin) + justering;
+      body.sumMaks = tall(body.sumMaks) + justering;
+      if (/^\d+\s*kr$/i.test(tekst(body.sum, 40))) body.sum = `${tall(body.sumMin)} kr`;
+    }
   }
 
   // Innstillinger vi trenger til e-posten
@@ -172,6 +211,10 @@ export async function POST(request: Request) {
       varer.map(async (v, i) => {
         const erDeksel = tekst(v.type, 20) === 'deksel' && v.deksel;
         let design: Record<string, unknown> | null = null;
+        const pk = pepperkaker.get(i);
+        if (pk) {
+          design = { type: 'pepperkake', punkter: pk.form.punkter, lukket: pk.form.lukket, bredde: pk.bredde, hoyde: pk.hoyde };
+        }
         if (erDeksel) {
           const url = await lagreDekseldesign(service, ordrenr, v.deksel!.design);
           const farger = Array.isArray(v.deksel!.farger)
@@ -197,9 +240,10 @@ export async function POST(request: Request) {
           code: tekst(v.kode, 20),
           name: tekst(v.navn, 160) || 'Uten navn',
           qty: Math.max(1, Math.round(tall(v.antall) || 1)),
-          unit_price: tall(v.prisMin),
+          // prisMin er summen for hele linja – stykkprisen er summen delt på antallet
+          unit_price: Math.round((tall(v.prisMin) / Math.max(1, Math.round(tall(v.antall) || 1))) * 100) / 100,
           unit_cost: 0,
-          kind: ['galleri', 'deksel'].includes(tekst(v.type, 20)) ? 'galleri' : 'egen',
+          kind: ['galleri', 'deksel', 'pepperkake'].includes(tekst(v.type, 20)) ? 'galleri' : 'egen',
           sort: (i + 1) * 10,
           ...(design ? { design } : {}),
         };

@@ -23,6 +23,8 @@ export type Linje = {
   unit_price: number;
   unit_cost: number;
   kind: 'galleri' | 'egen';
+  /** Kundens eget design (deksel/pepperkakeform) – følger med når bestillingen endres. */
+  design?: unknown;
 };
 
 /** Det som gjelder hele bestillingen: levering, startpris og tillegg. */
