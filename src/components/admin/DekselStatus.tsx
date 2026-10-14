@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-type Status = { modeller: string[]; produktFinnes: boolean; produktPublisert: boolean };
+type Status = { modeller: string[]; modellFeil?: string | null; utenAnalyse?: string[]; produktFinnes: boolean; produktPublisert: boolean };
 
 /** Viser hva kundene faktisk ser av dekselet på nettsiden akkurat nå. */
 export function DekselStatus() {
@@ -47,12 +47,16 @@ export function DekselStatus() {
             ? <>Dekselet ligger i galleriet{s.produktPublisert ? '' : ' (vises også før dere trykker «Publiser»)'}.</>
             : <>Dekselet finnes ikke som produkt eller er skjult. Opprett det under «1. Produktet», eller slå på bryteren.</>
         )}
-        {rad(
-          s.modeller.length > 0,
-          s.modeller.length > 0
-            ? <>Kundene kan velge: {s.modeller.join(', ')}.</>
-            : <>Ingen mobiler er synlige for kunder. Last opp under «3. Mobiler», og sjekk at de står som «Synlig for kunder».</>
-        )}
+        {s.modellFeil
+          ? rad(false, <>Nettsiden får ikke lest mobilene: <span className="font-mono text-xs">{s.modellFeil}</span>. Kjør <span className="font-mono">supabase/deksel-sjekk.sql</span> i Supabase.</>)
+          : rad(
+              s.modeller.length > 0,
+              s.modeller.length > 0
+                ? <>Kundene kan velge: {s.modeller.join(', ')}.</>
+                : <>Ingen mobiler er synlige for kunder. Last opp under «3. Mobiler», og sjekk at de står som «Synlig for kunder».</>
+            )}
+        {(s.utenAnalyse?.length ?? 0) > 0 &&
+          rad(false, <>Disse mangler analysen og vises ikke: {s.utenAnalyse!.join(', ')}. Slett dem og last opp fila på nytt.</>)}
       </ul>
       {s.produktFinnes && (
         <a href="/galleri/deksel" target="_blank" rel="noreferrer" className="btn-ghost btn-sm mt-4">

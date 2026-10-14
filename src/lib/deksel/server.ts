@@ -5,8 +5,13 @@ import { DEKSEL_KODE, dekselFraPris } from './produkt';
 
 /** Mobilene kundene kan velge i dekselgeneratoren (bare de synlige). */
 export async function hentDekselModeller(): Promise<DekselModell[]> {
+  return (await hentDekselModellerMedFeil()).modeller;
+}
+
+/** Som over, men forteller også hvorfor det eventuelt ikke gikk (for statussjekken i admin). */
+export async function hentDekselModellerMedFeil(): Promise<{ modeller: DekselModell[]; feil: string | null; uten: string[] }> {
   const sb = getPublicServerClient();
-  if (!sb) return [];
+  if (!sb) return { modeller: [], feil: 'Nettsiden mangler Supabase-nøklene (miljøvariabler i Vercel).', uten: [] };
   try {
     const { data, error } = await sb
       .from('deksel_modeller')
@@ -14,10 +19,15 @@ export async function hentDekselModeller(): Promise<DekselModell[]> {
       .eq('aktiv', true)
       .order('sort')
       .order('navn');
-    if (error || !data) return [];
-    return (data as unknown as DekselModell[]).filter((m) => m.analyse && Array.isArray(m.analyse.trygg));
-  } catch {
-    return [];
+    if (error) {
+      console.error('[deksel] klarte ikke å hente mobilene:', error.message);
+      return { modeller: [], feil: error.message, uten: [] };
+    }
+    const alle = (data ?? []) as unknown as DekselModell[];
+    const ok = alle.filter((m) => m.analyse && Array.isArray(m.analyse.trygg));
+    return { modeller: ok, feil: null, uten: alle.filter((m) => !ok.includes(m)).map((m) => m.navn) };
+  } catch (e) {
+    return { modeller: [], feil: e instanceof Error ? e.message : 'Ukjent feil', uten: [] };
   }
 }
 
