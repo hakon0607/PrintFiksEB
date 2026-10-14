@@ -865,3 +865,10 @@ drop policy if exists "les_offentlig" on public.reviews;
 create policy "les_offentlig" on public.reviews for select using (active = true);
 
 -- Ferdig!
+
+-- Dekselstudio: farger selve dekselet kan ha
+insert into public.settings (key, value, label, help, type, gruppe, sort) values
+  ('deksel_dekselfarger', 'Hvit', 'Deksel: farger selve dekselet kan ha',
+   'Skriv navnene fra fargelisten, f.eks. «Hvit» eller «Hvit, Svart». Skriv «Alle» for å la kunden velge fritt.',
+   'text', 'Deksel', 84)
+on conflict (key) do nothing;

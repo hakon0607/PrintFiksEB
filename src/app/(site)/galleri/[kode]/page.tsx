@@ -11,7 +11,7 @@ import { temaFor } from '@/lib/temaer';
 import { DekselGenerator } from '@/components/DekselGenerator';
 import { DEKSEL_KODE, erDekselProdukt } from '@/lib/deksel/produkt';
 import { hentDekselModeller, hentDekselProdukt } from '@/lib/deksel/server';
-import { lesFilamenter } from '@/lib/deksel/farger';
+import { dekselFargerFra, lesFilamenter } from '@/lib/deksel/farger';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,6 +90,7 @@ export default async function ModellSide({
                 produktNavn={product.name}
                 modeller={await hentDekselModeller()}
                 filamenter={lesFilamenter(text(site.settings, 'deksel_farger', ''))}
+                dekselFarger={dekselFargerFra(text(site.settings, 'deksel_dekselfarger', 'Hvit'), lesFilamenter(text(site.settings, 'deksel_farger', '')))}
                 grunnpris={num(site.settings, 'deksel_grunnpris', 59)}
                 perFarge={num(site.settings, 'deksel_pris_per_farge', 10)}
                 maksFarger={Math.max(1, Math.min(6, num(site.settings, 'deksel_maks_farger', 3)))}

@@ -60,29 +60,103 @@ function fraManifold(m: Manifold): Nett {
   return { punkter: new Float32Array(punkter), trekanter: new Uint32Array(mesh.triVerts) };
 }
 
+/**
+ * Glatte konturer for én farge: masken mykes litt opp, og så følger vi
+ * 50 %-grensen med «marching squares». Da blir en sirkel rund – ikke en trapp.
+ */
+export function konturer(d: Pick<Design, 'kart' | 'bredde' | 'hoyde' | 'skala' | 'u0' | 'v0'>, farge: number): Ring[] {
+  const W = d.bredde + 4, H = d.hoyde + 4; // to piksler kant rundt, så alt lukkes
+  const m = new Float32Array(W * H);
+  for (let j = 0; j < d.hoyde; j++)
+    for (let i = 0; i < d.bredde; i++) if (d.kart[j * d.bredde + i] === farge) m[(j + 2) * W + i + 2] = 1;
+  // [1 4 6 4 1]-utjevning i begge retninger (to runder [1 2 1])
+  let f = m;
+  for (let runde = 0; runde < 2; runde++) {
+    const t = new Float32Array(W * H);
+    for (let j = 0; j < H; j++)
+      for (let i = 1; i < W - 1; i++) t[j * W + i] = (f[j * W + i - 1] + 2 * f[j * W + i] + f[j * W + i + 1]) / 4;
+    const u = new Float32Array(W * H);
+    for (let j = 1; j < H - 1; j++)
+      for (let i = 0; i < W; i++) u[j * W + i] = (t[(j - 1) * W + i] + 2 * t[j * W + i] + t[(j + 1) * W + i]) / 4;
+    f = u;
+  }
+
+  // kantpunkter: id → posisjon (i rutenettet)
+  const pos = new Map<number, [number, number]>();
+  const nabo = new Map<number, number[]>();
+  const H_ = (i: number, j: number) => (j * W + i) * 2; // vannrett kant fra (i,j) til (i+1,j)
+  const V_ = (i: number, j: number) => (j * W + i) * 2 + 1; // loddrett kant fra (i,j) til (i,j+1)
+  const lerp = (a: number, b: number) => (a === b ? 0.5 : (0.5 - a) / (b - a));
+  const punkt = (id: number, x: number, y: number) => { if (!pos.has(id)) pos.set(id, [x, y]); };
+  const kobl = (a: number, b: number) => {
+    (nabo.get(a) ?? nabo.set(a, []).get(a)!).push(b);
+    (nabo.get(b) ?? nabo.set(b, []).get(b)!).push(a);
+  };
+
+  for (let j = 0; j < H - 1; j++) {
+    for (let i = 0; i < W - 1; i++) {
+      const tl = f[j * W + i], tr = f[j * W + i + 1], br = f[(j + 1) * W + i + 1], bl = f[(j + 1) * W + i];
+      const k = (tl >= 0.5 ? 8 : 0) | (tr >= 0.5 ? 4 : 0) | (br >= 0.5 ? 2 : 0) | (bl >= 0.5 ? 1 : 0);
+      if (k === 0 || k === 15) continue;
+      const T = H_(i, j), B = H_(i, j + 1), L = V_(i, j), R = V_(i + 1, j);
+      const p: Record<string, () => number> = {
+        T: () => (punkt(T, i + lerp(tl, tr), j), T),
+        B: () => (punkt(B, i + lerp(bl, br), j + 1), B),
+        L: () => (punkt(L, i, j + lerp(tl, bl)), L),
+        R: () => (punkt(R, i + 1, j + lerp(tr, br)), R),
+      };
+      const seg = (a: string, b: string) => kobl(p[a](), p[b]());
+      const midt = (tl + tr + br + bl) / 4 >= 0.5;
+      switch (k) {
+        case 1: case 14: seg('L', 'B'); break;
+        case 2: case 13: seg('B', 'R'); break;
+        case 3: case 12: seg('L', 'R'); break;
+        case 4: case 11: seg('T', 'R'); break;
+        case 6: case 9: seg('T', 'B'); break;
+        case 7: case 8: seg('T', 'L'); break;
+        case 5: if (midt) { seg('T', 'L'); seg('B', 'R'); } else { seg('T', 'R'); seg('L', 'B'); } break;
+        case 10: if (midt) { seg('T', 'R'); seg('L', 'B'); } else { seg('T', 'L'); seg('B', 'R'); } break;
+      }
+    }
+  }
+
+  // kjed sammen til ringer
+  const ringer: Ring[] = [];
+  const sett = new Set<number>();
+  const tilMm = ([x, y]: [number, number]): [number, number] => [
+    d.u0 + (x - 2 + 0.5) * d.skala,
+    d.v0 - (y - 2 + 0.5) * d.skala,
+  ];
+  nabo.forEach((_, start) => {
+    if (sett.has(start)) return;
+    const ring: Ring = [];
+    let forrige = -1, naa = start;
+    for (let guard = 0; guard < 1e7; guard++) {
+      sett.add(naa);
+      ring.push(tilMm(pos.get(naa)!));
+      const n = nabo.get(naa)!;
+      const neste = n[0] !== forrige ? n[0] : n[1];
+      if (neste === undefined || neste === start) break;
+      if (sett.has(neste)) break;
+      forrige = naa;
+      naa = neste;
+    }
+    if (ring.length >= 3) ringer.push(ring);
+  });
+  return ringer;
+}
+
 /** Fargekartet → én flate (CrossSection) per motivfarge, i visning. */
 function flater(wasm: ManifoldToplevel, d: Design): (CrossSection | null)[] {
   const ut: (CrossSection | null)[] = [];
   for (let farge = 1; farge < d.farger.length; farge++) {
-    const rekt: Ring[] = [];
-    for (let j = 0; j < d.hoyde; j++) {
-      const rad = j * d.bredde;
-      let i = 0;
-      while (i < d.bredde) {
-        if (d.kart[rad + i] !== farge) { i++; continue; }
-        const start = i;
-        while (i < d.bredde && d.kart[rad + i] === farge) i++;
-        const ua = d.u0 + start * d.skala, ub = d.u0 + i * d.skala;
-        const vt = d.v0 - j * d.skala, vb = d.v0 - (j + 1) * d.skala;
-        rekt.push([[ua, vb], [ub, vb], [ub, vt], [ua, vt]]);
-      }
-    }
-    if (!rekt.length) { ut.push(null); continue; }
-    // samle, fjern det som er for smalt til å printe (< ~0,45 mm), glatt trappetrinnene
-    const flate = wasm.CrossSection.ofPolygons(rekt, 'Positive')
-      .offset(-0.22, 'Round')
-      .offset(0.22, 'Round')
-      .simplify(0.03);
+    const ringer = konturer(d, farge);
+    if (!ringer.length) { ut.push(null); continue; }
+    // fjern det som er for smalt til å printe (< ~0,45 mm), og glatt helt til slutt
+    const flate = wasm.CrossSection.ofPolygons(ringer, 'EvenOdd')
+      .offset(-0.22, 'Round', 2, 24)
+      .offset(0.22, 'Round', 2, 24)
+      .simplify(0.015);
     ut.push(flate);
   }
   return ut;

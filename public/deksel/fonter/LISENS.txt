@@ -1,0 +1,2 @@
+Fontene i denne mappen er hentet fra Fontsource (fontsource.org).
+Alle er fri til kommersiell bruk: SIL Open Font License 1.1 (de fleste) og Apache 2.0 (Permanent Marker m.fl.).
