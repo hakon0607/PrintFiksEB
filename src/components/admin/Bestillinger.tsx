@@ -538,6 +538,7 @@ export function Bestillinger() {
   const [innstillinger, setInnstillinger] = useState<Record<string, string>>({});
   const [smsSvar, setSmsSvar] = useState<Record<string, string>>({});
   const [manglerLogg, setManglerLogg] = useState(false);
+  const [anmeldSvar, setAnmeldSvar] = useState<Record<string, string>>({});
 
   const hent = useCallback(async () => {
     if (!supabase) return;
@@ -859,6 +860,29 @@ export function Bestillinger() {
       }),
     }).catch(() => undefined);
     hentLogg(o.id);
+  }
+
+  /** Lenken der kunden kan skrive anmeldelse – også fin å sende på SMS. */
+  async function kopierAnmeldLenke(o: Order) {
+    if (!supabase) return;
+    setAnmeldSvar((p) => ({ ...p, [o.id]: 'Henter …' }));
+    const { data: okt } = await supabase.auth.getSession();
+    const res = await fetch('/api/anmeldelse/lenke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${okt.session?.access_token ?? ''}` },
+      body: JSON.stringify({ id: o.id }),
+    }).catch(() => null);
+    const svar = res ? await res.json().catch(() => ({})) : {};
+    if (!svar.url) {
+      setAnmeldSvar((p) => ({ ...p, [o.id]: svar.feil || 'Klarte ikke å lage lenken.' }));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(svar.url);
+      setAnmeldSvar((p) => ({ ...p, [o.id]: `Kopiert: ${svar.url}` }));
+    } catch {
+      setAnmeldSvar((p) => ({ ...p, [o.id]: svar.url }));
+    }
   }
 
   async function kopierSms(o: Order) {
@@ -1538,6 +1562,23 @@ export function Bestillinger() {
                                       </p>
                                     </div>
                                   )}
+
+                                  {/* Anmeldelse */}
+                                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-ink-100 pt-4">
+                                    <span className="text-[13px] text-ink-600">
+                                      Anmeldelseslenken følger med «Takk for handelen». Vil du sende den selv?
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => kopierAnmeldLenke(o)}
+                                      className="text-[13px] font-semibold text-brand-700 underline"
+                                    >
+                                      Kopier lenken
+                                    </button>
+                                    {anmeldSvar[o.id] && (
+                                      <span className="w-full break-all text-xs text-ink-500">{anmeldSvar[o.id]}</span>
+                                    )}
+                                  </div>
                                 </div>
                               )}
 

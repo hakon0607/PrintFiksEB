@@ -26,6 +26,8 @@ export type Kvittering = {
   fastPris?: boolean;
   /** Bilder kunden la ved. Bare varselet til oss viser dem. */
   bilder?: string[];
+  /** Lenke der kunden kan skrive en anmeldelse (bare i «Takk for handelen»). */
+  anmeldUrl?: string;
 };
 
 function esc(s: string): string {
@@ -578,6 +580,27 @@ export function ferdigEpost(k: Kvittering): { emne: string; html: string; tekst:
           </table>
         </td></tr>
 
+        ${
+          k.anmeldUrl
+            ? `<!-- Anmeldelse -->
+        <tr><td class="pad" style="padding:22px 30px 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fade" style="background:#FFF8E6;border-radius:18px;">
+            <tr><td style="padding:22px 20px;text-align:center;">
+              <p style="margin:0 0 4px;font-size:17px;font-weight:800;color:#14171C;">Hvordan synes du det ble?</p>
+              <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#5A6270;">Trykk på en stjerne – det tar under ett minutt, og betyr mye for oss.</p>
+              <p style="margin:0;font-size:0;line-height:0;">${[1, 2, 3, 4, 5]
+                .map(
+                  (n) =>
+                    `<a href="${esc(k.anmeldUrl!)}?stjerner=${n}" title="${n} av 5" style="display:inline-block;margin:0 3px;font-size:38px;line-height:44px;color:#F5B301;text-decoration:none;">&#9733;</a>`
+                )
+                .join('')}</p>
+              <p style="margin:14px 0 0;"><a href="${esc(k.anmeldUrl)}" style="display:inline-block;background:#14171C;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:999px;">Skriv en anmeldelse</a></p>
+            </td></tr>
+          </table>
+        </td></tr>
+`
+            : ''
+        }
         <!-- Velkommen tilbake -->
         <tr><td class="pad" style="padding:22px 30px 0;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fade" style="background:#F4F8FF;border-radius:18px;">
@@ -616,6 +639,8 @@ export function ferdigEpost(k: Kvittering): { emne: string; html: string; tekst:
     `Telefon: ${k.telefon}`,
     k.adresse ? `Adresse: ${k.adresse}` : '',
     `Levering: ${k.levering}`,
+    '',
+    k.anmeldUrl ? `Hvordan synes du det ble? Skriv en anmeldelse her: ${k.anmeldUrl}` : '',
     '',
     'Velkommen tilbake! Trenger du noe printet, fikset eller designet en annen gang, er det bare å ta kontakt.',
     '',

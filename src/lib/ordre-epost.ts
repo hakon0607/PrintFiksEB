@@ -10,6 +10,7 @@ import {
   type Kvittering,
 } from './epost';
 import { loggUtsendt, type NyUtsendt } from './utsendt';
+import { anmeldelsesLenke } from './anmeldelse';
 
 /**
  * Bygger kvitteringen ut fra en bestilling som allerede ligger i basen,
@@ -110,6 +111,11 @@ export async function sendForOrdre(
     fastPris: o.krever_godkjenning === false,
     bilder: Array.isArray(o.bilder) ? (o.bilder as string[]) : [],
   };
+
+  // «Takk for handelen» får en lenke der kunden kan skrive en anmeldelse
+  if (opsjoner.mal === 'ferdig') {
+    kvittering.anmeldUrl = (await anmeldelsesLenke(service, id, kvittering.nettside)) ?? undefined;
+  }
 
   const mottakere = await finnMottakere(service, s.epost_bedrift ?? '');
 
