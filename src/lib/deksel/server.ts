@@ -32,7 +32,7 @@ export async function hentDekselModellerMedFeil(): Promise<{ modeller: DekselMod
   try {
     const { data, error } = await sb
       .from('deksel_modeller')
-      .select('id,navn,analyse:bakside')
+      .select('id,navn,fil_url,fil_navn,analyse:bakside')
       .eq('aktiv', true)
       .order('sort')
       .order('navn');

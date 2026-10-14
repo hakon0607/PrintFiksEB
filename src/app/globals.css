@@ -389,13 +389,6 @@ body:has(.site) { background: #F3F6FD; background-image: none; }
 .studio-prikk { display: inline-block; width: 6px; height: 6px; border-radius: 9999px; background: #22d3ee; box-shadow: 0 0 10px #22d3ee; }
 .studio-prikk.opptatt { background: #fbbf24; box-shadow: 0 0 10px #fbbf24; animation: studio-puls 1s ease-in-out infinite; }
 @keyframes studio-puls { 50% { opacity: .35; } }
-.studio-skann {
-  position: absolute; left: 12%; right: 12%; height: 48px; pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(34, 211, 238, .07) 70%, rgba(103, 232, 249, .5) 97%, transparent);
-  mix-blend-mode: screen;
-  animation: studio-skann 1.1s linear infinite;
-}
-@keyframes studio-skann { from { top: -90px; } to { top: 100%; } }
 
 .studio-verktoy {
   display: inline-flex; align-items: center; gap: 4px; padding: 5px;
@@ -455,4 +448,4 @@ body:has(.site) { background: #F3F6FD; background-image: none; }
 .verktoy-knapp:hover { border-color: #67e8f9; box-shadow: 0 0 0 3px rgba(34, 211, 238, .15), 0 10px 24px -14px rgba(8, 145, 178, .8); transform: translateY(-1px); }
 .verktoy-knapp.aktiv { border-color: #22d3ee; background: linear-gradient(180deg, #ecfeff, #cffafe); box-shadow: 0 0 0 3px rgba(34, 211, 238, .2); }
 .steg-nr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-@media (prefers-reduced-motion: reduce) { .studio-skann, .studio-prikk.opptatt { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .studio-prikk.opptatt { animation: none; } }

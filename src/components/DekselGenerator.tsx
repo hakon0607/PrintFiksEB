@@ -30,8 +30,11 @@ import { Lerret, type Modus } from '@/components/deksel/Lerret';
 import { LagPanel } from '@/components/deksel/LagPanel';
 import { Ikon } from '@/components/deksel/Ikon';
 import { Fargeknapp } from '@/components/deksel/Fargeknapp';
+import dynamic from 'next/dynamic';
 
-export type DekselModell = { id: string; navn: string; analyse: Analyse };
+const Visning3D = dynamic(() => import('@/components/deksel/Visning3D').then((m) => m.Visning3D), { ssr: false });
+
+export type DekselModell = { id: string; navn: string; analyse: Analyse; fil_url?: string; fil_navn?: string };
 
 /** mm per piksel i fargekartet. 0,1 mm gir glatte kanter (dysen er 0,4 mm). */
 const SKALA = 0.1;
@@ -121,6 +124,7 @@ export function DekselGenerator({
   const [valgt, setValgt] = useState<string | null>(null);
   const [modus, setModus] = useState<Modus>('flytt');
   const [visning, setVisning] = useState<'print' | 'original'>('print');
+  const [tre, setTre] = useState(false);
   const [feil, setFeil] = useState('');
   const [lagtTil, setLagtTil] = useState(false);
   const [visSymboler, setVisSymboler] = useState(false);
@@ -174,6 +178,7 @@ export function DekselGenerator({
 
   /* ---------- legg til ---------- */
   function leggTilLag(l: Lag) {
+    setTre(false);
     merke();
     setLag((ls) => [...ls, l]);
     setValgt(l.id);
@@ -256,6 +261,7 @@ export function DekselGenerator({
   }
   function velgModus(m: Modus) {
     setModus(m);
+    if (m !== 'flytt') setTre(false);
     if (m === 'flytt') tegneLag.current = null;
     else setValgt(null);
   }
@@ -452,7 +458,17 @@ export function DekselGenerator({
           </div>
 
           <div className="relative">
-            {a && r && modell && (
+            {tre && a && r && modell?.fil_url && (
+              <Visning3D
+                modellUrl={modell.fil_url}
+                modellFilnavn={modell.fil_navn || modell.fil_url.split('/').pop() || 'modell.3mf'}
+                analyse={a}
+                dekselHex={dekselFil.hex}
+                printBilde={print.bilde}
+                ramme={{ u0: r.u0, v0: r.v0, bredde: W, hoyde: H, skala: SKALA }}
+              />
+            )}
+            {!tre && a && r && modell && (
               <Lerret
                 a={a}
                 r={r}
@@ -480,15 +496,14 @@ export function DekselGenerator({
                 onStrekSlutt={() => undefined}
               />
             )}
-            {regner && lag.length > 0 && <div className="studio-skann" />}
           </div>
 
-          {!lag.length && (
+          {!tre && !lag.length && (
             <p className="studio-hud pointer-events-none mt-2 text-center !normal-case !tracking-normal text-[13px]">
               Legg til bilde, tekst eller symbol – eller tegn rett på dekselet
             </p>
           )}
-          {valgtLag && modus === 'flytt' && (
+          {!tre && valgtLag && modus === 'flytt' && (
             <p className="studio-hud pointer-events-none mt-2 text-center">
               {valgtLag.type !== 'tegning' ? (
                 <>x <b>{fmt(valgtLag.u)}</b> · y <b>{fmt(valgtLag.v)}</b> · {valgtLag.type === 'tekst' ? 'h' : 'b'} <b>{fmt(valgtLag.type === 'tekst' ? valgtLag.hoyde : valgtLag.bredde)} mm</b> · rot <b>{valgtLag.rot}°</b></>
@@ -500,7 +515,13 @@ export function DekselGenerator({
 
           {/* verktøylinje */}
           <div className="relative mt-3 flex flex-wrap items-center justify-center gap-2">
-            <div className="studio-verktoy" role="group" aria-label="Verktøy">
+            {modell?.fil_url && (
+              <div className="studio-verktoy" role="group" aria-label="2D eller 3D">
+                <button type="button" onClick={() => setTre(false)} aria-pressed={!tre}>2D</button>
+                <button type="button" onClick={() => { setTre(true); setValgt(null); velgModus('flytt'); }} aria-pressed={tre}>3D</button>
+              </div>
+            )}
+            {!tre && <div className="studio-verktoy" role="group" aria-label="Verktøy">
               {([
                 ['flytt', 'Flytt', 'flytt'],
                 ['tegn', 'Tegn', 'blyant'],
@@ -517,8 +538,8 @@ export function DekselGenerator({
               <button type="button" onClick={gjenta} disabled={!fremtid.current.length} aria-label="Gjør om" title="Gjør om (Ctrl+Y)">
                 <Ikon navn="gjenta" />
               </button>
-            </div>
-            {harBilde && (
+            </div>}
+            {!tre && harBilde && (
               <div className="studio-verktoy" role="group" aria-label="Visning">
                 {(['print', 'original'] as const).map((v) => (
                   <button key={v} type="button" onClick={() => setVisning(v)} aria-pressed={visning === v}>
@@ -530,7 +551,7 @@ export function DekselGenerator({
           </div>
 
           {/* penn */}
-          {modus !== 'flytt' && (
+          {!tre && modus !== 'flytt' && (
             <div className="studio-panel relative mx-auto mt-3 flex max-w-xl flex-wrap items-center justify-center gap-3 px-4 py-3">
               {modus === 'tegn' && (
                 <div className="flex flex-wrap gap-1.5">
@@ -555,7 +576,7 @@ export function DekselGenerator({
           )}
 
           {/* valgt lag */}
-          {valgtLag && modus === 'flytt' && boks && (
+          {!tre && valgtLag && modus === 'flytt' && boks && (
             <div className="relative">
               <LagPanel
                 lag={valgtLag}
