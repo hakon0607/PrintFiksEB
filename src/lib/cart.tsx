@@ -50,7 +50,27 @@ export type RepairItem = {
   note?: string;
 };
 
-export type CartItem = PrintItem | ProductItem | RepairItem;
+/** Et deksel kunden har designet selv i dekselgeneratoren. */
+export type DekselItem = {
+  kind: 'deksel';
+  key: string;
+  qty: number;
+  title: string;
+  price: number;
+  modellId: string;
+  modellNavn: string;
+  /** [dekselfarge, motivfarge 1, …] */
+  farger: { navn: string; hex: string }[];
+  /** Fargekartet som PNG (gjennomsiktig = dekselfarge) */
+  design: string;
+  /** Hvor kartet ligger på dekselet, i mm sett utenfra */
+  ramme: { u0: number; v0: number; skala: number; bredde: number; hoyde: number };
+  /** Omrisset av dekselet som SVG-sti, til forhåndsvisning */
+  silhuett: string;
+  note?: string;
+};
+
+export type CartItem = PrintItem | ProductItem | RepairItem | DekselItem;
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 

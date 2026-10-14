@@ -12,6 +12,7 @@ const links = [
   { href: '/', label: 'Hjem' },
   { href: '/bestill', label: 'Bestill' },
   { href: '/galleri', label: 'Galleri' },
+  { href: '/deksel', label: 'Lag deksel' },
   { href: '/3d-printing', label: 'Hva vi kan fikse' },
   { href: '/om-oss', label: 'Om oss' },
 ];

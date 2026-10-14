@@ -237,4 +237,6 @@ export type OrderItem = {
   kind: 'galleri' | 'egen' | string;
   sort: number;
   created_at?: string;
+  /** Dekseldesign fra dekselgeneratoren (se lib/deksel) */
+  design?: unknown;
 };

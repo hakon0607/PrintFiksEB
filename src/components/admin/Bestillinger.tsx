@@ -8,6 +8,7 @@ import { lyttPaTabell } from '@/lib/realtime';
 import { kr } from '@/lib/settings';
 import { Handlekurv, bareGalleri, beskriv, summer, type Linje, type Rundt } from './Handlekurv';
 import { OrdreBilder } from './OrdreBilder';
+import { DekselPrintfil, erDekselDesign } from './DekselPrintfil';
 import { num } from '@/lib/settings';
 import {
   SLAG_NAVN,
@@ -1546,7 +1547,7 @@ export function Bestillinger() {
                                   <p className="label">Varer</p>
                                   <ul className="divide-y divide-ink-100">
                                     {varer.map((l) => (
-                                      <li key={l.id} className="flex items-center gap-2 py-2">
+                                      <li key={l.id} className="flex flex-wrap items-center gap-2 py-2">
                                         {l.kind === 'galleri' && l.code && (
                                           <span className="shrink-0 rounded-full bg-ink-900 px-2 py-0.5 text-[10px] font-bold text-white">
                                             {l.code}
@@ -1558,6 +1559,9 @@ export function Bestillinger() {
                                         <span className="shrink-0 text-sm font-semibold text-ink-900">
                                           {kr(Number(l.qty) * Number(l.unit_price))}
                                         </span>
+                                        {erDekselDesign(l.design) && (
+                                          <DekselPrintfil design={l.design} ordrenr={o.ordrenr ?? ''} />
+                                        )}
                                       </li>
                                     ))}
                                   </ul>

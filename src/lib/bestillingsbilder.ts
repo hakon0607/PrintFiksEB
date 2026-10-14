@@ -93,3 +93,27 @@ export async function lagreBilder(
 
   return urler;
 }
+
+/** Kundens dekseldesign (PNG-fargekart). Bare PNG, maks 1,5 MB. */
+export async function lagreDekseldesign(
+  service: SupabaseClient,
+  ordrenr: string,
+  dataUrl: unknown
+): Promise<string | null> {
+  const buf = tilBuffer(dataUrl);
+  if (!buf || buf.length === 0 || buf.length > 1.5 * 1024 * 1024) return null;
+  const type = lesType(buf);
+  if (!type || type.mime !== 'image/png') return null;
+  const mappe = (ordrenr || 'ukjent').replace(/[^\w-]/g, '');
+  const navn = `${mappe}/deksel-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+  const { error } = await service.storage.from(BOTTE).upload(navn, buf, {
+    contentType: 'image/png',
+    cacheControl: '3600',
+    upsert: false,
+  });
+  if (error) {
+    console.error('[dekseldesign] opplasting feilet:', error.message);
+    return null;
+  }
+  return service.storage.from(BOTTE).getPublicUrl(navn).data.publicUrl;
+}

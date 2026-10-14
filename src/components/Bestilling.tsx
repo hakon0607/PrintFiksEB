@@ -19,6 +19,7 @@ import { formatPhone, telHref } from '@/lib/settings';
 import type { DeliveryOption, Material, WeightRange, Extra, Color } from '@/lib/types';
 import { BildeFelt } from './BildeFelt';
 import type { Krympet } from '@/lib/bilde';
+import { DekselMiniatyr } from './DekselMiniatyr';
 
 type Props = {
   materials: Material[];
@@ -194,7 +195,8 @@ export function Bestilling(props: Props) {
   );
 
   // Bare ferdige modeller fra galleriet = fast pris, ingen godkjenning
-  const bareFastPris = items.length > 0 && items.every((i) => i.kind === 'product');
+  const bareFastPris =
+    items.length > 0 && items.every((i) => i.kind === 'product' || i.kind === 'deksel');
 
   const manglerNavn = navn.trim().split(/\s+/).filter(Boolean).length < 2;
   const manglerTlf = tlf.replace(/\D/g, '').length < 8;
@@ -267,9 +269,10 @@ export function Bestilling(props: Props) {
     const varer = items.map((item) => {
       const p = itemPrice(item);
       const produkt = item.kind === 'product' ? item : null;
+      const deksel = item.kind === 'deksel' ? item : null;
       return {
         navn:
-          item.kind === 'product'
+          item.kind === 'product' || item.kind === 'deksel'
             ? item.title
             : item.kind === 'repair'
               ? `Reparasjon: ${item.description}`
@@ -284,7 +287,17 @@ export function Bestilling(props: Props) {
         prisMaks: p.unknown ? 0 : p.max,
         produktId: produkt?.productId ?? null,
         kode: produkt?.code ?? '',
-        type: item.kind === 'product' ? 'galleri' : 'egen',
+        type: item.kind === 'product' ? 'galleri' : item.kind === 'deksel' ? 'deksel' : 'egen',
+        deksel: deksel
+          ? {
+              modellId: deksel.modellId,
+              modellNavn: deksel.modellNavn,
+              farger: deksel.farger,
+              design: deksel.design,
+              ramme: deksel.ramme,
+              silhuett: deksel.silhuett,
+            }
+          : undefined,
       };
     });
 
@@ -1222,12 +1235,25 @@ function Linje({
   const undertekst =
     item.kind === 'product'
       ? `ID ${(item as ProductItem).code}`
-      : item.kind === 'repair'
-        ? (item as RepairItem).description
-        : beskrivPrint(item as PrintItem);
+      : item.kind === 'deksel'
+        ? `${item.modellNavn} · ${item.farger.map((f) => f.navn.toLowerCase()).join(', ')}`
+        : item.kind === 'repair'
+          ? (item as RepairItem).description
+          : beskrivPrint(item as PrintItem);
 
   return (
     <div className="flex gap-3 py-3.5">
+      {item.kind === 'deksel' && (
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ink-50">
+          <DekselMiniatyr
+            silhuett={item.silhuett}
+            dekselfarge={item.farger[0]?.hex ?? '#fff'}
+            design={item.design}
+            ramme={item.ramme}
+            className="h-11 w-auto"
+          />
+        </div>
+      )}
       {bilde && (
         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-brand-50">
           <Image src={bilde} alt="" fill sizes="48px" className="object-cover" />

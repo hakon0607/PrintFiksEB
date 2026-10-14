@@ -10,7 +10,7 @@ import {
   type EpostLinje,
 } from '@/lib/epost';
 import { loggUtsendt, type NyUtsendt } from '@/lib/utsendt';
-import { lagreBilder } from '@/lib/bestillingsbilder';
+import { lagreBilder, lagreDekseldesign } from '@/lib/bestillingsbilder';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,16 @@ type Vare = {
   prisMaks?: unknown;
   produktId?: unknown;
   kode?: unknown;
-  type?: unknown;        // galleri | egen
+  type?: unknown;        // galleri | egen | deksel
+  /** Bare for dekseldesign fra dekselgeneratoren */
+  deksel?: {
+    modellId?: unknown;
+    modellNavn?: unknown;
+    farger?: unknown;
+    design?: unknown;     // PNG som data-URL
+    ramme?: unknown;
+    silhuett?: unknown;
+  };
 };
 
 type Innsendt = {
@@ -81,7 +90,9 @@ export async function POST(request: Request) {
 
   // Bare ferdige modeller fra galleriet = fast pris, ingen godkjenning
   const bareFastPris =
-    varer.length > 0 && varer.every((v) => tekst(v.type, 20) === 'galleri') && !beskrivelse;
+    varer.length > 0 &&
+    varer.every((v) => ['galleri', 'deksel'].includes(tekst(v.type, 20))) &&
+    !beskrivelse;
 
   if (navn.split(' ').filter(Boolean).length < 2) {
     return NextResponse.json({ feil: 'Skriv hele navnet ditt, både fornavn og etternavn.' }, { status: 400 });
@@ -153,23 +164,56 @@ export async function POST(request: Request) {
 
   const o = ordre as { id: string; ordrenr: string | null };
 
-  // 2. Varelinjene
-  if (varer.length > 0) {
-    const rader = varer.map((v, i) => ({
-      order_id: o.id,
-      product_id: tekst(v.produktId, 60) || null,
-      code: tekst(v.kode, 20),
-      name: tekst(v.navn, 160) || 'Uten navn',
-      qty: Math.max(1, Math.round(tall(v.antall) || 1)),
-      unit_price: tall(v.prisMin),
-      unit_cost: 0,
-      kind: tekst(v.type, 20) === 'galleri' ? 'galleri' : 'egen',
-      sort: (i + 1) * 10,
-    }));
-    await service.from('order_items').insert(rader);
-  }
-
   const ordrenr = o.ordrenr ?? '';
+
+  // 2. Varelinjene. Dekseldesign lastes opp og lagres på linja.
+  if (varer.length > 0) {
+    const rader = await Promise.all(
+      varer.map(async (v, i) => {
+        const erDeksel = tekst(v.type, 20) === 'deksel' && v.deksel;
+        let design: Record<string, unknown> | null = null;
+        if (erDeksel) {
+          const url = await lagreDekseldesign(service, ordrenr, v.deksel!.design);
+          const farger = Array.isArray(v.deksel!.farger)
+            ? (v.deksel!.farger as { navn?: unknown; hex?: unknown }[]).slice(0, 8).map((f) => ({
+                navn: tekst(f?.navn, 30),
+                hex: /^#[0-9a-f]{6}$/i.test(String(f?.hex ?? '')) ? String(f.hex) : '#FFFFFF',
+              }))
+            : [];
+          if (url) {
+            design = {
+              modellId: tekst(v.deksel!.modellId, 60),
+              modellNavn: tekst(v.deksel!.modellNavn, 80),
+              farger,
+              bilde: url,
+              ramme: v.deksel!.ramme && typeof v.deksel!.ramme === 'object' ? v.deksel!.ramme : null,
+              silhuett: tekst(v.deksel!.silhuett, 60000),
+            };
+          }
+        }
+        return {
+          order_id: o.id,
+          product_id: tekst(v.produktId, 60) || null,
+          code: tekst(v.kode, 20),
+          name: tekst(v.navn, 160) || 'Uten navn',
+          qty: Math.max(1, Math.round(tall(v.antall) || 1)),
+          unit_price: tall(v.prisMin),
+          unit_cost: 0,
+          kind: ['galleri', 'deksel'].includes(tekst(v.type, 20)) ? 'galleri' : 'egen',
+          sort: (i + 1) * 10,
+          ...(design ? { design } : {}),
+        };
+      })
+    );
+    const { error: linjeFeil } = await service.from('order_items').insert(rader);
+    if (linjeFeil) {
+      // Er ikke deksel-SQL-en kjørt, finnes ikke design-kolonnen – lagre uten
+      console.error('[bestilling] varelinjer:', linjeFeil.message);
+      await service
+        .from('order_items')
+        .insert(rader.map(({ design: _d, ...rest }: Record<string, unknown>) => rest));
+    }
+  }
 
   // 2b. Bildene kunden la ved – mål, skisse eller den ødelagte delen.
   //     De kommer som data-URL-er og lastes opp her, med service-nøkkelen.
