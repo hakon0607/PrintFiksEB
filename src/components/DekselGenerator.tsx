@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { enfargetUrl } from '@/lib/deksel/bildefarge';
+import { FargeVelger } from '@/components/deksel/FargeVelger';
 import { grupperEtterMerke, merkeFor, type Merke } from '@/lib/deksel/modellnavn';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useCart } from '@/lib/cart';
 import type { Analyse, Ring } from '@/lib/deksel/analyse';
 import {
@@ -118,7 +119,8 @@ export function DekselGenerator({
   }, [dekselValg, dekselId]);
 
   const fil = useCallback((id: string) => filamenter.find((f) => f.id === id) ?? filamenter[0], [filamenter]);
-  const hex = useCallback((id: string) => fil(id).hex, [fil]);
+  /** farge = filament-id («svart») eller egen farge («#ff66aa») */
+  const hex = useCallback((id: string) => (id.startsWith('#') ? id : fil(id).hex), [fil]);
   const dekselFil = fil(dekselId);
 
   /* ---------- lag + angre ---------- */
@@ -156,7 +158,6 @@ export function DekselGenerator({
 
   const [valgt, setValgt] = useState<string | null>(null);
   const [modus, setModus] = useState<Modus>('flytt');
-  const [visning, setVisning] = useState<'print' | 'original'>('print');
   const [tre, setTre] = useState(false);
   const [feil, setFeil] = useState('');
   const [lagtTil, setLagtTil] = useState(false);
@@ -183,22 +184,19 @@ export function DekselGenerator({
   const aktivRef = useRef(false);
 
   /* ---------- farger ---------- */
-  const [antall, setAntall] = useState(Math.min(2, maksFarger));
+  /** rediger = fritt med alle farger · forhandsvis = slik det blir printet, med fargene vi har */
+  const [fase, setFase] = useState<'rediger' | 'forhandsvis'>('rediger');
+  const [antallValgt, setAntallValgt] = useState<number | null>(null);
   const [motivIder, setMotivIder] = useState<string[]>([]);
   const [manuelt, setManuelt] = useState(false);
-  /** bilder i full farge (ikke «Én farge») – da velges motivfargene automatisk fra bildet */
-  const harBilde = lag.some((l) => l.type === 'bilde' && !l.farge);
-  const faste = useMemo(() => unik(lag.flatMap(fargerI)).filter((id) => id !== dekselId), [lag, dekselId]);
-
-  /** Kan dette laget (eller pennen) få denne fargen uten å gå over maks? */
-  const tillatt = useCallback(
-    (farge: string, lagId?: string) => {
-      if (farge === dekselId) return false;
-      const andre = unik(lag.filter((l) => l.id !== lagId).flatMap(fargerI)).filter((id) => id !== dekselId);
-      return andre.includes(farge) || andre.length < maksFarger;
-    },
-    [lag, dekselId, maksFarger]
-  );
+  /** alle fargene motivet bruker (filament-id-er og egne farger) */
+  const brukte = useMemo(() => unik(lag.flatMap(fargerI)).filter((id) => id !== dekselId), [lag, dekselId]);
+  /** filamentfarger som brukes direkte – de beholdes nøyaktig */
+  const faste = useMemo(() => brukte.filter((id) => !id.startsWith('#')).slice(0, maksFarger), [brukte, maksFarger]);
+  const harFoto = lag.some((l) => l.type === 'bilde' && !l.farge);
+  /** fotobilder, egne farger eller flere farger enn vi printer med – da velges fargene automatisk */
+  const harBilde = harFoto || brukte.some((id) => id.startsWith('#')) || brukte.length > maksFarger;
+  const antall = antallValgt ?? Math.min(maksFarger, Math.max(harFoto ? 2 : 1, brukte.length));
 
   /** En god startfarge: en som allerede er i bruk, ellers den som synes best på dekselet. */
   const startFarge = useCallback(() => {
@@ -226,15 +224,57 @@ export function DekselGenerator({
 
   /* ---------- legg til ---------- */
   const studioRef = useRef<HTMLDivElement>(null);
-  /** På mobil ligger knappene under studioet – vis dekselet rolig når noe legges til, i stedet for at siden hopper. */
-  function visStudio() {
-    const el = studioRef.current;
-    if (!el || window.matchMedia('(min-width: 1024px)').matches) return;
-    const r = el.getBoundingClientRect();
-    if (r.top < -40 || r.top > window.innerHeight * 0.4) {
-      window.setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
+
+  /*
+   * Bli der du er: når du trykker på en knapp og noe over den endrer høyde
+   * (et panel åpnes, en liste vokser), holdes knappen du trykket på i ro på
+   * skjermen. Safari på iPhone gjør ikke dette selv – derfor gjør vi det her.
+   */
+  const rotRef = useRef<HTMLDivElement>(null);
+  /** elementet som skal stå stille – og en reserve (kortet rundt) hvis knappen forsvinner */
+  const anker = useRef<{ el: Element; top: number; t: number; reserve?: { el: Element; top: number } } | null>(null);
+  useEffect(() => {
+    const rot = rotRef.current;
+    if (!rot) return;
+    const trykk = (e: Event) => {
+      const el = (e.target as Element | null)?.closest?.('button, label, select, input, [role="radio"], a');
+      if (!el || !rot.contains(el)) return;
+      const kort = el.closest('section, li, .studio-panel');
+      anker.current = {
+        el, top: el.getBoundingClientRect().top, t: performance.now(),
+        reserve: kort && kort !== el ? { el: kort, top: kort.getBoundingClientRect().top } : undefined,
+      };
+    };
+    const brukerRuller = () => { anker.current = null; };
+    rot.addEventListener('click', trykk, true);
+    rot.addEventListener('change', trykk, true);
+    window.addEventListener('wheel', brukerRuller, { passive: true });
+    window.addEventListener('touchmove', brukerRuller, { passive: true });
+    window.addEventListener('keydown', brukerRuller);
+    return () => {
+      rot.removeEventListener('click', trykk, true);
+      rot.removeEventListener('change', trykk, true);
+      window.removeEventListener('wheel', brukerRuller);
+      window.removeEventListener('touchmove', brukerRuller);
+      window.removeEventListener('keydown', brukerRuller);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const a = anker.current;
+    if (!a) return;
+    if (performance.now() - a.t > 1500) { anker.current = null; return; }
+    const m = a.el.isConnected ? a : a.reserve?.el.isConnected ? a.reserve : null;
+    if (!m) { anker.current = null; return; }
+    const diff = m.el.getBoundingClientRect().top - m.top;
+    if (Math.abs(diff) > 1) {
+      // siden har «smooth» rulling – skru den av et øyeblikk så justeringen ikke synes
+      const html = document.documentElement;
+      const før = html.style.scrollBehavior;
+      html.style.scrollBehavior = 'auto';
+      window.scrollTo(0, window.scrollY + diff);
+      html.style.scrollBehavior = før;
     }
-  }
+  });
   function leggTilLag(l: Lag) {
     setTre(false);
     merke();
@@ -258,7 +298,6 @@ export function DekselGenerator({
       const el = new window.Image();
       el.onload = () => {
         setFeil('');
-        visStudio();
         const forhold = el.naturalHeight / el.naturalWidth;
         leggTilLag({
           id: nyId(), type: 'bilde', el, url, navn: f.name,
@@ -274,7 +313,6 @@ export function DekselGenerator({
   function leggTilTekst() {
     if (!boks) return;
     FONTER.forEach((f) => lastFont(f.id));
-    visStudio();
     leggTilLag({
       id: nyId(), type: 'tekst', tekst: 'Din tekst', font: 'inter', farge: startFarge(),
       u: boks.cu, v: boks.cv, hoyde: Math.round(Math.min(14, boks.b / 6)), rot: 0,
@@ -285,7 +323,6 @@ export function DekselGenerator({
 
   function leggTilSymbol(id: string) {
     if (!boks) return;
-    visStudio();
     leggTilLag({
       id: nyId(), type: 'symbol', symbol: id, farge: startFarge(),
       u: boks.cu, v: boks.cv, bredde: Math.round(Math.min(30, boks.b * 0.45)), rot: 0,
@@ -422,6 +459,7 @@ export function DekselGenerator({
 
   useEffect(() => {
     if (!a || !r || !lag.length) { setPrint({ bilde: '', nokkel, pal: [], brukt: [] }); return; }
+    if (fase !== 'forhandsvis') return; // regnes først når kunden vil se forhåndsvisningen
     setRegner(true);
     let t = 0;
     let avbrutt = false;
@@ -487,11 +525,32 @@ export function DekselGenerator({
     t = window.setTimeout(beregn, erBeroring() ? 300 : 160);
     return () => { avbrutt = true; window.clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nokkel, W, H]);
+  }, [nokkel, W, H, fase]);
 
   const printOppdatert = print.nokkel === nokkel && !!print.bilde;
   const antallBrukt = print.brukt.filter((i) => i > 0).length;
   const pris = dekselPris(grunnpris, perFarge, Math.max(1, antallBrukt));
+
+  /* ---------- rediger -> forhåndsvisning ---------- */
+  const kolonneRef = useRef<HTMLDivElement>(null);
+  /** Knappen forsvinner når fasen byttes – hold hele kolonnen i ro i stedet. */
+  function holdKolonnen() {
+    const el = kolonneRef.current;
+    if (el) anker.current = { el, top: el.getBoundingClientRect().top, t: performance.now() };
+  }
+  function seForhandsvisning() {
+    if (!lag.length) return;
+    holdKolonnen();
+    setValgt(null);
+    velgModus('flytt');
+    setFase('forhandsvis');
+    setTre(!!modell?.fil_url);
+  }
+  function tilbakeTilRedigering() {
+    holdKolonnen();
+    setFase('rediger');
+    setTre(false);
+  }
 
   /* ---------- bestilling ---------- */
   function leggIBestilling() {
@@ -528,9 +587,9 @@ export function DekselGenerator({
   const motivFil = motivIder.map(fil);
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start [touch-action:manipulation]">
+    <div ref={rotRef} className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start [touch-action:manipulation] [overflow-anchor:none]">
       {/* ================= Studioet ================= */}
-      <div className="lg:sticky lg:top-24" ref={studioRef} style={{ scrollMarginTop: 72 }}>
+      <div className="min-w-0 lg:sticky lg:top-24" ref={studioRef} style={{ scrollMarginTop: 72 }}>
         <div className="studio px-3 pb-4 pt-12 sm:px-6">
           <div className="studio-rutenett" />
           <span className="studio-hjorne left-3 top-3 border-l border-t" />
@@ -542,7 +601,7 @@ export function DekselGenerator({
           <div className="studio-hud pointer-events-none absolute inset-x-5 top-4 flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
               <span className={`studio-prikk ${regner ? 'opptatt' : ''}`} />
-              {regner ? 'Beregner print' : 'Dekselstudio'} · <b>{modell?.navn}</b>
+              {fase === 'forhandsvis' ? (regner ? 'Lager forhåndsvisning' : 'Forhåndsvisning') : 'Dekselstudio'} · <b>{modell?.navn}</b>
             </span>
             {r && <span className="hidden sm:inline">{fmt(r.bredde)} × {fmt(r.hoyde)} mm · oppløsning <b>{String(SKALA).replace('.', ',')} mm</b></span>}
           </div>
@@ -555,7 +614,7 @@ export function DekselGenerator({
                 </p>
               </div>
             )}
-            {tre && a && r && modell?.fil_url && (
+            {fase === 'forhandsvis' && tre && a && r && modell?.fil_url && (
               <Visning3D
                 modellUrl={modell.fil_url}
                 modellFilnavn={modell.fil_navn || modell.fil_url.split('/').pop() || 'modell.3mf'}
@@ -565,7 +624,8 @@ export function DekselGenerator({
                 ramme={{ u0: r.u0, v0: r.v0, bredde: W, hoyde: H, skala: SKALA }}
               />
             )}
-            {!tre && a && r && modell && (
+            {(fase === 'rediger' || !tre) && a && r && modell && (
+              <div className={fase === 'forhandsvis' ? 'pointer-events-none' : undefined}>
               <Lerret
                 a={a}
                 r={r}
@@ -575,7 +635,7 @@ export function DekselGenerator({
                 dekselHex={dekselFil.hex}
                 hex={hex}
                 printBilde={print.bilde}
-                visPrint={visning === 'print' && printOppdatert}
+                visPrint={fase === 'forhandsvis' && printOppdatert}
                 bildeW={W}
                 bildeH={H}
                 skala={SKALA}
@@ -592,11 +652,18 @@ export function DekselGenerator({
                 onStrek={leggTilStrek}
                 onAktiv={(b) => { aktivRef.current = b; }}
               />
+              </div>
+            )}
+            {fase === 'forhandsvis' && !printOppdatert && lag.length > 0 && (
+              <p className="studio-hud pointer-events-none absolute inset-x-0 top-2 text-center !normal-case !tracking-normal">
+                Gjør om til fargene vi printer med …
+              </p>
             )}
           </div>
 
-          <p className="studio-hud pointer-events-none mt-2 h-4 text-center" aria-hidden={!(valgtLag && modus === 'flytt' && !tre)}>
-            {!tre && valgtLag && modus === 'flytt' && (valgtLag.type !== 'tegning' ? (
+          <p className="studio-hud pointer-events-none mt-2 h-4 text-center" aria-hidden={!(valgtLag && modus === 'flytt' && fase === 'rediger')}>
+            {fase === 'forhandsvis' && <>Slik blir dekselet – i fargene vi printer med</>}
+            {fase === 'rediger' && valgtLag && modus === 'flytt' && (valgtLag.type !== 'tegning' ? (
                 <>x <b>{fmt(valgtLag.u)}</b> · y <b>{fmt(valgtLag.v)}</b> · {valgtLag.type === 'tekst' ? 'h' : 'b'} <b>{fmt(valgtLag.type === 'tekst' ? valgtLag.hoyde : valgtLag.bredde)} mm</b> · rot <b>{valgtLag.rot}°</b></>
               ) : (
                 <>tegning · <b>{valgtLag.streker.length}</b> {valgtLag.streker.length === 1 ? 'strek' : 'streker'}</>
@@ -605,13 +672,13 @@ export function DekselGenerator({
 
           {/* verktøylinje */}
           <div className="relative mt-3 flex flex-wrap items-center justify-center gap-2">
-            {modell?.fil_url && (
-              <div className="studio-verktoy" role="group" aria-label="2D eller 3D">
-                <button type="button" onClick={() => setTre(false)} aria-pressed={!tre}>2D</button>
-                <button type="button" onClick={() => { setTre(true); setValgt(null); velgModus('flytt'); }} aria-pressed={tre}>3D</button>
+            {fase === 'forhandsvis' && modell?.fil_url && (
+              <div className="studio-verktoy" role="group" aria-label="Flatt eller 3D">
+                <button type="button" onClick={() => setTre(false)} aria-pressed={!tre}>Flatt</button>
+                <button type="button" onClick={() => setTre(true)} aria-pressed={tre}>3D</button>
               </div>
             )}
-            {!tre && <div className="studio-verktoy" role="group" aria-label="Verktøy">
+            {fase === 'rediger' && <div className="studio-verktoy" role="group" aria-label="Verktøy">
               {([
                 ['flytt', 'Flytt', 'flytt'],
                 ['tegn', 'Tegn', 'blyant'],
@@ -629,27 +696,13 @@ export function DekselGenerator({
                 <Ikon navn="gjenta" />
               </button>
             </div>}
-            {!tre && harBilde && (
-              <div className="studio-verktoy" role="group" aria-label="Visning">
-                {(['print', 'original'] as const).map((v) => (
-                  <button key={v} type="button" onClick={() => setVisning(v)} aria-pressed={visning === v}>
-                    {v === 'print' ? 'Print' : 'Original'}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* penn */}
-          {!tre && modus !== 'flytt' && (
+          {fase === 'rediger' && modus !== 'flytt' && (
             <div className="studio-panel relative mx-auto mt-3 flex max-w-xl flex-wrap items-center justify-center gap-3 px-4 py-3">
               {modus === 'tegn' && (
-                <div className="flex flex-wrap gap-1.5">
-                  {filamenter.filter((f) => f.id !== dekselId).map((f) => (
-                    <Fargeknapp key={f.id} f={f} liten valgt={pennFarge === f.id} deaktivert={!tillatt(f.id)}
-                      onClick={() => setPenn({ ...penn, farge: f.id })} />
-                  ))}
-                </div>
+                <FargeVelger valgt={pennFarge} filamenter={filamenter} dekselId={dekselId} onVelg={(f) => setPenn({ ...penn, farge: f })} />
               )}
               <div className="flex items-center gap-1.5" role="group" aria-label="Tykkelse">
                 {PENNER.map((b) => (
@@ -666,14 +719,12 @@ export function DekselGenerator({
           )}
 
           {/* valgt lag */}
-          {!tre && valgtLag && modus === 'flytt' && boks && (
+          {fase === 'rediger' && valgtLag && modus === 'flytt' && boks && (
             <div className="relative">
               <LagPanel
                 lag={valgtLag}
                 filamenter={filamenter}
                 dekselId={dekselId}
-                tillatt={(f) => tillatt(f, valgtLag.id)}
-                maksFarger={maksFarger}
                 tekstRef={tekstFelt}
                 boks={boks}
                 onEndre={(l, kontinuerlig) => { merke(!kontinuerlig); if (kontinuerlig) endreLagRolig(l); else endreLag(l); }}
@@ -689,7 +740,9 @@ export function DekselGenerator({
       </div>
 
       {/* ================= Valg ================= */}
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4" ref={kolonneRef}>
+        {fase === 'rediger' ? (
+          <>
         <Steg nr={1} tittel="Velg mobil">
           {grupper.length > 1 && (
             <div className="mb-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${grupper.length}, minmax(0, 1fr))` }} role="radiogroup" aria-label="Merke">
@@ -733,7 +786,7 @@ export function DekselGenerator({
             <button type="button" className={`verktoy-knapp ${visSymboler ? 'aktiv' : ''}`} onClick={() => setVisSymboler((v) => !v)}>
               <Ikon navn="stjerne" stor /> Symbol
             </button>
-            <button type="button" className={`verktoy-knapp ${modus === 'tegn' ? 'aktiv' : ''}`} onClick={() => { if (modus !== 'tegn') visStudio(); velgModus(modus === 'tegn' ? 'flytt' : 'tegn'); }}>
+            <button type="button" className={`verktoy-knapp ${modus === 'tegn' ? 'aktiv' : ''}`} onClick={() => velgModus(modus === 'tegn' ? 'flytt' : 'tegn')}>
               <Ikon navn="blyant" stor /> Tegn
             </button>
           </div>
@@ -773,7 +826,28 @@ export function DekselGenerator({
           </p>
         </Steg>
 
-        <Steg nr={3} tittel="Farger">
+            <section className="rounded-3xl border border-brand-200 bg-gradient-to-br from-white to-brand-50/70 p-5 shadow-soft">
+              <button type="button" onClick={seForhandsvisning} disabled={!lag.length} className="btn-primary w-full py-3 text-base disabled:opacity-50">
+                {lag.length ? 'Se forhåndsvisning' : 'Lag et motiv først'}
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M5 12h14m0 0-5.5-5.5M19 12l-5.5 5.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+              <p className="mt-2.5 text-center text-[13px] leading-relaxed text-ink-500">
+                Lag motivet med de fargene du vil. I neste steg ser du dekselet i fargene vi printer med – også i 3D – og prisen.
+              </p>
+            </section>
+          </>
+        ) : (
+          <>
+            <section className="flex items-center gap-3 rounded-3xl border border-ink-100 bg-white p-4 shadow-soft">
+              <button type="button" onClick={tilbakeTilRedigering} className="btn-ghost btn-sm shrink-0">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M19 12H5m0 0 5.5-5.5M5 12l5.5 5.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                Rediger
+              </button>
+              <p className="min-w-0 text-sm text-ink-600">
+                <span className="font-semibold text-ink-900">{modell?.navn}</span> · {dekselFil.navn.toLowerCase()} deksel
+              </p>
+            </section>
+        <Steg nr={3} tittel="Fargene i printen">
           {dekselValg.length > 1 ? (
             <>
               <p className="label">Dekselfarge</p>
@@ -795,7 +869,7 @@ export function DekselGenerator({
               <p className="label mt-4">Antall farger i motivet</p>
               <div className="inline-flex rounded-full border border-ink-200 bg-ink-50 p-1" role="group">
                 {Array.from({ length: maksFarger }, (_, i) => i + 1).map((n) => (
-                  <button key={n} type="button" disabled={n < faste.length} onClick={() => { setAntall(n); setManuelt(false); setLagtTil(false); }}
+                  <button key={n} type="button" disabled={n < faste.length} onClick={() => { setAntallValgt(n); setManuelt(false); setLagtTil(false); }}
                     className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors disabled:opacity-30 ${Math.max(antall, faste.length) === n ? 'bg-brand-600 text-white' : 'text-ink-600 hover:bg-white'}`}>
                     {n}
                   </button>
@@ -829,7 +903,8 @@ export function DekselGenerator({
             </>
           )}
           <p className="hint">
-            Maks {maksFarger} farger i motivet. Trykk på en farge for å bytte den overalt.
+            Vi printer med inntil {maksFarger} farger. Fargene er valgt automatisk så motivet ligner mest mulig – trykk på en
+            farge for å bytte den.
           </p>
         </Steg>
 
@@ -854,6 +929,8 @@ export function DekselGenerator({
             setter i gang med en gang.
           </p>
         </Steg>
+          </>
+        )}
       </div>
     </div>
   );

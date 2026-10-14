@@ -7,14 +7,12 @@ import { FONTER, font as finnFont } from '@/lib/deksel/fonter';
 import { MIN_TEKST, lagNavn, type Lag, type Stil } from '@/lib/deksel/lag';
 import { autoMengde } from '@/lib/deksel/bildefarge';
 import { Ikon } from './Ikon';
-import { Fargeknapp } from './Fargeknapp';
+import { FargeVelger } from './FargeVelger';
 
 export function LagPanel({
   lag: l,
   filamenter,
   dekselId,
-  tillatt,
-  maksFarger,
   tekstRef,
   boks,
   onEndre,
@@ -27,8 +25,6 @@ export function LagPanel({
   lag: Lag;
   filamenter: Filament[];
   dekselId: string;
-  tillatt: (farge: string) => boolean;
-  maksFarger: number;
   tekstRef: RefObject<HTMLTextAreaElement>;
   boks: { b: number; h: number; cu: number; cv: number };
   /** kontinuerlig = glidebryter/skriving (samles til ett angre-steg) */
@@ -98,7 +94,7 @@ export function LagPanel({
           valg={[['alle', 'Farger fra bildet'], ['en', 'Én farge']]}
           onVelg={(v) => {
             if (v === 'alle') onEndre({ ...l, farge: undefined });
-            else onEndre({ ...l, farge: valgbare.find((f) => tillatt(f.id))?.id ?? valgbare[0]?.id, stil: l.stil ?? 'fyll' });
+            else onEndre({ ...l, farge: valgbare[0]?.id, stil: l.stil ?? 'fyll' });
           }}
         />
       )}
@@ -106,14 +102,9 @@ export function LagPanel({
       {harEnFarge && (
         <div>
           <span className="studio-etikett">Farge</span>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {valgbare.map((f) => (
-              <Fargeknapp key={f.id} f={f} liten valgt={farge === f.id} deaktivert={!tillatt(f.id)} onClick={() => settFarge(f.id)} />
-            ))}
+          <div className="mt-1.5">
+            <FargeVelger valgt={farge} filamenter={filamenter} dekselId={dekselId} onVelg={settFarge} />
           </div>
-          {valgbare.some((f) => !tillatt(f.id)) && (
-            <p className="mt-1.5 text-[11px] text-white/45">Maks {maksFarger} farger på dekselet – noen er grået ut.</p>
-          )}
         </div>
       )}
 
