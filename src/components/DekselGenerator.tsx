@@ -185,7 +185,8 @@ export function DekselGenerator({
 
   /* ---------- farger ---------- */
   /** rediger = fritt med alle farger · forhandsvis = slik det blir printet, med fargene vi har */
-  const [fase, setFase] = useState<'rediger' | 'forhandsvis'>('rediger');
+  /** 1 rediger (alle farger) → 2 farger (slik blir det med våre farger) → 3 bestill (3D, pris) */
+  const [fase, setFase] = useState<Fase>('rediger');
   const [antallValgt, setAntallValgt] = useState<number | null>(null);
   const [motivIder, setMotivIder] = useState<string[]>([]);
   const [manuelt, setManuelt] = useState(false);
@@ -459,7 +460,7 @@ export function DekselGenerator({
 
   useEffect(() => {
     if (!a || !r || !lag.length) { setPrint({ bilde: '', nokkel, pal: [], brukt: [] }); return; }
-    if (fase !== 'forhandsvis') return; // regnes først når kunden vil se forhåndsvisningen
+    if (fase === 'rediger') return; // regnes først når kunden går videre til fargene
     setRegner(true);
     let t = 0;
     let avbrutt = false;
@@ -538,18 +539,19 @@ export function DekselGenerator({
     const el = kolonneRef.current;
     if (el) anker.current = { el, top: el.getBoundingClientRect().top, t: performance.now() };
   }
-  function seForhandsvisning() {
-    if (!lag.length) return;
-    holdKolonnen();
+  function gaTil(ny: Fase) {
+    if (ny !== 'rediger' && !lag.length) return;
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      holdKolonnen(); // PC: dekselet står ved siden av – siden blir stående
+    } else {
+      // mobil: vis dekselet med en gang, akkurat som man ser det på PC
+      anker.current = null;
+      requestAnimationFrame(() => studioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
     setValgt(null);
     velgModus('flytt');
-    setFase('forhandsvis');
-    setTre(!!modell?.fil_url);
-  }
-  function tilbakeTilRedigering() {
-    holdKolonnen();
-    setFase('rediger');
-    setTre(false);
+    setFase(ny);
+    setTre(ny === 'bestill' && !!modell?.fil_url);
   }
 
   /* ---------- bestilling ---------- */
@@ -601,7 +603,7 @@ export function DekselGenerator({
           <div className="studio-hud pointer-events-none absolute inset-x-5 top-4 flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
               <span className={`studio-prikk ${regner ? 'opptatt' : ''}`} />
-              {fase === 'forhandsvis' ? (regner ? 'Lager forhåndsvisning' : 'Forhåndsvisning') : 'Dekselstudio'} · <b>{modell?.navn}</b>
+              {fase === 'rediger' ? 'Dekselstudio' : regner ? 'Gjør om til våre farger' : fase === 'farger' ? 'Med våre farger' : 'Ferdig deksel'} · <b>{modell?.navn}</b>
             </span>
             {r && <span className="hidden sm:inline">{fmt(r.bredde)} × {fmt(r.hoyde)} mm · oppløsning <b>{String(SKALA).replace('.', ',')} mm</b></span>}
           </div>
@@ -614,7 +616,7 @@ export function DekselGenerator({
                 </p>
               </div>
             )}
-            {fase === 'forhandsvis' && tre && a && r && modell?.fil_url && (
+            {fase === 'bestill' && tre && a && r && modell?.fil_url && (
               <Visning3D
                 modellUrl={modell.fil_url}
                 modellFilnavn={modell.fil_navn || modell.fil_url.split('/').pop() || 'modell.3mf'}
@@ -624,8 +626,8 @@ export function DekselGenerator({
                 ramme={{ u0: r.u0, v0: r.v0, bredde: W, hoyde: H, skala: SKALA }}
               />
             )}
-            {(fase === 'rediger' || !tre) && a && r && modell && (
-              <div className={fase === 'forhandsvis' ? 'pointer-events-none' : undefined}>
+            {(fase !== 'bestill' || !tre) && a && r && modell && (
+              <div className={fase !== 'rediger' ? 'pointer-events-none' : undefined}>
               <Lerret
                 a={a}
                 r={r}
@@ -635,7 +637,7 @@ export function DekselGenerator({
                 dekselHex={dekselFil.hex}
                 hex={hex}
                 printBilde={print.bilde}
-                visPrint={fase === 'forhandsvis' && printOppdatert}
+                visPrint={fase !== 'rediger' && printOppdatert}
                 bildeW={W}
                 bildeH={H}
                 skala={SKALA}
@@ -654,7 +656,7 @@ export function DekselGenerator({
               />
               </div>
             )}
-            {fase === 'forhandsvis' && !printOppdatert && lag.length > 0 && (
+            {fase !== 'rediger' && !printOppdatert && lag.length > 0 && (
               <p className="studio-hud pointer-events-none absolute inset-x-0 top-2 text-center !normal-case !tracking-normal">
                 Gjør om til fargene vi printer med …
               </p>
@@ -662,7 +664,8 @@ export function DekselGenerator({
           </div>
 
           <p className="studio-hud pointer-events-none mt-2 h-4 text-center" aria-hidden={!(valgtLag && modus === 'flytt' && fase === 'rediger')}>
-            {fase === 'forhandsvis' && <>Slik blir dekselet – i fargene vi printer med</>}
+            {fase === 'farger' && <>Slik blir motivet med fargene vi printer med</>}
+            {fase === 'bestill' && <>Dra for å snu dekselet</>}
             {fase === 'rediger' && valgtLag && modus === 'flytt' && (valgtLag.type !== 'tegning' ? (
                 <>x <b>{fmt(valgtLag.u)}</b> · y <b>{fmt(valgtLag.v)}</b> · {valgtLag.type === 'tekst' ? 'h' : 'b'} <b>{fmt(valgtLag.type === 'tekst' ? valgtLag.hoyde : valgtLag.bredde)} mm</b> · rot <b>{valgtLag.rot}°</b></>
               ) : (
@@ -672,7 +675,7 @@ export function DekselGenerator({
 
           {/* verktøylinje */}
           <div className="relative mt-3 flex flex-wrap items-center justify-center gap-2">
-            {fase === 'forhandsvis' && modell?.fil_url && (
+            {fase === 'bestill' && modell?.fil_url && (
               <div className="studio-verktoy" role="group" aria-label="Flatt eller 3D">
                 <button type="button" onClick={() => setTre(false)} aria-pressed={!tre}>Flatt</button>
                 <button type="button" onClick={() => setTre(true)} aria-pressed={tre}>3D</button>
@@ -741,6 +744,7 @@ export function DekselGenerator({
 
       {/* ================= Valg ================= */}
       <div className="min-w-0 space-y-4" ref={kolonneRef}>
+        <Stegviser fase={fase} kan={lag.length > 0} onGa={gaTil} />
         {fase === 'rediger' ? (
           <>
         <Steg nr={1} tittel="Velg mobil">
@@ -827,27 +831,20 @@ export function DekselGenerator({
         </Steg>
 
             <section className="rounded-3xl border border-brand-200 bg-gradient-to-br from-white to-brand-50/70 p-5 shadow-soft">
-              <button type="button" onClick={seForhandsvisning} disabled={!lag.length} className="btn-primary w-full py-3 text-base disabled:opacity-50">
-                {lag.length ? 'Se forhåndsvisning' : 'Lag et motiv først'}
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M5 12h14m0 0-5.5-5.5M19 12l-5.5 5.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <button type="button" onClick={() => gaTil('farger')} disabled={!lag.length} className="btn-primary w-full py-3 text-base disabled:opacity-50">
+                {lag.length ? <>Neste: se fargene <Pil /></> : 'Lag et motiv først'}
               </button>
               <p className="mt-2.5 text-center text-[13px] leading-relaxed text-ink-500">
-                Lag motivet med de fargene du vil. I neste steg ser du dekselet i fargene vi printer med – også i 3D – og prisen.
+                Lag motivet med de fargene du vil. I neste steg ser du hvordan det blir med fargene vi printer med.
               </p>
             </section>
           </>
-        ) : (
-          <>
-            <section className="flex items-center gap-3 rounded-3xl border border-ink-100 bg-white p-4 shadow-soft">
-              <button type="button" onClick={tilbakeTilRedigering} className="btn-ghost btn-sm shrink-0">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M19 12H5m0 0 5.5-5.5M5 12l5.5 5.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                Rediger
-              </button>
-              <p className="min-w-0 text-sm text-ink-600">
-                <span className="font-semibold text-ink-900">{modell?.navn}</span> · {dekselFil.navn.toLowerCase()} deksel
-              </p>
-            </section>
-        <Steg nr={3} tittel="Fargene i printen">
+        ) : fase === 'farger' ? (
+        <Steg nr={3} tittel="Slik blir fargene">
+          <p className="mb-4 text-[13px] leading-relaxed text-ink-600">
+            Vi printer med {filamenter.length} filamentfarger, inntil {maksFarger} i samme motiv. Til venstre ser du dekselet slik det
+            faktisk blir. Ser det bra ut? Trykk <b>Videre</b>. Vil du endre noe, gå tilbake og rediger.
+          </p>
           {dekselValg.length > 1 ? (
             <>
               <p className="label">Dekselfarge</p>
@@ -906,9 +903,22 @@ export function DekselGenerator({
             Vi printer med inntil {maksFarger} farger. Fargene er valgt automatisk så motivet ligner mest mulig – trykk på en
             farge for å bytte den.
           </p>
+          <div className="mt-5 grid grid-cols-[auto_1fr] gap-2">
+            <button type="button" onClick={() => gaTil('rediger')} className="btn-ghost">
+              <Pil tilbake /> Rediger
+            </button>
+            <button type="button" onClick={() => gaTil('bestill')} disabled={!printOppdatert} className="btn-primary disabled:opacity-50">
+              {printOppdatert ? <>Videre <Pil /></> : 'Et øyeblikk …'}
+            </button>
+          </div>
         </Steg>
 
+        ) : (
         <Steg nr={4} tittel="Pris og bestilling">
+          <p className="mb-3 text-sm text-ink-600">
+            <span className="font-semibold text-ink-900">{modell?.navn}</span> · {dekselFil.navn.toLowerCase()} deksel ·{' '}
+            {Math.max(1, antallBrukt)} {Math.max(1, antallBrukt) === 1 ? 'farge' : 'farger'} i motivet
+          </p>
           <dl className="space-y-1.5 text-sm">
             <div className="flex justify-between"><dt className="text-ink-600">Deksel med motiv</dt><dd className="font-semibold">{grunnpris} kr</dd></div>
             <div className="flex justify-between">
@@ -924,15 +934,53 @@ export function DekselGenerator({
             </button>
             {lagtTil && <Link href="/bestill" className="btn-ghost">Gå til bestilling</Link>}
           </div>
+          <button type="button" onClick={() => gaTil('farger')} className="mt-2 text-[13px] font-semibold text-brand-700 hover:underline">
+            ← Tilbake til fargene
+          </button>
           <p className="mt-3 text-xs leading-relaxed text-ink-500">
             Motivet printes inn i baksiden, så det kjennes helt glatt og ikke kan skrapes av. Fast pris – vi
             setter i gang med en gang.
           </p>
         </Steg>
-          </>
         )}
       </div>
     </div>
+  );
+}
+
+type Fase = 'rediger' | 'farger' | 'bestill';
+
+function Pil({ tilbake }: { tilbake?: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className={tilbake ? 'rotate-180' : undefined}>
+      <path d="M5 12h14m0 0-5.5-5.5M19 12l-5.5 5.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** 1 Lag motivet · 2 Se fargene · 3 Bestill – trykk på et steg du har vært på for å gå tilbake. */
+function Stegviser({ fase, kan, onGa }: { fase: Fase; kan: boolean; onGa: (f: Fase) => void }) {
+  const steg: [Fase, string][] = [['rediger', 'Lag motivet'], ['farger', 'Se fargene'], ['bestill', 'Bestill']];
+  const aktiv = steg.findIndex(([f]) => f === fase);
+  return (
+    <ol className="flex items-center gap-1.5 rounded-2xl border border-ink-100 bg-white p-1.5 shadow-soft">
+      {steg.map(([f, navn], i) => {
+        const tilgjengelig = i <= aktiv || (kan && i === aktiv + 1);
+        return (
+          <li key={f} className="flex-1">
+            <button type="button" disabled={!tilgjengelig || i === aktiv} onClick={() => onGa(f)} aria-current={i === aktiv ? 'step' : undefined}
+              className={`flex w-full items-center justify-center gap-2 rounded-xl px-2 py-2 text-[13px] font-semibold transition-colors ${
+                i === aktiv ? 'bg-slate-900 text-white' : i < aktiv ? 'text-brand-700 hover:bg-brand-50' : 'text-ink-400'
+              }`}>
+              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] ${i === aktiv ? 'bg-cyan-400 text-slate-900' : i < aktiv ? 'bg-brand-100 text-brand-700' : 'bg-ink-100'}`}>
+                {i < aktiv ? '✓' : i + 1}
+              </span>
+              <span className="truncate">{navn}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

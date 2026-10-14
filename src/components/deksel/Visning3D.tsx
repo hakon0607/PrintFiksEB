@@ -263,7 +263,7 @@ export function Visning3D({
         </div>
       )}
       {status === 'klar' && (
-        <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-2">
+        <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap">
           <button type="button" className="studio-knapp !py-1.5 !text-xs" onClick={() => { const ny = !auto; setAuto(ny); scene.current?.settAuto(ny); }}>
             {auto ? 'Stopp rotasjon' : 'Roter automatisk'}
           </button>
