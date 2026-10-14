@@ -768,7 +768,8 @@ create table if not exists public.deksel_modeller (
   sort        int not null default 100,
   fil_url     text not null default '',
   fil_navn    text default '',
-  analyse     jsonb,           -- baksiden, kamerahull og trygg sone – regnes ut automatisk
+  bakside     jsonb,           -- baksiden, kamerahull og trygg sone – regnes ut automatisk
+                               -- («analyse» er et reservert ord i Postgres)
   created_at  timestamptz not null default now()
 );
 

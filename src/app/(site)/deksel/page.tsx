@@ -21,7 +21,7 @@ async function hentModeller(): Promise<DekselModell[]> {
   try {
     const { data, error } = await sb
       .from('deksel_modeller')
-      .select('id,navn,analyse')
+      .select('id,navn,analyse:bakside')
       .eq('aktiv', true)
       .order('sort')
       .order('navn');

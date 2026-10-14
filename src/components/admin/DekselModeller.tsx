@@ -33,7 +33,11 @@ export function DekselModeller() {
 
   const hent = useCallback(async () => {
     if (!supabase) return;
-    const { data, error } = await supabase.from('deksel_modeller').select('*').order('sort').order('navn');
+    const { data, error } = await supabase
+      .from('deksel_modeller')
+      .select('id,navn,aktiv,sort,fil_url,fil_navn,analyse:bakside')
+      .order('sort')
+      .order('navn');
     if (error) { setMangler(true); setLaster(false); return; }
     setMangler(false);
     setModeller((data as Modell[]) ?? []);
@@ -75,7 +79,7 @@ export function DekselModeller() {
       navn: navn.trim(),
       fil_url: url,
       fil_navn: fil.name,
-      analyse,
+      bakside: analyse,
       sort: (modeller.length + 1) * 10,
     });
     if (e2) { setFeil(`Klarte ikke å lagre: ${e2.message}`); setJobber(''); return; }

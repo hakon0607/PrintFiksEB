@@ -37,7 +37,7 @@ export function DekselPrintfil({ design, ordrenr }: { design: DekselDesign; ordr
     try {
       const { data, error } = await supabase
         .from('deksel_modeller')
-        .select('fil_url,fil_navn,analyse')
+        .select('fil_url,fil_navn,analyse:bakside')
         .eq('id', design.modellId)
         .maybeSingle();
       if (error || !data) throw new Error('Fant ikke dekselmodellen. Er den slettet i Deksler?');
