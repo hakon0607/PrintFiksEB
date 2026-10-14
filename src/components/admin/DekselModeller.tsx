@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAdmin } from './AdminProvider';
 import type { Analyse } from '@/lib/deksel/analyse';
-import { rammer, sti } from '@/lib/deksel/svg';
 import { STANDARD_FILAMENTER } from '@/lib/deksel/farger';
+import { navnFraFil, rangering } from '@/lib/deksel/modellnavn';
+import { DekselMiniatyr as Miniatyr } from './DekselMiniatyr';
+import { DekselMasseopplasting } from './DekselMasseopplasting';
+import innebygde from '@/lib/deksel/innebygde.json';
 
 type Modell = {
   id: string;
@@ -51,10 +54,7 @@ export function DekselModeller() {
     setFil(f);
     setAnalyse(null);
     setFeil('');
-    if (!navn) {
-      const gjett = f.name.match(/iphone\s*_?(\d{2})\s*(pro\s*max|pro|plus|mini|e)?/i);
-      if (gjett) setNavn(`iPhone ${gjett[1]}${gjett[2] ? ' ' + gjett[2].replace(/\b\w/g, (c) => c.toUpperCase()) : ''}`);
-    }
+    if (!navn) setNavn(navnFraFil(f.name));
     setJobber('Finner baksiden, kamerahullet og den trygge sonen …');
     try {
       const { analyserFil } = await import('@/lib/deksel/nettleser');
@@ -80,7 +80,7 @@ export function DekselModeller() {
       fil_url: url,
       fil_navn: fil.name,
       bakside: analyse,
-      sort: (modeller.length + 1) * 10,
+      sort: rangering(navn.trim()),
     });
     if (e2) { setFeil(`Klarte ikke å lagre: ${e2.message}`); setJobber(''); return; }
     setNavn(''); setFil(null); setAnalyse(null); setJobber('');
@@ -91,6 +91,16 @@ export function DekselModeller() {
     if (!supabase) return;
     setModeller((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m)));
     await supabase.from('deksel_modeller').update(patch).eq('id', id);
+  }
+
+  const [sorterer, setSorterer] = useState(false);
+  async function sorterAlle() {
+    if (!supabase) return;
+    setSorterer(true);
+    const nye = modeller.map((m) => ({ ...m, sort: rangering(m.navn) }));
+    for (const m of nye) await supabase.from('deksel_modeller').update({ sort: m.sort }).eq('id', m.id);
+    setSorterer(false);
+    hent();
   }
 
   async function slett(m: Modell) {
@@ -133,9 +143,18 @@ export function DekselModeller() {
 
   return (
     <div className="space-y-6">
-      {/* ---------- Legg til ---------- */}
-      <section className="rounded-3xl border border-ink-100 bg-white p-6 shadow-soft">
-        <h2 className="text-lg font-bold">Legg til en mobil</h2>
+      {/* ---------- Fra GitHub ---------- */}
+      <FraGithub iDb={modeller.map((m) => m.navn)} />
+
+      {/* ---------- Mange på en gang ---------- */}
+      <DekselMasseopplasting supabase={supabase} eksisterende={modeller} ferdig={hent} />
+
+      {/* ---------- Legg til én ---------- */}
+      <details className="group rounded-3xl border border-ink-100 bg-white p-6 shadow-soft">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-lg font-bold">
+          Legg til én mobil
+          <span className="text-sm font-semibold text-ink-400 transition-transform group-open:rotate-180" aria-hidden>▾</span>
+        </summary>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
           Last opp dekselet som 3MF fra Bambu Studio eller som STL – med <b>baksiden ned mot plata</b>. Siden finner
           selv baksiden, kamerahullet og hvor motivet trygt kan ligge. Dere trenger ikke stille inn noe.
@@ -176,16 +195,23 @@ export function DekselModeller() {
             </div>
           </div>
         )}
-      </section>
+      </details>
 
       {/* ---------- Modellene ---------- */}
       <section>
-        <h2 className="text-lg font-bold">Mobilene i generatoren</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">Mobilene i generatoren{modeller.length > 0 && <span className="ml-2 text-sm font-semibold text-ink-400">{modeller.length}</span>}</h2>
+          {modeller.length > 1 && (
+            <button type="button" onClick={sorterAlle} disabled={sorterer} className="btn-ghost btn-sm disabled:opacity-50">
+              {sorterer ? 'Sorterer …' : 'Sorter etter modell (nyeste først)'}
+            </button>
+          )}
+        </div>
         {laster ? (
           <div className="mt-4 h-40 animate-pulse rounded-3xl bg-white/70" />
         ) : modeller.length === 0 ? (
           <p className="mt-3 rounded-2xl border border-dashed border-ink-200 bg-white/70 px-5 py-8 text-center text-sm text-ink-500">
-            Ingen mobiler ennå. Last opp den første over.
+            Ingen mobiler ennå. Slipp dekselfilene i feltet over.
           </p>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -229,16 +255,41 @@ export function DekselModeller() {
   );
 }
 
-function Miniatyr({ a, visTrygg, className }: { a: Analyse; visTrygg?: boolean; className?: string }) {
-  const r = rammer(a.silhuett);
-  return (
-    <svg viewBox={`${r.u0 - 2} ${-r.v0 - 2} ${r.bredde + 4} ${r.hoyde + 4}`} className={className} aria-hidden>
-      <path d={sti([a.silhuett, ...a.hull])} fill="#ffffff" fillRule="evenodd" stroke="#8891A2" strokeWidth="0.6" />
-      <path d={sti(a.trygg.flat())} fill={visTrygg ? 'rgba(37,89,199,.08)' : 'none'} fillRule="evenodd" stroke="#2559C7" strokeWidth="0.5" strokeDasharray="1.6 1.2" />
-    </svg>
-  );
-}
-
 function tall(n: number) {
   return n.toLocaleString('nb-NO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+/** Mobilene som kommer fra dekselfilene i GitHub-repoet (samles automatisk ved hver publisering). */
+function FraGithub({ iDb }: { iDb: string[] }) {
+  const liste = innebygde as { id: string; navn: string; fil_navn: string }[];
+  const db = new Set(iDb.map((n) => n.trim().toLowerCase()));
+  return (
+    <section className="rounded-3xl border border-ink-100 bg-white p-6 shadow-soft">
+      <h2 className="text-lg font-bold">
+        Fra GitHub <span className="ml-1 text-sm font-semibold text-ink-400">{liste.length}</span>
+      </h2>
+      {liste.length === 0 ? (
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
+          Ingen dekselfiler funnet i repoet ennå. Last opp filer som <span className="font-mono text-xs">iphone-16-pro.stl</span> eller{' '}
+          <span className="font-mono text-xs">galaxy-s25-ultra.stl</span> til GitHub (hvilken som helst mappe) – de dukker opp her og i
+          dekselstudioet etter neste publisering.
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
+            Disse hentes automatisk fra dekselfilene i GitHub, med navn og rekkefølge fra filnavnet. Nye filer kommer med ved neste
+            publisering. Har en mobil samme navn i databasen under, brukes den i stedet.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {liste.map((m) => (
+              <span key={m.id} title={m.fil_navn}
+                className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${db.has(m.navn.trim().toLowerCase()) ? 'border-ink-200 text-ink-400 line-through' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+                {m.navn}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
 }

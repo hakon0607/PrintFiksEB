@@ -3,6 +3,27 @@ import { createClient } from '@supabase/supabase-js';
 import type { DekselModell } from '@/components/DekselGenerator';
 import type { Product } from '@/lib/types';
 import { DEKSEL_KODE, dekselFraPris } from './produkt';
+import innebygde from './innebygde.json';
+import { rangering } from './modellnavn';
+
+type Innebygd = { id: string; navn: string; fil_url: string; fil_navn: string; analyse_url: string; sort: number };
+
+/** Mobilene fra dekselfilene i GitHub-repoet (samlet av scripts/samle-deksler.mjs ved bygging). */
+export function innebygdeModeller(): DekselModell[] {
+  return (innebygde as Innebygd[]).map((m) => ({
+    id: m.id, navn: m.navn, fil_url: m.fil_url, fil_navn: m.fil_navn, analyse: null, analyse_url: m.analyse_url,
+  }));
+}
+
+/** Databasens mobiler + filene fra repoet. Finnes samme navn begge steder, vinner databasen. */
+function slaaSammen(fraDb: DekselModell[]): DekselModell[] {
+  const navn = new Set(fraDb.map((m) => m.navn.trim().toLowerCase()));
+  const alle = [...fraDb, ...innebygdeModeller().filter((m) => !navn.has(m.navn.trim().toLowerCase()))];
+  return alle
+    .map((m, i) => ({ m, i, r: rangering(m.navn) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.m);
+}
 
 /**
  * Egen leseklient som ALLTID henter ferske data. Next/Vercel lagrer ellers
@@ -28,7 +49,10 @@ export async function hentDekselModeller(): Promise<DekselModell[]> {
 export async function hentDekselModellerMedFeil(): Promise<{ modeller: DekselModell[]; feil: string | null; uten: string[] }> {
   noStore();
   const sb = ferskKlient();
-  if (!sb) return { modeller: [], feil: 'Nettsiden mangler Supabase-nøklene (miljøvariabler i Vercel).', uten: [] };
+  if (!sb) {
+    const fil = slaaSammen([]);
+    return { modeller: fil, feil: fil.length ? null : 'Nettsiden mangler Supabase-nøklene (miljøvariabler i Vercel).', uten: [] };
+  }
   try {
     const { data, error } = await sb
       .from('deksel_modeller')
@@ -38,13 +62,15 @@ export async function hentDekselModellerMedFeil(): Promise<{ modeller: DekselMod
       .order('navn');
     if (error) {
       console.error('[deksel] klarte ikke å hente mobilene:', error.message);
-      return { modeller: [], feil: error.message, uten: [] };
+      const fil = slaaSammen([]);
+      return { modeller: fil, feil: fil.length ? null : error.message, uten: [] };
     }
     const alle = (data ?? []) as unknown as DekselModell[];
     const ok = alle.filter((m) => m.analyse && Array.isArray(m.analyse.trygg));
-    return { modeller: ok, feil: null, uten: alle.filter((m) => !ok.includes(m)).map((m) => m.navn) };
+    return { modeller: slaaSammen(ok), feil: null, uten: alle.filter((m) => !ok.includes(m)).map((m) => m.navn) };
   } catch (e) {
-    return { modeller: [], feil: e instanceof Error ? e.message : 'Ukjent feil', uten: [] };
+    const fil = slaaSammen([]);
+    return { modeller: fil, feil: fil.length ? null : e instanceof Error ? e.message : 'Ukjent feil', uten: [] };
   }
 }
 

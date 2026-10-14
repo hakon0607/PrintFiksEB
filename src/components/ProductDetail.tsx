@@ -21,7 +21,7 @@ export function ProductDetail({
   daysMin: number;
   daysMax: number;
   /** Produkter kunden designer selv (dekselet): knapp til editoren i stedet for «Legg i bestillingen». */
-  design?: { href: string; knapp: string; prisNotis: string; info: string };
+  design?: { href: string; knapp: string; prisNotis: string; info: string; demo?: string };
 }) {
   const { add } = useCart();
   const versjoner = useMemo(() => versjonerFor(product), [product]);
@@ -273,6 +273,13 @@ export function ProductDetail({
             Gå til bestilling
           </Link>
         </div>
+        )}
+
+        {design?.demo && (
+          <div className="mt-5 flex gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900">
+            <span className="mt-0.5 h-fit shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Demo</span>
+            <p>{design.demo}</p>
+          </div>
         )}
 
         <p className="mt-5 text-sm leading-relaxed text-ink-500">

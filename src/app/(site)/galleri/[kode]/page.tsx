@@ -86,6 +86,7 @@ export default async function ModellSide({
                 knapp: 'Design ditt deksel',
                 prisNotis: `${num(site.settings, 'deksel_grunnpris', 59)} kr + ${num(site.settings, 'deksel_pris_per_farge', 10)} kr per farge i motivet. Du ser prisen før du bestiller.`,
                 info: 'Last opp bilde, skriv tekst, legg til symboler eller tegn selv – og se dekselet i 3D før du bestiller.',
+                demo: 'Dekselstudioet er fortsatt i demo. Passer ikke dekselet, eller er det andre problemer, får du 100 % av pengene tilbake.',
               }}
             />
           </div>

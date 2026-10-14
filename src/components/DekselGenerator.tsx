@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { grupperEtterMerke, merkeFor, type Merke } from '@/lib/deksel/modellnavn';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCart } from '@/lib/cart';
 import type { Analyse, Ring } from '@/lib/deksel/analyse';
@@ -34,7 +35,15 @@ import dynamic from 'next/dynamic';
 
 const Visning3D = dynamic(() => import('@/components/deksel/Visning3D').then((m) => m.Visning3D), { ssr: false });
 
-export type DekselModell = { id: string; navn: string; analyse: Analyse; fil_url?: string; fil_navn?: string };
+export type DekselModell = {
+  id: string;
+  navn: string;
+  /** null for mobiler fra GitHub-filene – da hentes analysen fra analyse_url når mobilen velges */
+  analyse: Analyse | null;
+  analyse_url?: string;
+  fil_url?: string;
+  fil_navn?: string;
+};
 
 /** mm per piksel i fargekartet. 0,1 mm gir glatte kanter (dysen er 0,4 mm). */
 const SKALA = 0.1;
@@ -71,9 +80,32 @@ export function DekselGenerator({
   maksFarger: number;
 }) {
   const { add } = useCart();
-  const [modellId, setModellId] = useState(modeller[0]?.id ?? '');
+  const grupper = useMemo(() => grupperEtterMerke(modeller), [modeller]);
+  const [valgtMerke, setValgtMerke] = useState<Merke>(grupper[0]?.merke ?? 'iPhone');
+  const iMerket = grupper.find((g) => g.merke === valgtMerke)?.modeller ?? modeller;
+  const [modellId, setModellId] = useState(iMerket[0]?.id ?? modeller[0]?.id ?? '');
   const modell = modeller.find((m) => m.id === modellId) ?? null;
-  const a = modell?.analyse ?? null;
+
+  // Mobiler fra GitHub-filene har analysen i en egen fil – hent den når mobilen velges
+  const [hentet, setHentet] = useState<Record<string, Analyse>>({});
+  const [hentFeil, setHentFeil] = useState('');
+  const a = modell?.analyse ?? (modell ? hentet[modell.id] : null) ?? null;
+  useEffect(() => {
+    if (!modell || modell.analyse || hentet[modell.id] || !modell.analyse_url) return;
+    let avbrutt = false;
+    setHentFeil('');
+    fetch(modell.analyse_url)
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((data: Analyse) => { if (!avbrutt) setHentet((h) => ({ ...h, [modell.id]: data })); })
+      .catch(() => { if (!avbrutt) setHentFeil(`Klarte ikke å hente ${modell.navn}. Last siden på nytt, eller velg en annen mobil.`); });
+    return () => { avbrutt = true; };
+  }, [modell, hentet]);
+
+  function velgMerke(m: Merke) {
+    setValgtMerke(m);
+    const forste = grupper.find((g) => g.merke === m)?.modeller[0];
+    if (forste) { setModellId(forste.id); setLagtTil(false); }
+  }
 
   const dekselValg = useMemo(() => {
     const ok = filamenter.filter((f) => !dekselFarger?.length || dekselFarger.includes(f.id));
@@ -458,6 +490,13 @@ export function DekselGenerator({
           </div>
 
           <div className="relative">
+            {!a && (
+              <div className="grid min-h-[420px] place-items-center text-center">
+                <p className="studio-hud !normal-case !tracking-normal">
+                  {hentFeil || <>Henter <b>{modell?.navn}</b> …</>}
+                </p>
+              </div>
+            )}
             {tre && a && r && modell?.fil_url && (
               <Visning3D
                 modellUrl={modell.fil_url}
@@ -596,9 +635,29 @@ export function DekselGenerator({
       {/* ================= Valg ================= */}
       <div className="space-y-4">
         <Steg nr={1} tittel="Velg mobil">
+          {grupper.length > 1 && (
+            <div className="mb-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${grupper.length}, minmax(0, 1fr))` }} role="radiogroup" aria-label="Merke">
+              {grupper.map((g) => (
+                <button key={g.merke} type="button" role="radio" aria-checked={valgtMerke === g.merke} onClick={() => velgMerke(g.merke)}
+                  className={`rounded-2xl border px-3 py-2.5 text-sm font-bold transition-all ${
+                    valgtMerke === g.merke ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-[0_0_0_3px_rgba(37,89,199,.12)]' : 'border-ink-200 bg-white text-ink-600 hover:border-ink-300'
+                  }`}>
+                  {g.merke === 'Andre' ? 'Andre' : g.merke}
+                  <span className="ml-1.5 text-xs font-semibold opacity-60">{g.modeller.length}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <select value={modellId} onChange={(e) => { setModellId(e.target.value); setLagtTil(false); }} className="field" aria-label="Mobilmodell">
-            {modeller.map((m) => (<option key={m.id} value={m.id}>{m.navn}</option>))}
+            {iMerket.map((m) => (<option key={m.id} value={m.id}>{merkeFor(m.navn) === 'Samsung' ? m.navn.replace(/^Samsung\s+/, '') : m.navn}</option>))}
           </select>
+          <div className="mt-3 flex gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[13px] leading-relaxed text-amber-900">
+            <span className="mt-0.5 h-fit shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Demo</span>
+            <p>
+              Dekselstudioet er fortsatt i demo. Passer ikke dekselet, eller er det andre problemer, får du{' '}
+              <b>100 % av pengene tilbake</b>.
+            </p>
+          </div>
           <p className="mt-2 text-[13px] text-ink-500">
             Finner du ikke mobilen din?{' '}
             <Link href={sporOssLenke('')} className="font-semibold text-brand-700 underline underline-offset-4">Spør oss</Link>

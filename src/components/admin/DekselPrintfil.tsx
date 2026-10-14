@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAdmin } from './AdminProvider';
 import { DekselMiniatyr } from '@/components/DekselMiniatyr';
 import type { Analyse } from '@/lib/deksel/analyse';
+import innebygde from '@/lib/deksel/innebygde.json';
 
 type DekselDesign = {
   modellId: string;
@@ -35,12 +36,7 @@ export function DekselPrintfil({ design, ordrenr }: { design: DekselDesign; ordr
     setFeil('');
     setStatus('Henter dekselmodellen …');
     try {
-      const { data, error } = await supabase
-        .from('deksel_modeller')
-        .select('fil_url,fil_navn,analyse:bakside')
-        .eq('id', design.modellId)
-        .maybeSingle();
-      if (error || !data) throw new Error('Fant ikke dekselmodellen. Er den slettet i Deksler?');
+      const data = await hentModell(supabase, design.modellId);
       setStatus('Lager printfila – tar noen sekunder …');
       const d = await n.lesDesign(design.bilde, design.farger, design.ramme);
       const res = await n.lagPrintfiler({
@@ -96,4 +92,22 @@ export function DekselPrintfil({ design, ordrenr }: { design: DekselDesign; ordr
       </div>
     </div>
   );
+}
+
+/** Mobilen bestillingen ble laget for – fra databasen, eller fra dekselfilene i GitHub (id «fil:…»). */
+async function hentModell(supabase: NonNullable<ReturnType<typeof useAdmin>['supabase']>, id: string) {
+  if (id.startsWith('fil:')) {
+    const m = (innebygde as { id: string; fil_url: string; fil_navn: string; analyse_url: string }[]).find((x) => x.id === id);
+    if (!m) throw new Error('Fant ikke dekselfila for denne mobilen. Ligger den fortsatt i GitHub?');
+    const res = await fetch(m.analyse_url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Klarte ikke å hente analysen for ${m.fil_navn} (${res.status}).`);
+    return { fil_url: m.fil_url, fil_navn: m.fil_navn, analyse: (await res.json()) as Analyse };
+  }
+  const { data, error } = await supabase
+    .from('deksel_modeller')
+    .select('fil_url,fil_navn,analyse:bakside')
+    .eq('id', id)
+    .maybeSingle();
+  if (error || !data) throw new Error('Fant ikke dekselmodellen. Er den slettet i Deksler?');
+  return data as { fil_url: string; fil_navn: string | null; analyse: unknown };
 }
