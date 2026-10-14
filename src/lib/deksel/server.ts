@@ -1,7 +1,23 @@
-import { getPublicServerClient } from '@/lib/supabase/server';
+import { unstable_noStore as noStore } from 'next/cache';
+import { createClient } from '@supabase/supabase-js';
 import type { DekselModell } from '@/components/DekselGenerator';
 import type { Product } from '@/lib/types';
 import { DEKSEL_KODE, dekselFraPris } from './produkt';
+
+/**
+ * Egen leseklient som ALLTID henter ferske data. Next/Vercel lagrer ellers
+ * svar fra fetch() i en cache som overlever nye deployer – derfor viste
+ * nettsiden fortsatt «ingen mobiler» selv om de lå i Supabase.
+ */
+function ferskKlient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
+  });
+}
 
 /** Mobilene kundene kan velge i dekselgeneratoren (bare de synlige). */
 export async function hentDekselModeller(): Promise<DekselModell[]> {
@@ -10,7 +26,8 @@ export async function hentDekselModeller(): Promise<DekselModell[]> {
 
 /** Som over, men forteller også hvorfor det eventuelt ikke gikk (for statussjekken i admin). */
 export async function hentDekselModellerMedFeil(): Promise<{ modeller: DekselModell[]; feil: string | null; uten: string[] }> {
-  const sb = getPublicServerClient();
+  noStore();
+  const sb = ferskKlient();
   if (!sb) return { modeller: [], feil: 'Nettsiden mangler Supabase-nøklene (miljøvariabler i Vercel).', uten: [] };
   try {
     const { data, error } = await sb
@@ -36,7 +53,8 @@ export async function hentDekselModellerMedFeil(): Promise<{ modeller: DekselMod
  * ennå, så dekselet virker med en gang SQL-en er kjørt.
  */
 export async function hentDekselProdukt(settings: Record<string, string>): Promise<Product | null> {
-  const sb = getPublicServerClient();
+  noStore();
+  const sb = ferskKlient();
   if (!sb) return null;
   try {
     const { data } = await sb
