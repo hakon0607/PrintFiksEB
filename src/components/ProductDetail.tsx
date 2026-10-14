@@ -14,11 +14,14 @@ export function ProductDetail({
   currency = 'kr',
   daysMin,
   daysMax,
+  design,
 }: {
   product: Product;
   currency?: string;
   daysMin: number;
   daysMax: number;
+  /** Produkter kunden designer selv (dekselet): knapp til editoren i stedet for «Legg i bestillingen». */
+  design?: { href: string; knapp: string; prisNotis: string; info: string };
 }) {
   const { add } = useCart();
   const versjoner = useMemo(() => versjonerFor(product), [product]);
@@ -96,7 +99,7 @@ export function ProductDetail({
             )}
           </AnimatePresence>
 
-          {product.code && (
+          {product.code && !design && (
             <span className="absolute left-4 top-4 rounded-full bg-ink-900/85 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
               ID {product.code}
             </span>
@@ -177,12 +180,12 @@ export function ProductDetail({
               transition={{ duration: 0.18 }}
               className="inline-block"
             >
-              {kr(pris, currency)}
+              {design ? `fra ${kr(pris, currency)}` : kr(pris, currency)}
             </motion.span>
           </AnimatePresence>
         </p>
         <p className="mt-1 text-sm text-ink-500">
-          Ferdig pris – ingen startpris kommer i tillegg på modeller fra galleriet.
+          {design ? design.prisNotis : 'Ferdig pris – ingen startpris kommer i tillegg på modeller fra galleriet.'}
         </p>
 
         {product.description && (
@@ -228,6 +231,19 @@ export function ProductDetail({
           <Spec navn="Levering" verdi={`${daysMin}–${daysMax} virkedager`} />
         </dl>
 
+        {design ? (
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <Link href={design.href} className="btn-primary px-7 py-3.5 text-base">
+              {design.knapp}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M5 12h14m0 0-5.5-5.5M19 12l-5.5 5.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+            <Link href="/bestill" className="btn-ghost">
+              Gå til bestilling
+            </Link>
+          </div>
+        ) : (
         <div className="mt-7 flex flex-wrap items-center gap-3">
           <div className="inline-flex items-center gap-1 rounded-full border border-ink-200 bg-white p-1">
             <button
@@ -257,9 +273,10 @@ export function ProductDetail({
             Gå til bestilling
           </Link>
         </div>
+        )}
 
         <p className="mt-5 text-sm leading-relaxed text-ink-500">
-          {versjoner.length > 0
+          {design ? design.info : versjoner.length > 0
             ? 'Vil du ha den i en annen farge? Skriv det i kommentaren når du bestiller, så ordner vi det.'
             : 'Vil du ha den i en annen farge eller størrelse? Skriv det i kommentaren når du bestiller, så ordner vi det.'}
         </p>
