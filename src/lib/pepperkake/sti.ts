@@ -134,6 +134,61 @@ export function lukk(form: Form): Form {
   return { punkter, lukket: punkter.length >= 3 };
 }
 
+/** Deler linja opp i punkter med jevn avstand (mm). */
+function jevnAvstand(p: Pkt[], lukket: boolean, steg: number): Pkt[] {
+  const q = lukket ? [...p, p[0]] : p;
+  const ut: Pkt[] = [q[0]];
+  let rest = steg;
+  for (let i = 1; i < q.length; i++) {
+    let [ax, ay] = q[i - 1];
+    const [bx, by] = q[i];
+    let l = Math.hypot(bx - ax, by - ay);
+    while (l >= rest) {
+      const t = rest / l;
+      ax += (bx - ax) * t; ay += (by - ay) * t;
+      ut.push([ax, ay]);
+      l -= rest;
+      rest = steg;
+    }
+    rest -= l;
+  }
+  if (lukket) {
+    // siste punkt ligger oppå det første
+    if (ut.length > 2 && avst(ut[ut.length - 1], ut[0]) < steg * 0.5) ut.pop();
+  } else {
+    const siste = p[p.length - 1];
+    if (avst(ut[ut.length - 1], siste) > 1e-6) ut.push([siste[0], siste[1]]);
+  }
+  return ut;
+}
+
+/**
+ * «Glatt ut»: gjør hele tegningen jevnere uten at den krymper (Taubin-glatting).
+ * Endene på en åpen form står stille. Kan trykkes flere ganger.
+ */
+export function glattUt(form: Form, styrke = 18): Form {
+  if (form.punkter.length < 3) return form;
+  const lengden = lengde(form.punkter) + (form.lukket ? avst(form.punkter[0], form.punkter[form.punkter.length - 1]) : 0);
+  const steg = Math.max(1.5, lengden / 300);
+  let p = jevnAvstand(form.punkter, form.lukket, steg);
+  const n = p.length;
+  if (n < 4) return form;
+  const lukket = form.lukket;
+  const runde = (faktor: number) => {
+    const ny: Pkt[] = new Array(n);
+    for (let i = 0; i < n; i++) {
+      if (!lukket && (i === 0 || i === n - 1)) { ny[i] = p[i]; continue; }
+      const a = p[(i - 1 + n) % n], b = p[(i + 1) % n];
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      ny[i] = [p[i][0] + faktor * (mx - p[i][0]), p[i][1] + faktor * (my - p[i][1])];
+    }
+    p = ny;
+  };
+  for (let k = 0; k < styrke; k++) { runde(0.6); runde(-0.63); }
+  const punkter = begrens(forenkle(p.map((q) => innenfor(q, 200)), 0.1));
+  return { punkter, lukket: lukket && punkter.length >= 3 };
+}
+
 /** SVG-sti for formen (koordinater i mm). */
 export function svgSti(form: Form): string {
   const p = form.punkter;

@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCart } from '@/lib/cart';
 import { Ikon } from '@/components/deksel/Ikon';
 import {
-  innenfor, kanLukkes, leggTil, lukk, naermesteEnde, renStrek, svgSti, SNAP_MM,
+  glattUt, innenfor, kanLukkes, leggTil, lukk, naermesteEnde, renStrek, svgSti, SNAP_MM,
   type Form, type Pkt,
 } from '@/lib/pepperkake/sti';
 import { maal, MAKS_MM, MIN_CM2, pepperkakePris } from '@/lib/pepperkake/pris';
@@ -324,16 +324,23 @@ export function PepperkakeStudio({ produktNavn, standardPris }: { produktNavn: s
           {/* verktøylinje */}
           {fase === 'tegn' && (
             <div className="relative mt-3 flex flex-wrap items-center justify-center gap-2">
-              <div className="studio-verktoy [&_button]:whitespace-nowrap max-sm:[&_button]:!px-2.5" role="group" aria-label="Verktøy">
-                <button type="button" onClick={angre} disabled={!fortid.current.length} title="Angre (Ctrl+Z)">
-                  <Ikon navn="angre" />Angre
+              <div className="studio-verktoy max-w-full [&_button]:whitespace-nowrap max-sm:!gap-0.5 max-sm:[&_.studio-skille]:hidden max-sm:[&_button]:!px-2" role="group" aria-label="Verktøy">
+                <button type="button" onClick={angre} disabled={!fortid.current.length} aria-label="Angre" title="Angre (Ctrl+Z)">
+                  <Ikon navn="angre" /><span className="hidden sm:inline">Angre</span>
                 </button>
                 <button type="button" onClick={gjenta} disabled={!fremtid.current.length} aria-label="Gjør om" title="Gjør om (Ctrl+Y)">
                   <Ikon navn="gjenta" />
                 </button>
                 <span className="studio-skille" />
-                <button type="button" onClick={() => settForm(lukk(form))} disabled={!kanLukkes(form)} title="Koble endene sammen med en rett strek">
-                  <Ikon navn="fyll" />Lukk formen
+                <button type="button" onClick={() => settForm(glattUt(form))} disabled={form.punkter.length < 3} title="Gjør linjene jevnere – trykk flere ganger for mer">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M3 15c3-6 5-6 7-3s4 3 7-3M3 20c3-4 6-4 9-2s6 2 9-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                  Glatt ut
+                </button>
+                <span className="studio-skille" />
+                <button type="button" onClick={() => settForm(lukk(form))} disabled={!kanLukkes(form)} aria-label="Lukk formen" title="Koble endene sammen med en rett strek">
+                  <Ikon navn="fyll" /><span className="sm:hidden">Lukk</span><span className="hidden sm:inline">Lukk formen</span>
                 </button>
                 <span className="studio-skille" />
                 <button type="button" onClick={nullstill} disabled={tom} aria-label="Start på nytt" title="Visk ut alt">
@@ -362,6 +369,7 @@ export function PepperkakeStudio({ produktNavn, standardPris }: { produktNavn: s
               <li>• Tegn <b>omrisset</b> av kaka – streken blir kanten som skjærer.</li>
               <li>• Du kan tegne med flere streker. En ny strek fester seg til <b>enden</b> av den forrige (den blå ringen lyser når du er nær).</li>
               <li>• Når endene møtes, <b>lukkes</b> formen.</li>
+              <li>• Ble streken ujevn? Trykk <b>«Glatt ut»</b> – flere ganger for jevnere linjer.</li>
               <li>• Størrelsen er så stor som du tegner – opptil 20 × 20 cm.</li>
             </ul>
 
@@ -399,7 +407,7 @@ export function PepperkakeStudio({ produktNavn, standardPris }: { produktNavn: s
             <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-ink-600">
               <li>• <b>{cm(m.bredde)} × {cm(m.hoyde)} cm</b>, {PROFIL.hoyde} mm høy, i hvit</li>
               <li>• Bred, tykk kant på toppen – du kan trykke hardt uten at det gjør vondt</li>
-              <li>• Veggen er forsterket nederst så den ikke knekker, og litt tynnere ytterst så den skjærer rent</li>
+              <li>• Veggen er forsterket nederst så den ikke knekker, og har en skarp kant ytterst som skjærer rent</li>
             </ul>
             {!form.lukket && (
               <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-900">

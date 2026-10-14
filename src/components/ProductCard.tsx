@@ -1,5 +1,6 @@
 'use client';
 
+import { DesignMerke } from './DesignMerke';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -88,6 +89,14 @@ export function ProductCard({
               />
             </svg>
           </div>
+        )}
+        {product.design_din_egen && (
+          <DesignMerke
+            liten={smalest}
+            className={`absolute z-[1] ${smalest ? 'left-1.5 sm:left-3' : 'left-3'} ${
+              product.code && !erDeksel ? (smalest ? 'top-7 sm:top-11' : 'top-11') : smalest ? 'top-1.5 sm:top-3' : 'top-3'
+            }`}
+          />
         )}
         {product.code && !erDeksel && (
           <span

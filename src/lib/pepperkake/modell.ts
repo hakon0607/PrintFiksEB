@@ -5,8 +5,8 @@
  *   - flens: 8 mm bred og 2,4 mm tykk – det man trykker på, så formen ikke
  *     kutter i hånda og tåler å presses hardt
  *   - fot: en skrå forsterkning mellom flensen og veggen, så veggen ikke knekker av
- *   - vegg: 2,5 mm tykk nederst, smalner til 1 mm i toppen – skarp nok til
- *     å skjære rent, men ikke så tynn at den brekker
+ *   - vegg: 2,5 mm tykk nederst og 1,5 mm et godt stykke opp, så smalner den
+ *     raskt de siste 4 mm til en skarp kant på 0,6 mm som skjærer rent
  * Total høyde 15 mm. Alt er én hvit del.
  *
  * Koordinater: x/y er tegningen i mm (y nedover på skjermen). Slik blir
@@ -22,7 +22,10 @@ export const PROFIL = {
   fotHoyde: 2.2,
   fotRadius: 2.6,
   veggBunn: 1.25,
-  veggTopp: 0.5,
+  /** 2,5 mm → 1,5 mm opp til de siste 4 mm, så smalner den raskt til 0,6 mm */
+  veggMidt: 0.75,
+  skarpHoyde: 4,
+  veggTopp: 0.3,
   segmenter: 20,
 } as const;
 
@@ -49,15 +52,20 @@ function segmenter(form: Form): [Pkt, Pkt][] {
 
 /** Radiusen (halve veggtykkelsen) i høyde z over plata. */
 function radiusVed(z: number): number {
-  const { flensHoyde, fotHoyde, fotRadius, veggBunn, veggTopp, hoyde } = PROFIL;
+  const { flensHoyde, fotHoyde, fotRadius, veggBunn, veggMidt, skarpHoyde, veggTopp, hoyde } = PROFIL;
   const zf = z - flensHoyde;
   if (zf < fotHoyde) {
     // hulkil: buer jevnt inn fra den brede foten til veggen
     const t = 1 - zf / fotHoyde;
     return veggBunn + (fotRadius - veggBunn) * t * t;
   }
-  const t = (zf - fotHoyde) / (hoyde - flensHoyde - fotHoyde);
-  return veggBunn + (veggTopp - veggBunn) * t;
+  const zSkarp = hoyde - skarpHoyde;
+  if (z < zSkarp) {
+    const t = (z - flensHoyde - fotHoyde) / (zSkarp - flensHoyde - fotHoyde);
+    return veggBunn + (veggMidt - veggBunn) * t;
+  }
+  const t = (z - zSkarp) / skarpHoyde;
+  return veggMidt + (veggTopp - veggMidt) * t;
 }
 
 /**
@@ -91,7 +99,10 @@ export function lagPepperkakeform(wasm: ManifoldToplevel, form: Form): { nett: N
     const lag: [number, number][] = [];
     const zFot = PROFIL.flensHoyde + PROFIL.fotHoyde;
     for (let z = PROFIL.flensHoyde; z < zFot - 1e-6; z += 0.25) lag.push([z, Math.min(0.25, zFot - z)]);
-    for (let z = zFot; z < PROFIL.hoyde - 1e-6; z += 0.8) lag.push([z, Math.min(0.8, PROFIL.hoyde - z)]);
+    const zSkarp = PROFIL.hoyde - PROFIL.skarpHoyde;
+    for (let z = zFot; z < zSkarp - 1e-6; z += 0.8) lag.push([z, Math.min(0.8, zSkarp - z)]);
+    // tynnere lag i den skarpe toppen, der bredden endrer seg raskt
+    for (let z = zSkarp; z < PROFIL.hoyde - 1e-6; z += 0.4) lag.push([z, Math.min(0.4, PROFIL.hoyde - z)]);
     const overlapp = 0.05;
     for (const [z, h] of lag) {
       const r = radiusVed(z + h); // bruk bredden i toppen av laget, så veggen aldri blir for tykk

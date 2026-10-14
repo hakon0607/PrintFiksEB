@@ -117,6 +117,12 @@ export default function GalleriAdmin() {
       type: 'bool',
       help: 'Merkes som «Populær» og vises øverst på forsiden.',
     },
+    {
+      key: 'design_din_egen',
+      label: 'Design din egen!',
+      type: 'bool',
+      help: 'Huk av på produkter kunden kan designe selv (f.eks. pepperkakeformen). Kortet i galleriet får et merke som lokker flere kunder inn.',
+    },
   ];
 
   // Lenken til originalmodellen er bare til internt bruk

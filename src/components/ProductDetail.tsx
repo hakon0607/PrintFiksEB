@@ -1,5 +1,6 @@
 'use client';
 
+import { DesignMerke } from './DesignMerke';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -129,6 +130,7 @@ export function ProductDetail({
 
       {/* Info */}
       <div className="lg:sticky lg:top-24">
+        {product.design_din_egen && <DesignMerke className="mb-3" />}
         <h1 className="text-balance text-3xl font-bold sm:text-4xl">{product.name}</h1>
 
         {product.tagline && (

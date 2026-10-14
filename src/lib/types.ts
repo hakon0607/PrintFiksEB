@@ -73,6 +73,8 @@ export type Product = {
   /** Versjoner (størrelser o.l.). Tom liste = bare én versjon. Se lib/versjoner.ts */
   variants?: unknown;
   featured: boolean;
+  /** Huket av i admin: kortet får merket «Design din egen!» */
+  design_din_egen?: boolean | null;
   active: boolean;
   sort: number;
   created_at?: string;
