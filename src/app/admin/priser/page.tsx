@@ -2,6 +2,7 @@
 
 import { SettingsEditor } from '@/components/admin/SettingsEditor';
 import { TableEditor } from '@/components/admin/TableEditor';
+import { PepperkakePrisEksempler } from '@/components/admin/PepperkakePrisEksempler';
 
 export default function PriserSide() {
   return (
@@ -21,6 +22,16 @@ export default function PriserSide() {
             'Startprisen legges på én gang per bestilling. Skru den av hvis dere ikke vil bruke den.',
         }}
       />
+
+      <SettingsEditor
+        grupper={['Pepperkakeform']}
+        beskrivelser={{
+          Pepperkakeform:
+            'Pepperkakeformene prises etter hvor lang streken kunden tegner – lengre strek gir mer plast og lengre printetid. Endringene gjelder med en gang, også i bestillinger som sendes.',
+        }}
+      />
+
+      <PepperkakePrisEksempler />
 
       <TableEditor
         table="materials"

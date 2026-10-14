@@ -7,7 +7,7 @@ import { DekselGenerator } from '@/components/DekselGenerator';
 import { DEKSEL_KODE } from '@/lib/deksel/produkt';
 import { hentDekselModeller, hentDekselProdukt } from '@/lib/deksel/server';
 import { dekselFargerFra, lesFilamenter } from '@/lib/deksel/farger';
-import { PEPPERKAKE_KODE, STANDARD_PRIS } from '@/lib/pepperkake/pris';
+import { oppsettFra, PEPPERKAKE_KODE } from '@/lib/pepperkake/pris';
 import { PepperkakeStudio } from '@/components/pepperkake/PepperkakeStudio';
 
 export const dynamic = 'force-dynamic';
@@ -96,7 +96,7 @@ async function LagPepperkake({ searchParams }: { searchParams?: { [key: string]:
           <h1 className="mt-3 text-balance text-3xl font-bold sm:text-4xl">Tegn din pepperkakeform</h1>
         </div>
         <div className="mt-6">
-          <PepperkakeStudio produktNavn={product.name} standardPris={product.pris_standard ?? STANDARD_PRIS} />
+          <PepperkakeStudio produktNavn={product.name} oppsett={oppsettFra(site.settings)} />
         </div>
       </div>
     </div>

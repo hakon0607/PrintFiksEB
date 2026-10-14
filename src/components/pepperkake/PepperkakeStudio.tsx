@@ -16,7 +16,7 @@ import {
   glattUt, innenfor, kanLukkes, leggTil, lukk, naermesteEnde, renStrek, svgSti, SNAP_MM,
   type Form, type Pkt,
 } from '@/lib/pepperkake/sti';
-import { maal, MAKS_MM, MIN_CM2, pepperkakePris } from '@/lib/pepperkake/pris';
+import { krTekst, maal, MAKS_MM, MIN_CM2, pepperkakePris, prisForklaring, strekLengdeCm, type PepperkakeOppsett } from '@/lib/pepperkake/pris';
 import { byggPepperkakeform } from '@/lib/pepperkake/nettleser';
 import { PROFIL, type Nett } from '@/lib/pepperkake/modell';
 
@@ -32,7 +32,7 @@ const SNAP_PX = 22;
 
 const cm = (mm: number) => (mm / 10).toFixed(1).replace('.', ',');
 
-export function PepperkakeStudio({ produktNavn, standardPris }: { produktNavn: string; standardPris: number }) {
+export function PepperkakeStudio({ oppsett }: { produktNavn?: string; oppsett: PepperkakeOppsett }) {
   const { add } = useCart();
   const [fase, setFase] = useState<Fase>('tegn');
   const [form, setForm] = useState<Form>(TOM);
@@ -159,7 +159,8 @@ export function PepperkakeStudio({ produktNavn, standardPris }: { produktNavn: s
   const m = useMemo(() => maal(form.punkter), [form]);
   const forLiten = form.punkter.length > 1 && m.arealCm2 < MIN_CM2;
   const tom = form.punkter.length < 2;
-  const pris = pepperkakePris(m.arealCm2, standardPris);
+  const lengdeCm = useMemo(() => strekLengdeCm(form.punkter, form.lukket), [form]);
+  const pris = pepperkakePris(lengdeCm, oppsett);
   const kanVidere = !tom && !forLiten;
 
   /* ---------- 3D ---------- */
@@ -243,7 +244,7 @@ export function PepperkakeStudio({ produktNavn, standardPris }: { produktNavn: s
               {fase === 'tegn' ? 'Pepperkakestudio' : bygger ? 'Bygger 3D-modell' : 'Din pepperkakeform'}
             </span>
             <span>
-              {tom ? <>tegneflate <b>20 × 20 cm</b></> : <><b>{cm(m.bredde)} × {cm(m.hoyde)} cm</b> · {pris} kr</>}
+              {tom ? <>tegneflate <b>20 × 20 cm</b></> : <><b>{cm(m.bredde)} × {cm(m.hoyde)} cm</b> · {krTekst(pris)} kr</>}
             </span>
           </div>
 
@@ -375,8 +376,9 @@ export function PepperkakeStudio({ produktNavn, standardPris }: { produktNavn: s
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <Tall etikett="Størrelse" verdi={tom ? '–' : `${cm(m.bredde)} × ${cm(m.hoyde)} cm`} />
-              <Tall etikett="Pris" verdi={tom ? '–' : `${pris} kr`} sterk />
+              <Tall etikett="Pris" verdi={tom ? '–' : `${krTekst(pris)} kr`} sterk />
             </div>
+            <p className="mt-2 text-xs leading-relaxed text-ink-500">{prisForklaring(oppsett)}</p>
 
             {!tom && !form.lukket && !forLiten && (
               <div className="mt-3 flex gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[13px] leading-relaxed text-amber-900">
@@ -429,11 +431,12 @@ export function PepperkakeStudio({ produktNavn, standardPris }: { produktNavn: s
           <Steg nr={3} tittel="Pris og bestilling">
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between"><dt className="text-ink-600">Størrelse</dt><dd className="font-semibold">{cm(m.bredde)} × {cm(m.hoyde)} cm</dd></div>
+              <div className="flex justify-between"><dt className="text-ink-600">Lengde på streken</dt><dd className="font-semibold">{lengdeCm.toFixed(0)} cm</dd></div>
               <div className="flex justify-between"><dt className="text-ink-600">Farge</dt><dd className="font-semibold">Hvit</dd></div>
               <div className="flex justify-between"><dt className="text-ink-600">Form</dt><dd className="font-semibold">{form.lukket ? 'Lukket' : 'Åpen'}</dd></div>
-              <div className="flex justify-between border-t border-ink-100 pt-2 text-base"><dt className="font-bold">Pris</dt><dd className="font-bold text-brand-700">{pris} kr</dd></div>
+              <div className="flex justify-between border-t border-ink-100 pt-2 text-base"><dt className="font-bold">Pris</dt><dd className="font-bold text-brand-700">{krTekst(pris)} kr</dd></div>
             </dl>
-            <p className="mt-2 text-xs text-ink-500">7 × 7 cm koster {standardPris} kr – prisen følger størrelsen, avrundet til nærmeste 5 kr.</p>
+            <p className="mt-2 text-xs text-ink-500">{prisForklaring(oppsett)}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" onClick={leggIBestilling} disabled={!kanVidere} className={`${lagtTil ? 'btn-dark' : 'btn-primary'} flex-1 disabled:opacity-50`}>
                 {lagtTil ? 'Lagt til ✓' : 'Legg i bestillingen'}

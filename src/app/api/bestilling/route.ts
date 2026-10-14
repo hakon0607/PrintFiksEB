@@ -12,7 +12,7 @@ import {
 import { loggUtsendt, type NyUtsendt } from '@/lib/utsendt';
 import { lagreBilder, lagreDekseldesign } from '@/lib/bestillingsbilder';
 import { rensForm } from '@/lib/pepperkake/sti';
-import { maal, pepperkakePris, PEPPERKAKE_KODE } from '@/lib/pepperkake/pris';
+import { maal, OPPSETT_NOKLER, oppsettFra, pepperkakePris, strekLengdeCm } from '@/lib/pepperkake/pris';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,15 +115,16 @@ export async function POST(request: Request) {
   }
 
   // Pepperkakeformer: tegningen sjekkes, og prisen regnes ut på nytt her etter
-  // størrelsen – så den alltid følger prisen i galleriet.
-  const pepperkaker = new Map<number, { form: NonNullable<ReturnType<typeof rensForm>>; pris: number; bredde: number; hoyde: number }>();
+  // lengden av streken – med prisene i Admin → Priser, så den ikke kan jukses med.
+  const pepperkaker = new Map<number, { form: NonNullable<ReturnType<typeof rensForm>>; pris: number; bredde: number; hoyde: number; lengdeCm: number }>();
   if (varer.some((v) => tekst(v.type, 20) === 'pepperkake')) {
-    const { data: pk } = await service
-      .from('products')
-      .select('price')
-      .eq('code', PEPPERKAKE_KODE)
-      .maybeSingle();
-    const standard = Number((pk as { price?: unknown } | null)?.price) || undefined;
+    const { data: pkInnst } = await service
+      .from('settings')
+      .select('key,value')
+      .in('key', Object.values(OPPSETT_NOKLER));
+    const pkVerdier: Record<string, string> = {};
+    for (const rad of ((pkInnst as { key: string; value: string }[]) ?? [])) pkVerdier[rad.key] = rad.value;
+    const oppsett = oppsettFra(pkVerdier);
     let justering = 0;
     for (let i = 0; i < varer.length; i++) {
       const v = varer[i];
@@ -133,14 +134,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ feil: 'Tegningen av pepperkakeformen mangler. Fjern den fra bestillingen og tegn den på nytt.' }, { status: 400 });
       }
       const m = maal(form.punkter);
-      const pris = pepperkakePris(m.arealCm2, standard);
+      const lengdeCm = strekLengdeCm(form.punkter, form.lukket);
+      const pris = pepperkakePris(lengdeCm, oppsett);
       const antall = Math.max(1, Math.round(tall(v.antall) || 1));
       const linjesum = pris * antall; // prisMin/prisMaks er summen for linja
       justering += linjesum - tall(v.prisMin);
-      pepperkaker.set(i, { form, pris, bredde: Math.round(m.bredde * 10) / 10, hoyde: Math.round(m.hoyde * 10) / 10 });
+      pepperkaker.set(i, { form, pris, bredde: Math.round(m.bredde * 10) / 10, hoyde: Math.round(m.hoyde * 10) / 10, lengdeCm: Math.round(lengdeCm * 10) / 10 });
       v.prisMin = linjesum;
       v.prisMaks = linjesum;
-      v.pris = `${linjesum} kr`;
+      v.pris = `${Math.round(linjesum * 100) / 100} kr`;
     }
     if (justering !== 0) {
       body.sumMin = tall(body.sumMin) + justering;
@@ -213,7 +215,7 @@ export async function POST(request: Request) {
         let design: Record<string, unknown> | null = null;
         const pk = pepperkaker.get(i);
         if (pk) {
-          design = { type: 'pepperkake', punkter: pk.form.punkter, lukket: pk.form.lukket, bredde: pk.bredde, hoyde: pk.hoyde };
+          design = { type: 'pepperkake', punkter: pk.form.punkter, lukket: pk.form.lukket, bredde: pk.bredde, hoyde: pk.hoyde, lengdeCm: pk.lengdeCm };
         }
         if (erDeksel) {
           const url = await lagreDekseldesign(service, ordrenr, v.deksel!.design);

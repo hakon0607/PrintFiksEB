@@ -10,7 +10,7 @@ import { Blobs } from '@/components/Blobs';
 import { temaFor } from '@/lib/temaer';
 import { DEKSEL_KODE, erDekselProdukt } from '@/lib/deksel/produkt';
 import { hentDekselProdukt } from '@/lib/deksel/server';
-import { erPepperkakeProdukt, PEPPERKAKE_KODE, STANDARD_PRIS } from '@/lib/pepperkake/pris';
+import { erPepperkakeProdukt, krTekst, oppsettFra, pepperkakePris, PEPPERKAKE_KODE, prisForklaring } from '@/lib/pepperkake/pris';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,7 +101,7 @@ export default async function ModellSide({
               design={{
                 href: `/galleri/${PEPPERKAKE_KODE}/lag`,
                 knapp: 'Tegn din pepperkakeform',
-                prisNotis: `Prisen regnes etter størrelsen: 7 × 7 cm koster ${product.pris_standard ?? STANDARD_PRIS} ${valuta}, opptil 20 × 20 cm. Du ser prisen mens du tegner.`,
+                prisNotis: `${prisForklaring(oppsettFra(site.settings))} En vanlig form på ca. 7 × 7 cm koster rundt ${krTekst(pepperkakePris(25, oppsettFra(site.settings)))} kr. Du ser prisen mens du tegner.`,
                 info: 'Tegn formen med fingeren eller musa, se den i 3D og legg den i bestillingen. Printes i hvit, 15 mm høy, med bred kant på toppen så du kan trykke hardt.',
               }}
             />
