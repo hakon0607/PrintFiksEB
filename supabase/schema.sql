@@ -138,6 +138,8 @@ alter table public.products add column if not exists cost_extra numeric(10,2) no
 alter table public.products add column if not exists cost_price numeric(10,2) not null default 0;
 alter table public.products add column if not exists kilde_designer text default '';
 alter table public.products add column if not exists kilde_lisens text default '';
+-- Versjoner (størrelser o.l.): [{id, navn, pris, vekt_g, bilder[]}]
+alter table public.products add column if not exists variants jsonb not null default '[]'::jsonb;
 
 -- Gir hver ny modell et tilfeldig 5-sifret ID-nummer hvis dere ikke fyller det ut
 create or replace function public.set_product_code()

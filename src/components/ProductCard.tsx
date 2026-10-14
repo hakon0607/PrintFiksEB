@@ -7,6 +7,9 @@ import { motion } from 'framer-motion';
 import { useCart } from '@/lib/cart';
 import { kr } from '@/lib/settings';
 import type { Product } from '@/lib/types';
+import { prisspenn } from '@/lib/versjoner';
+import { TEMAER, type TemaId } from '@/lib/temaer';
+import { TemaIkon } from './TemaPynt';
 
 /** 1 = vanlig kort, 2 = smalere, 3 = smalest. Styrer hvor mye som vises. */
 export type Tetthet = 1 | 2 | 3;
@@ -15,15 +18,26 @@ export function ProductCard({
   product,
   currency = 'kr',
   tetthet = 1,
+  temaId = null,
 }: {
   product: Product;
   currency?: string;
   tetthet?: Tetthet;
+  /** Halloween/Jul – kortet får ramme og farger fra temaet. */
+  temaId?: TemaId | null;
 }) {
   const { add } = useCart();
   const [lagtTil, setLagtTil] = useState(false);
   const smal = tetthet >= 2;
   const smalest = tetthet === 3;
+  const tema = temaId ? TEMAER.find((t) => t.id === temaId) ?? null : null;
+  const spenn = prisspenn(product);
+  const harVersjoner = spenn.antall > 0;
+  const lenke = product.code ? `/galleri/${product.code}` : '/galleri';
+  const prisTekst =
+    harVersjoner && spenn.min !== spenn.maks
+      ? `fra ${kr(spenn.min, currency)}`
+      : kr(spenn.min, currency);
 
   function leggTil() {
     add({
@@ -45,10 +59,10 @@ export function ProductCard({
       transition={{ type: 'spring', stiffness: 260, damping: 22 }}
       className={`group flex h-full flex-col overflow-hidden border border-ink-100 bg-white shadow-soft transition-shadow hover:shadow-lift ${
         smalest ? 'rounded-2xl' : 'rounded-3xl'
-      }`}
+      } ${tema ? tema.kortRamme : ''}`}
     >
       <Link
-        href={product.code ? `/galleri/${product.code}` : '/galleri'}
+        href={lenke}
         className="relative block aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-brand-50 to-brand-100"
         aria-label={product.name}
       >
@@ -82,6 +96,27 @@ export function ProductCard({
           >
             <span className={smalest ? 'sm:hidden' : 'hidden'}>{product.code}</span>
             <span className={smalest ? 'hidden sm:inline' : ''}>ID {product.code}</span>
+          </span>
+        )}
+        {tema && (
+          <span
+            className={`absolute grid place-items-center rounded-full shadow ${tema.hjorneMerke} ${
+              smalest ? 'right-1.5 top-1.5 h-6 w-6 sm:right-3 sm:top-3 sm:h-8 sm:w-8' : 'right-3 top-3 h-8 w-8'
+            } ${product.featured ? '!top-11 sm:!top-12' : ''}`}
+            title={tema.tittel}
+          >
+            <span className="grid h-[78%] w-[78%] place-items-center rounded-full bg-white/95">
+              <TemaIkon tema={tema.id} className="h-[80%] w-[80%]" />
+            </span>
+          </span>
+        )}
+        {harVersjoner && (
+          <span
+            className={`absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-ink-700 backdrop-blur ${
+              smalest ? 'hidden sm:inline-block' : ''
+            }`}
+          >
+            {spenn.antall} versjoner
           </span>
         )}
         {product.featured && (
@@ -129,10 +164,7 @@ export function ProductCard({
                   : 'text-base'
             }`}
           >
-            <Link
-              href={product.code ? `/galleri/${product.code}` : '/galleri'}
-              className="transition-colors hover:text-brand-700"
-            >
+            <Link href={lenke} className="transition-colors hover:text-brand-700">
               {product.name}
             </Link>
           </h3>
@@ -141,9 +173,9 @@ export function ProductCard({
               smal
                 ? 'text-[13px] sm:rounded-full sm:bg-brand-50 sm:px-2.5 sm:py-1 sm:text-sm'
                 : 'rounded-full bg-brand-50 px-2.5 py-1 text-sm'
-            }`}
+            } ${tema ? tema.prisMerke : ''}`}
           >
-            {kr(Number(product.price) || 0, currency)}
+            {prisTekst}
           </span>
         </div>
 
@@ -175,22 +207,34 @@ export function ProductCard({
 
         <div className={`mt-auto flex gap-2 ${smal ? 'pt-3 sm:pt-5' : 'pt-5'}`}>
           <Link
-            href={product.code ? `/galleri/${product.code}` : '/galleri'}
+            href={lenke}
             className={`btn-ghost flex-1 whitespace-nowrap ${smal ? 'hidden sm:inline-flex' : ''} ${
               smal ? '!px-3.5 !py-2 !text-[13px] sm:!px-5 sm:!py-3 sm:!text-sm' : ''
             }`}
           >
             Se mer
           </Link>
-          <button
-            type="button"
-            onClick={leggTil}
-            className={`flex-1 whitespace-nowrap ${lagtTil ? 'btn-dark' : 'btn-primary'} ${
-              smal ? '!px-3.5 !py-2 !text-[13px] sm:!px-5 sm:!py-3 sm:!text-sm' : ''
-            }`}
-          >
-            {lagtTil ? 'Lagt til ✓' : 'Legg til'}
-          </button>
+          {harVersjoner ? (
+            // Med versjoner må kunden velge på produktsiden først
+            <Link
+              href={lenke}
+              className={`btn-primary flex-1 whitespace-nowrap ${
+                smal ? '!px-3.5 !py-2 !text-[13px] sm:!px-5 sm:!py-3 sm:!text-sm' : ''
+              }`}
+            >
+              Velg versjon
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={leggTil}
+              className={`flex-1 whitespace-nowrap ${lagtTil ? 'btn-dark' : 'btn-primary'} ${
+                smal ? '!px-3.5 !py-2 !text-[13px] sm:!px-5 sm:!py-3 sm:!text-sm' : ''
+              }`}
+            >
+              {lagtTil ? 'Lagt til ✓' : 'Legg til'}
+            </button>
+          )}
         </div>
       </div>
     </motion.article>

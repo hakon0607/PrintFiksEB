@@ -2,11 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCart } from '@/lib/cart';
 import { kr } from '@/lib/settings';
 import type { Product } from '@/lib/types';
+import { versjonerFor } from '@/lib/versjoner';
 
 export function ProductDetail({
   product,
@@ -20,20 +21,38 @@ export function ProductDetail({
   daysMax: number;
 }) {
   const { add } = useCart();
-  const bilder = [product.image_url, ...(product.images ?? [])].filter(Boolean) as string[];
+  const versjoner = useMemo(() => versjonerFor(product), [product]);
+  const [versjonId, setVersjonId] = useState(versjoner[0]?.id ?? '');
+  const versjon = versjoner.find((v) => v.id === versjonId) ?? null;
+
+  // Versjonens egne bilder kommer først, så modellens felles bilder
+  const felles = [product.image_url, ...(product.images ?? [])].filter(Boolean) as string[];
+  const bilder = versjon && versjon.bilder.length > 0
+    ? [...versjon.bilder, ...felles.filter((b) => !versjon.bilder.includes(b))]
+    : felles;
   const [valgt, setValgt] = useState(0);
   const [antall, setAntall] = useState(1);
   const [lagtTil, setLagtTil] = useState(false);
+
+  const pris = versjon ? versjon.pris : Number(product.price) || 0;
+  const vekt = versjon?.vekt_g ?? product.weight_g;
+
+  function velgVersjon(id: string) {
+    setVersjonId(id);
+    setValgt(0);
+  }
 
   function leggTil() {
     add({
       kind: 'product',
       qty: antall,
-      title: product.name,
+      title: versjon ? `${product.name} – ${versjon.navn}` : product.name,
       productId: product.id,
       code: product.code || '',
-      price: Number(product.price) || 0,
-      imageUrl: product.image_url || undefined,
+      price: pris,
+      imageUrl: (versjon?.bilder[0] || product.image_url) || undefined,
+      variantId: versjon?.id,
+      variantName: versjon?.navn,
     });
     setLagtTil(true);
     window.setTimeout(() => setLagtTil(false), 2600);
@@ -47,7 +66,7 @@ export function ProductDetail({
           <AnimatePresence mode="wait">
             {bilder.length > 0 ? (
               <motion.div
-                key={valgt}
+                key={`${versjonId}-${valgt}`}
                 initial={{ opacity: 0, scale: 1.02 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
@@ -55,7 +74,7 @@ export function ProductDetail({
                 className="absolute inset-0"
               >
                 <Image
-                  src={bilder[valgt]}
+                  src={bilder[Math.min(valgt, bilder.length - 1)]}
                   alt={product.name}
                   fill
                   sizes="(max-width: 1024px) 100vw, 55vw"
@@ -113,8 +132,54 @@ export function ProductDetail({
           <p className="mt-2 text-balance text-lg leading-snug text-ink-500">{product.tagline}</p>
         )}
 
+        {versjoner.length > 0 && (
+          <div className="mt-5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-400">
+              Velg versjon
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Versjon">
+              {versjoner.map((v) => {
+                const aktiv = v.id === versjonId;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={aktiv}
+                    onClick={() => velgVersjon(v.id)}
+                    className={`flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm transition-all ${
+                      aktiv
+                        ? 'border-brand-500 bg-brand-50 font-bold text-brand-800 ring-4 ring-brand-100'
+                        : 'border-ink-200 bg-white font-semibold text-ink-700 hover:border-brand-300'
+                    }`}
+                  >
+                    {v.bilder[0] && (
+                      <span className="relative h-7 w-7 overflow-hidden rounded-lg border border-ink-100">
+                        <Image src={v.bilder[0]} alt="" fill sizes="28px" className="object-cover" />
+                      </span>
+                    )}
+                    <span>{v.navn}</span>
+                    <span className={aktiv ? 'text-brand-700' : 'text-ink-400'}>{kr(v.pris, currency)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <p className="mt-4 text-3xl font-bold text-brand-700">
-          {kr(Number(product.price) || 0, currency)}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={pris}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+              className="inline-block"
+            >
+              {kr(pris, currency)}
+            </motion.span>
+          </AnimatePresence>
         </p>
         <p className="mt-1 text-sm text-ink-500">
           Ferdig pris – ingen startpris kommer i tillegg på modeller fra galleriet.
@@ -158,7 +223,7 @@ export function ProductDetail({
 
         <dl className="mt-6 grid grid-cols-2 gap-3 text-sm">
           {product.material && <Spec navn="Materiale" verdi={product.material} />}
-          {product.weight_g ? <Spec navn="Vekt" verdi={`${product.weight_g} g`} /> : null}
+          {vekt ? <Spec navn="Vekt" verdi={`${vekt} g`} /> : null}
           {product.category && <Spec navn="Kategori" verdi={product.category} />}
           <Spec navn="Levering" verdi={`${daysMin}–${daysMax} virkedager`} />
         </dl>
@@ -194,8 +259,9 @@ export function ProductDetail({
         </div>
 
         <p className="mt-5 text-sm leading-relaxed text-ink-500">
-          Vil du ha den i en annen farge eller størrelse? Skriv det i kommentaren når du bestiller,
-          så ordner vi det.
+          {versjoner.length > 0
+            ? 'Vil du ha den i en annen farge? Skriv det i kommentaren når du bestiller, så ordner vi det.'
+            : 'Vil du ha den i en annen farge eller størrelse? Skriv det i kommentaren når du bestiller, så ordner vi det.'}
         </p>
       </div>
     </div>

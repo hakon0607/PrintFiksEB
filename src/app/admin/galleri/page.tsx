@@ -5,6 +5,7 @@ import { useAdmin } from '@/components/admin/AdminProvider';
 import { AiNokkel } from '@/components/admin/AiNokkel';
 import { Importer } from '@/components/admin/Importer';
 import { TableEditor, type Felt } from '@/components/admin/TableEditor';
+import { VersjonEditor } from '@/components/admin/VersjonEditor';
 import { regnMargin } from '@/lib/margin';
 import { kr } from '@/lib/settings';
 import type { Material } from '@/lib/types';
@@ -13,12 +14,27 @@ export default function GalleriAdmin() {
   const { profile, supabase } = useAdmin();
   const erEier = profile?.role === 'eier';
   const [materialer, setMaterialer] = useState<Material[]>([]);
+  const [kategorier, setKategorier] = useState<string[]>([]);
 
-  // Materialprisene brukes til å regne ut hva hver modell koster oss
+  // Materialprisene brukes til å regne ut hva hver modell koster oss.
+  // Kategoriene dere alt bruker, foreslås når dere skriver en ny – så
+  // ikke «Jul» og «jul » blir to forskjellige faner.
   const hentMaterialer = useCallback(async () => {
     if (!supabase) return;
-    const { data } = await supabase.from('materials').select('*').order('sort');
-    setMaterialer((data as Material[]) ?? []);
+    const [m, k] = await Promise.all([
+      supabase.from('materials').select('*').order('sort'),
+      supabase.from('products').select('category'),
+    ]);
+    setMaterialer((m.data as Material[]) ?? []);
+    const sett = new Map<string, string>();
+    for (const rad of ((k.data as { category: string | null }[]) ?? [])) {
+      const navn = (rad.category ?? '').trim();
+      if (navn && !sett.has(navn.toLowerCase())) sett.set(navn.toLowerCase(), navn);
+    }
+    for (const tema of ['Halloween', 'Jul']) {
+      if (!sett.has(tema.toLowerCase())) sett.set(tema.toLowerCase(), tema);
+    }
+    setKategorier([...sett.values()].sort((a, b) => a.localeCompare(b, 'nb')));
   }, [supabase]);
 
   useEffect(() => {
@@ -51,6 +67,14 @@ export default function GalleriAdmin() {
       help: 'Ting som kommer i tillegg: metallring, tape, emballasje, lim. Legges alltid oppå.',
     },
     {
+      key: 'variants',
+      label: 'Versjoner',
+      type: 'egen',
+      egen: ({ verdi, rad, onEndre }) => (
+        <VersjonEditor verdi={verdi} rad={rad} materialer={materialer} onEndre={onEndre} />
+      ),
+    },
+    {
       key: 'code',
       label: 'ID-nummer',
       type: 'text',
@@ -61,7 +85,8 @@ export default function GalleriAdmin() {
       label: 'Kategori',
       type: 'text',
       placeholder: 'F.eks. Kontor, Kjøkken, Gaver',
-      help: 'Brukes som filter i galleriet. Kan stå tomt.',
+      forslag: kategorier,
+      help: 'Galleriet deler modellene inn etter kategori. Trykk på en som finnes, eller skriv en ny. «Halloween» og «Jul» får egen sesongdrakt i galleriet.',
     },
     { key: 'material', label: 'Materiale', type: 'text', placeholder: 'PLA eller PETG' },
     { key: 'weight_g', label: 'Vekt', type: 'number', suffix: 'gram' },

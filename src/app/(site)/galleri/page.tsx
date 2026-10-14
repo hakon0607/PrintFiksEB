@@ -21,6 +21,11 @@ export default async function GalleriSide({
 }) {
   const site = await getSiteFor(searchParams);
   const valuta = text(site.settings, 'pris_valuta', 'kr');
+  const kategori = typeof searchParams?.kategori === 'string' ? searchParams.kategori : undefined;
+  // Måneden i Norge – bestemmer hvilket sesongtema som kommer øverst
+  const maaned = Number(
+    new Date().toLocaleString('en-US', { timeZone: 'Europe/Oslo', month: 'numeric' })
+  );
 
   return (
     <div className="relative pb-24 pt-12 sm:pt-16">
@@ -39,7 +44,12 @@ export default async function GalleriSide({
         </Reveal>
 
         <div className="mt-10">
-          <GalleryGrid products={site.products} currency={valuta} />
+          <GalleryGrid
+            products={site.products}
+            currency={valuta}
+            startKategori={kategori}
+            maaned={maaned}
+          />
         </div>
 
         <Reveal>

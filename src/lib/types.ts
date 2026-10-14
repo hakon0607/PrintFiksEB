@@ -65,6 +65,8 @@ export type Product = {
   material: string | null;
   weight_g: number | null;
   category: string | null;
+  /** Versjoner (størrelser o.l.). Tom liste = bare én versjon. Se lib/versjoner.ts */
+  variants?: unknown;
   featured: boolean;
   active: boolean;
   sort: number;

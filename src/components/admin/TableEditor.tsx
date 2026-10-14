@@ -24,13 +24,22 @@ export type Felt = {
     | 'color'
     | 'select'
     | 'stars'
-    | 'lines';
+    | 'lines'
+    | 'egen';
   valg?: { verdi: string; tekst: string }[];
   placeholder?: string;
   help?: string;
   suffix?: string;
   bred?: boolean;
   readOnly?: boolean;
+  /** Forslag som dukker opp mens man skriver (bare tekstfelt). */
+  forslag?: string[];
+  /** For type «egen»: tegner sin egen redigerer (f.eks. versjoner). */
+  egen?: (p: {
+    verdi: unknown;
+    rad: Record<string, unknown>;
+    onEndre: (verdi: unknown, straks?: boolean) => void;
+  }) => ReactNode;
 };
 
 type Rad = Record<string, unknown> & { id: string };
@@ -594,7 +603,8 @@ function RadRedigerer({
                     felt.type === 'image' ||
                     felt.type === 'images' ||
                     felt.type === 'bildesett' ||
-                    felt.type === 'lines'
+                    felt.type === 'lines' ||
+                    felt.type === 'egen'
                       ? 'sm:col-span-2'
                       : ''
                   }
@@ -643,6 +653,10 @@ export function FeltRedigerer({
   onPatch?: (patch: Record<string, unknown>) => void;
 }) {
   const id = `${felt.key}-${Math.random().toString(36).slice(2, 7)}`;
+
+  if (felt.type === 'egen') {
+    return <>{felt.egen?.({ verdi, rad: rad ?? {}, onEndre })}</>;
+  }
 
   if (felt.type === 'image') {
     return (
@@ -854,6 +868,8 @@ export function FeltRedigerer({
           value={verdi === null || verdi === undefined ? '' : String(verdi)}
           placeholder={felt.placeholder}
           readOnly={felt.readOnly}
+          list={felt.forslag?.length ? `${felt.key}-forslag` : undefined}
+          autoComplete={felt.forslag?.length ? 'off' : undefined}
           onChange={(e) =>
             onEndre(erTall ? (e.target.value === '' ? null : Number(e.target.value)) : e.target.value)
           }
@@ -864,7 +880,32 @@ export function FeltRedigerer({
             {felt.suffix}
           </span>
         )}
+        {felt.forslag?.length ? (
+          <datalist id={`${felt.key}-forslag`}>
+            {felt.forslag.map((f) => (
+              <option key={f} value={f} />
+            ))}
+          </datalist>
+        ) : null}
       </div>
+      {felt.forslag?.length ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {felt.forslag.map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => onEndre(f, true)}
+              className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                String(verdi ?? '').trim().toLowerCase() === f.toLowerCase()
+                  ? 'border-brand-400 bg-brand-50 text-brand-700'
+                  : 'border-ink-200 bg-white text-ink-600 hover:border-brand-300'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {felt.help && <p className="hint">{felt.help}</p>}
     </div>
   );

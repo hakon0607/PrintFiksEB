@@ -7,6 +7,7 @@ import { ProductDetail } from '@/components/ProductDetail';
 import { ProductCard } from '@/components/ProductCard';
 import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
+import { temaFor } from '@/lib/temaer';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,11 @@ export default async function ModellSide({
   if (!product) notFound();
 
   const valuta = text(site.settings, 'pris_valuta', 'kr');
-  const andre = site.products.filter((p) => p.id !== product.id).slice(0, 3);
+  // «Andre modeller»: helst fra samme kategori, så resten
+  const samme = site.products.filter(
+    (p) => p.id !== product.id && (p.category ?? '').trim() && p.category === product.category
+  );
+  const andre = [...samme, ...site.products.filter((p) => p.id !== product.id && !samme.includes(p))].slice(0, 3);
 
   return (
     <div className="relative pb-24 pt-8 sm:pt-12">
@@ -104,7 +109,7 @@ export default async function ModellSide({
             <Stagger className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {andre.map((p) => (
                 <StaggerItem key={p.id} className="h-full">
-                  <ProductCard product={p} currency={valuta} />
+                  <ProductCard product={p} currency={valuta} temaId={temaFor(p.category)?.id ?? null} />
                 </StaggerItem>
               ))}
             </Stagger>

@@ -328,3 +328,30 @@ body:has(.site) { background: #F3F6FD; background-image: none; }
     content: '';
   }
 }
+
+/* ---------- Sesongtemaer i galleriet (Halloween, Jul) ---------- */
+.tema-flagre { transform-box: fill-box; transform-origin: center; animation: tema-flagre .42s ease-in-out infinite; }
+.tema-svev { transform-box: fill-box; transform-origin: center; animation: tema-svev 4s ease-in-out infinite; }
+.tema-blink { animation: tema-blink 2.6s ease-in-out infinite; }
+.tema-sno { top: -12px; animation: tema-sno linear infinite; }
+@keyframes tema-flagre { 0%,100% { transform: scaleY(1) } 50% { transform: scaleY(.45) } }
+@keyframes tema-svev { 0%,100% { transform: translate(0,0) } 50% { transform: translate(7px,-9px) } }
+@keyframes tema-blink { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+@keyframes tema-sno {
+  0% { top: -12px; transform: translateX(0) }
+  50% { transform: translateX(14px) }
+  100% { top: 100%; transform: translateX(-6px) }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tema-flagre, .tema-svev, .tema-blink, .tema-sno { animation: none !important; }
+  .tema-sno { display: none; }
+}
+/* I temaseksjonene og nedtrekksmenyen skal kortene være helt hvite, ikke glass –
+   ellers blir teksten uleselig over den mørke bakgrunnen. */
+.site .tema-seksjon .bg-white.shadow-soft,
+.site .tema-seksjon .btn-ghost,
+.site .solid-hvit.solid-hvit {
+  background: #fff !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

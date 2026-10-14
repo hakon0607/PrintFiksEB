@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { regnMargin } from '@/lib/margin';
 import { kr } from '@/lib/settings';
+import { versjonerFor, type Versjon } from '@/lib/versjoner';
 import type {
   Color,
   DeliveryOption,
@@ -37,15 +38,26 @@ export function nyId(): string {
   return `l${Date.now().toString(36)}${teller}`;
 }
 
-export function linjeFraProdukt(p: Product, materialer: Material[]): Linje {
-  const m = regnMargin(p as unknown as Record<string, unknown>, materialer);
+export function linjeFraProdukt(p: Product, materialer: Material[], v?: Versjon | null): Linje {
+  const grunnlag = p as unknown as Record<string, unknown>;
+  const m = regnMargin(
+    v
+      ? {
+          ...grunnlag,
+          price: v.pris,
+          weight_g: v.vekt_g ?? p.weight_g,
+          cost_price: v.vekt_g ? 0 : grunnlag.cost_price,
+        }
+      : grunnlag,
+    materialer
+  );
   return {
     lokalId: nyId(),
     product_id: p.id,
     code: p.code ?? '',
-    name: p.name,
+    name: v ? `${p.name} – ${v.navn}` : p.name,
     qty: 1,
-    unit_price: Number(p.price ?? 0),
+    unit_price: v ? v.pris : Number(p.price ?? 0),
     unit_cost: Math.round(m.kost * 100) / 100,
     kind: 'galleri',
   };
@@ -177,23 +189,29 @@ export function Handlekurv({
   const printMaks = maxG * perGram + tilleggSum;
   const printPris = Math.round((printMin + printMaks) / 2);
 
+  // Hver versjon blir sitt eget treff, så dere velger riktig størrelse med en gang
   const treff = useMemo(() => {
     const q = sok.trim().toLowerCase();
     if (!q) return [];
     return produkter
       .filter((p) => p.active !== false)
       .filter((p) => (p.code ?? '').toLowerCase().includes(q) || p.name.toLowerCase().includes(q))
-      .slice(0, 6);
+      .flatMap((p) => {
+        const vs = versjonerFor(p);
+        return vs.length ? vs.map((v) => ({ p, v })) : [{ p, v: null as Versjon | null }];
+      })
+      .slice(0, 8);
   }, [produkter, sok]);
 
   const sum = summer(linjer, rundt, { extras, levering: leveringer, startpris });
 
-  function leggTilProdukt(p: Product) {
-    const finnes = linjer.find((l) => l.product_id === p.id);
+  function leggTilProdukt({ p, v }: { p: Product; v: Versjon | null }) {
+    const ny = linjeFraProdukt(p, materialer, v);
+    const finnes = linjer.find((l) => l.product_id === p.id && l.name === ny.name);
     if (finnes) {
       onLinjer(linjer.map((l) => (l.lokalId === finnes.lokalId ? { ...l, qty: l.qty + 1 } : l)));
     } else {
-      onLinjer([...linjer, linjeFraProdukt(p, materialer)]);
+      onLinjer([...linjer, ny]);
     }
     setSok('');
   }
@@ -296,11 +314,11 @@ export function Handlekurv({
               />
               {treff.length > 0 && (
                 <ul className="absolute z-30 mt-1 w-full overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-lift">
-                  {treff.map((p) => (
-                    <li key={p.id}>
+                  {treff.map(({ p, v }) => (
+                    <li key={`${p.id}-${v?.id ?? ''}`}>
                       <button
                         type="button"
-                        onClick={() => leggTilProdukt(p)}
+                        onClick={() => leggTilProdukt({ p, v })}
                         className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left hover:bg-brand-50"
                       >
                         <span className="rounded-full bg-ink-900 px-2 py-0.5 text-[10px] font-bold text-white">
@@ -308,9 +326,10 @@ export function Handlekurv({
                         </span>
                         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                           {p.name}
+                          {v && <span className="font-normal text-ink-500"> – {v.navn}</span>}
                         </span>
                         <span className="shrink-0 text-sm font-bold text-brand-700">
-                          {kr(Number(p.price ?? 0))}
+                          {kr(v ? v.pris : Number(p.price ?? 0))}
                         </span>
                       </button>
                     </li>

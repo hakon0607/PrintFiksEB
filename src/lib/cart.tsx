@@ -35,6 +35,9 @@ export type ProductItem = {
   code: string;
   price: number;
   imageUrl?: string;
+  /** Valgt versjon (størrelse o.l.), hvis modellen har det. */
+  variantId?: string;
+  variantName?: string;
   note?: string;
 };
 
@@ -103,7 +106,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       // Slå sammen like galleriprodukter
       if (item.kind === 'product') {
         const idx = prev.findIndex(
-          (p) => p.kind === 'product' && p.productId === (item as ProductItem).productId
+          (p) =>
+            p.kind === 'product' &&
+            p.productId === (item as ProductItem).productId &&
+            (p.variantId ?? '') === ((item as ProductItem).variantId ?? '')
         );
         if (idx >= 0) {
           const copy = [...prev];

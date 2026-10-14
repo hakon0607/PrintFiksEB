@@ -5,6 +5,7 @@ import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
 import { PrinterAnimation } from '@/components/PrinterAnimation';
 import { ProductCard } from '@/components/ProductCard';
+import { temaFor } from '@/lib/temaer';
 import { Anmeldelser } from '@/components/Anmeldelser';
 import { SplitText } from '@/components/glass/SplitText';
 import { CountUp } from '@/components/glass/CountUp';
@@ -430,7 +431,7 @@ export default async function Hjem({
             <Stagger className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {nyeste.map((p) => (
                 <StaggerItem key={p.id} className="h-full">
-                  <ProductCard product={p} currency={valuta} />
+                  <ProductCard product={p} currency={valuta} temaId={temaFor(p.category)?.id ?? null} />
                 </StaggerItem>
               ))}
             </Stagger>

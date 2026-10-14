@@ -26,6 +26,33 @@ async function safe<T>(promise: PromiseLike<{ data: T[] | null; error: unknown }
   }
 }
 
+const PRODUKTFELT =
+  'id,code,name,description,details,tagline,highlights,price,image_url,images,material,weight_g,category,featured,active,sort,created_at';
+
+/**
+ * Modellene. Prøver først med versjonene (variants). Er ikke SQL-en for
+ * versjoner kjørt ennå, finnes ikke kolonnen – da henter vi uten, så
+ * galleriet aldri blir tomt.
+ */
+async function hentProdukter(sb: NonNullable<ReturnType<typeof getPublicServerClient>>): Promise<Product[]> {
+  const sporring = (felt: string) =>
+    sb
+      .from('products')
+      .select(felt)
+      .eq('active', true)
+      .order('sort')
+      .order('created_at', { ascending: false });
+  try {
+    const med = await sporring(`${PRODUKTFELT},variants`);
+    if (!med.error && med.data) return med.data as unknown as Product[];
+    const uten = await sporring(PRODUKTFELT);
+    if (!uten.error && uten.data) return uten.data as unknown as Product[];
+  } catch {
+    /* faller tilbake under */
+  }
+  return [];
+}
+
 /** Navnet på hurtigbufferen som tømmes når dere trykker «Publiser» i /admin. */
 export const SITE_TAG = 'printfikseb-innhold';
 
@@ -66,17 +93,7 @@ async function hentAlt(): Promise<SiteData> {
           sb.from('delivery_options').select('*').eq('active', true).order('sort') as never,
           DEFAULT_SITE.deliveryOptions
         ),
-        safe<Product>(
-          sb
-            .from('products')
-            .select(
-              'id,code,name,description,details,tagline,highlights,price,image_url,images,material,weight_g,category,featured,active,sort,created_at'
-            )
-            .eq('active', true)
-            .order('sort')
-            .order('created_at', { ascending: false }) as never,
-          []
-        ),
+        hentProdukter(sb),
         safe<TeamMember>(
           sb.from('team_members').select('*').eq('show_on_site', true).order('sort') as never,
           []
