@@ -3,6 +3,10 @@
 /**
  * Selve dekselet på skjermen. Lagene ligger som SVG, så alt flyttes i sanntid
  * mens du drar. «Slik blir det printet» vises når du slipper.
+ *
+ * Ytelse (viktig på mobil): mens fingeren er nede bor endringen bare her
+ * (utkast / strek), oppdatert maks én gang per skjermbilde. Resten av siden –
+ * og den tunge printberegningen – får beskjed først når du slipper.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Analyse } from '@/lib/deksel/analyse';
@@ -50,9 +54,9 @@ export function Lerret({
   onEndre,
   onSlett,
   onDobbel,
-  onStrekStart,
-  onStrekPunkt,
-  onStrekSlutt,
+  penn,
+  onStrek,
+  onAktiv,
 }: {
   a: Analyse;
   r: Rammer;
@@ -74,9 +78,12 @@ export function Lerret({
   onEndre: (l: Lag) => void;
   onSlett: (id: string) => void;
   onDobbel: (id: string) => void;
-  onStrekStart: (u: number, v: number) => void;
-  onStrekPunkt: (u: number, v: number) => void;
-  onStrekSlutt: () => void;
+  /** pennen som brukes når man tegner/visker */
+  penn: { hex: string; bredde: number };
+  /** en ferdig strek (u, v i mm) */
+  onStrek: (punkter: [number, number][]) => void;
+  /** si fra når et dra starter/slutter (så tung beregning kan vente) */
+  onAktiv?: (aktiv: boolean) => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const lagRef = useRef(lag);
@@ -85,9 +92,33 @@ export function Lerret({
   const pekere = useRef(new Map<number, Pkt>());
   const [pxPerMm, setPxPerMm] = useState(3);
 
-  const silSti = sti([a.silhuett, ...a.hull]);
-  const tryggSti = sti(a.trygg.flat());
-  const valgtLag = lag.find((l) => l.id === valgt) ?? null;
+  // endring mens fingeren er nede – vises her, sendes videre først når du slipper
+  const [utkast, setUtkast] = useState<Lag | null>(null);
+  const utkastRef = useRef<Lag | null>(null);
+  const [strek, setStrek] = useState<[number, number][] | null>(null);
+  const strekRef = useRef<[number, number][] | null>(null);
+  const ramme = useRef(0);
+  const [drar, setDrarState] = useState(false);
+  function setDrar(b: boolean) { setDrarState(b); onAktiv?.(b); }
+  // berøringsskjerm: dropp tunge SVG-filtre (skygge/glød) – de må tegnes på nytt for hvert bilde
+  const [grov, setGrov] = useState(false);
+  useEffect(() => { setGrov(window.matchMedia('(pointer: coarse)').matches); }, []);
+  useEffect(() => () => cancelAnimationFrame(ramme.current), []);
+
+  function planlegg() {
+    if (ramme.current) return;
+    ramme.current = requestAnimationFrame(() => {
+      ramme.current = 0;
+      setUtkast(utkastRef.current);
+      setStrek(strekRef.current ? [...strekRef.current] : null);
+    });
+  }
+  function settUtkast(l: Lag) { utkastRef.current = l; planlegg(); }
+
+  const silSti = useMemo(() => sti([a.silhuett, ...a.hull]), [a]);
+  const tryggSti = useMemo(() => sti(a.trygg.flat()), [a]);
+  const vis = utkast ? lag.map((l) => (l.id === utkast.id ? utkast : l)) : lag;
+  const valgtLag = vis.find((l) => l.id === valgt) ?? null;
 
   // midten av sonen der man kan tegne, og kameraet – til «Lag ditt design her»
   const sone = useMemo(() => {
@@ -106,7 +137,8 @@ export function Lerret({
     const q = pt.matrixTransform(svg.getScreenCTM()!.inverse());
     return { x: q.x, y: q.y };
   }
-  const finn = (id: string) => lagRef.current.find((l) => l.id === id);
+  /** laget slik det ser ut akkurat nå (med utkastet fra pågående dra) */
+  const finn = (id: string) => (utkastRef.current?.id === id ? utkastRef.current : lagRef.current.find((l) => l.id === id));
 
   /* ---------- pekere ---------- */
   function lagNed(e: React.PointerEvent, id: string) {
@@ -119,7 +151,8 @@ export function Lerret({
     if (valgt !== id) onVelg(id);
     const l = finn(id);
     if (!l) return;
-    onStart();
+    if (!gest.current) onStart();
+    setDrar(true);
     if (pekere.current.size >= 2) {
       const [p1, p2] = [...pekere.current.values()];
       gest.current = { type: 'klyp', id, l0: l, d0: Math.hypot(p1.x - p2.x, p1.y - p2.y) };
@@ -136,6 +169,7 @@ export function Lerret({
     const p = tilSvg(e);
     pekere.current.set(e.pointerId, p);
     onStart();
+    setDrar(true);
     const c = senterSvg(valgtLag);
     if (type === 'skaler') {
       gest.current = { type: 'skaler', id: valgtLag.id, l0: valgtLag, c, d0: Math.max(0.5, Math.hypot(p.x - c.x, p.y - c.y)) };
@@ -152,7 +186,9 @@ export function Lerret({
       pekere.current.set(e.pointerId, p);
       if (pekere.current.size > 1) return; // bare én finger tegner
       gest.current = { type: 'tegn' };
-      onStrekStart(p.x, -p.y);
+      strekRef.current = [[p.x, -p.y]];
+      setDrar(true);
+      planlegg();
       return;
     }
     // klyp med to fingre på valgt lag, selv om andre finger treffer bakgrunnen
@@ -172,26 +208,49 @@ export function Lerret({
     if (!g || !pekere.current.has(e.pointerId)) return;
     const p = tilSvg(e);
     pekere.current.set(e.pointerId, p);
-    if (g.type === 'tegn') { onStrekPunkt(p.x, -p.y); return; }
+    if (g.type === 'tegn') {
+      const pts = strekRef.current;
+      if (!pts) return;
+      const sist = pts[pts.length - 1];
+      if (Math.hypot(p.x - sist[0], -p.y - sist[1]) < 0.25) return;
+      pts.push([p.x, -p.y]);
+      planlegg();
+      return;
+    }
     if (g.type === 'flytt') {
-      onEndre(flyttet(g.l0, p.x - g.p0.x, -(p.y - g.p0.y)));
+      settUtkast(flyttet(g.l0, p.x - g.p0.x, -(p.y - g.p0.y)));
     } else if (g.type === 'klyp') {
       const pts = [...pekere.current.values()];
       if (pts.length < 2 || g.d0 <= 0) return;
       const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       const s = storrelse(g.l0);
-      if (s != null) onEndre(medStorrelse(g.l0, s * (d / g.d0)));
+      if (s != null) settUtkast(medStorrelse(g.l0, s * (d / g.d0)));
     } else if (g.type === 'skaler') {
       const s = storrelse(g.l0);
       const d = Math.hypot(p.x - g.c.x, p.y - g.c.y);
-      if (s != null) onEndre(medStorrelse(g.l0, s * (d / g.d0)));
+      if (s != null) settUtkast(medStorrelse(g.l0, s * (d / g.d0)));
     } else if (g.type === 'roter' && g.l0.type !== 'tegning') {
       const vinkel = Math.atan2(p.y - g.c.y, p.x - g.c.x);
       let rot = g.l0.rot + ((vinkel - g.a0) * 180) / Math.PI;
       rot = ((rot % 360) + 540) % 360 - 180;
       for (const snap of [-180, -90, 0, 90, 180]) if (Math.abs(rot - snap) < 4) rot = snap;
-      onEndre({ ...g.l0, rot: Math.round(rot) });
+      settUtkast({ ...g.l0, rot: Math.round(rot) });
     }
+  }
+
+  /** Fingeren er løftet: send endringen videre én gang. */
+  function ferdig() {
+    cancelAnimationFrame(ramme.current);
+    ramme.current = 0;
+    const l = utkastRef.current;
+    const pts = strekRef.current;
+    utkastRef.current = null;
+    strekRef.current = null;
+    if (l) onEndre(l);
+    if (pts && pts.length) onStrek(pts);
+    setUtkast(null);
+    setStrek(null);
+    setDrar(false);
   }
 
   function opp(e: React.PointerEvent) {
@@ -199,7 +258,7 @@ export function Lerret({
     const g = gest.current;
     if (!g) return;
     if (g.type === 'tegn') {
-      if (pekere.current.size === 0) { onStrekSlutt(); gest.current = null; }
+      if (pekere.current.size === 0) { gest.current = null; ferdig(); }
       return;
     }
     if (pekere.current.size === 1 && g.type === 'klyp') {
@@ -209,7 +268,7 @@ export function Lerret({
       if (l) gest.current = { type: 'flytt', id: l.id, l0: l, p0: rest };
       return;
     }
-    if (pekere.current.size === 0) gest.current = null;
+    if (pekere.current.size === 0) { gest.current = null; ferdig(); }
   }
 
   // rull = zoom på valgt lag
@@ -322,7 +381,7 @@ export function Lerret({
   }
 
   const stabel = (treff: boolean) =>
-    lag.map((l) => (
+    vis.map((l) => (
       <g
         key={l.id}
         transform={ytreTransform(l)}
@@ -334,7 +393,8 @@ export function Lerret({
       </g>
     ));
 
-  const visLevende = !visPrint || !printBilde;
+  // mens du drar/tegner vises alltid de levende lagene (printbildet oppdateres når du slipper)
+  const visLevende = !visPrint || !printBilde || drar;
   const hr = 9 / pxPerMm; // håndtak ~9 px uansett zoom
   const kontrast = '#22D3EE';
   const mal = (n: number) => (Math.round(n * 10) / 10).toFixed(1).replace('.', ',');
@@ -344,8 +404,8 @@ export function Lerret({
     <svg
       ref={svgRef}
       viewBox={`${r.u0 - 8} ${-r.v0 - 6} ${r.bredde + 22} ${r.hoyde + 18}`}
-      className="mx-auto block h-[60vh] max-h-[620px] min-h-[380px] w-auto select-none"
-      style={{ touchAction: 'none', overflow: 'visible', cursor: modus === 'flytt' ? 'default' : 'crosshair' }}
+      className="mx-auto block h-[60vh] max-h-[620px] min-h-[380px] w-auto select-none supports-[height:100svh]:h-[60svh]"
+      style={{ touchAction: 'none', overflow: 'visible', cursor: modus === 'flytt' ? 'default' : 'crosshair', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
       onPointerDown={ned}
       onPointerMove={flytt}
       onPointerUp={opp}
@@ -366,7 +426,7 @@ export function Lerret({
         </filter>
       </defs>
 
-      <path d={silSti} fill={dekselHex} fillRule="evenodd" filter="url(#dg-skygge)" stroke="rgba(103,232,249,.35)" strokeWidth={1.2 * hud} />
+      <path d={silSti} fill={dekselHex} fillRule="evenodd" filter={grov || drar ? undefined : 'url(#dg-skygge)'} stroke="rgba(103,232,249,.35)" strokeWidth={(grov ? 2 : 1.2) * hud} />
 
       {/* mål */}
       <g style={{ pointerEvents: 'none' }} stroke="rgba(103,232,249,.55)" strokeWidth={hud} fill="rgba(165,243,252,.85)"
@@ -385,7 +445,12 @@ export function Lerret({
       {visLevende ? (
         <g style={{ pointerEvents: 'none' }}>
           <g clipPath="url(#dg-sil)" opacity="0.25">{stabel(false)}</g>
-          <g clipPath="url(#dg-trygg)">{stabel(false)}</g>
+          <g clipPath="url(#dg-trygg)">
+            {stabel(false)}
+            {strek && (
+              <path d={strekSti(strek)} fill="none" stroke={penn.hex} strokeWidth={penn.bredde} strokeLinecap="round" strokeLinejoin="round" />
+            )}
+          </g>
         </g>
       ) : (
         <image href={printBilde} x={r.u0} y={-r.v0} width={bildeW * skala} height={bildeH * skala} preserveAspectRatio="none" style={{ pointerEvents: 'none' }} />
@@ -420,7 +485,7 @@ export function Lerret({
       {/* markering med håndtak */}
       {valgtLag && boks && modus === 'flytt' && (
         <g transform={ytreTransform(valgtLag)}>
-          <rect x={boks.x} y={boks.y} width={boks.w} height={boks.h} fill="rgba(34,211,238,.06)" stroke="#22D3EE" strokeWidth={1.5 * hud} filter="url(#dg-glod)" style={{ pointerEvents: 'none' }} />
+          <rect x={boks.x} y={boks.y} width={boks.w} height={boks.h} fill="rgba(34,211,238,.06)" stroke="#22D3EE" strokeWidth={1.5 * hud} filter={grov || drar ? undefined : 'url(#dg-glod)'} style={{ pointerEvents: 'none' }} />
           {[[boks.x, boks.y], [boks.x + boks.w, boks.y], [boks.x, boks.y + boks.h]].map(([x, y], i) => (
             <rect key={i} x={x - 2.5 * hud} y={y - 2.5 * hud} width={5 * hud} height={5 * hud} fill="#22D3EE" style={{ pointerEvents: 'none' }} />
           ))}
@@ -432,7 +497,7 @@ export function Lerret({
           </g>
           {storrelse(valgtLag) != null && (
             <g transform={`translate(${boks.x + boks.w} ${boks.y + boks.h})`} onPointerDown={(e) => handtakNed(e, 'skaler')} style={{ cursor: 'nwse-resize' }}>
-              <circle r={hr} fill="#22D3EE" stroke="#04121a" strokeWidth={1.5 / pxPerMm} filter="url(#dg-glod)" />
+              <circle r={hr} fill="#22D3EE" stroke="#04121a" strokeWidth={1.5 / pxPerMm} filter={grov || drar ? undefined : 'url(#dg-glod)'} />
               <path d={`M${-hr * 0.35} ${hr * 0.35}L${hr * 0.35} ${-hr * 0.35}M${hr * 0.05} ${-hr * 0.35}H${hr * 0.35}V${hr * 0.05}M${-hr * 0.35} ${-hr * 0.05}V${hr * 0.35}H${-hr * 0.05}`} stroke="#04121a" strokeWidth={1.8 / pxPerMm} fill="none" strokeLinecap="round" />
               <title>Endre størrelse</title>
             </g>
@@ -441,7 +506,7 @@ export function Lerret({
             <>
               <line x1={boks.x + boks.w / 2} y1={boks.y} x2={boks.x + boks.w / 2} y2={boks.y - hr * 2.4} stroke="#22D3EE" strokeWidth={1.5 / pxPerMm} style={{ pointerEvents: 'none' }} />
               <g transform={`translate(${boks.x + boks.w / 2} ${boks.y - hr * 2.4})`} onPointerDown={(e) => handtakNed(e, 'roter')} style={{ cursor: 'grab' }}>
-                <circle r={hr} fill="#04121a" stroke="#22D3EE" strokeWidth={1.8 / pxPerMm} filter="url(#dg-glod)" />
+                <circle r={hr} fill="#04121a" stroke="#22D3EE" strokeWidth={1.8 / pxPerMm} filter={grov || drar ? undefined : 'url(#dg-glod)'} />
                 <path d={`M${hr * 0.45} ${-hr * 0.1}A${hr * 0.45} ${hr * 0.45} 0 1 1 ${hr * 0.1} ${-hr * 0.45}`} stroke="#22D3EE" strokeWidth={1.6 / pxPerMm} fill="none" strokeLinecap="round" />
                 <title>Roter</title>
               </g>

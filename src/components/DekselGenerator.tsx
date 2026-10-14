@@ -166,6 +166,20 @@ export function DekselGenerator({
     setLag((ls) => ls.map((l) => (l.id === ny.id ? ny : l)));
     setLagtTil(false);
   }, []);
+  /** For glidebrytere: maks én oppdatering per skjermbilde, så mobilen henger med. */
+  const venterLag = useRef<Lag | null>(null);
+  const venterRamme = useRef(0);
+  const endreLagRolig = useCallback((ny: Lag) => {
+    venterLag.current = ny;
+    if (venterRamme.current) return;
+    venterRamme.current = requestAnimationFrame(() => {
+      venterRamme.current = 0;
+      if (venterLag.current) endreLag(venterLag.current);
+      venterLag.current = null;
+    });
+  }, [endreLag]);
+  /** true mens en finger/mus drar på lerretet – da venter den tunge printberegningen */
+  const aktivRef = useRef(false);
 
   /* ---------- farger ---------- */
   const [antall, setAntall] = useState(Math.min(2, maksFarger));
@@ -209,6 +223,16 @@ export function DekselGenerator({
   const H = r ? Math.ceil(r.hoyde / SKALA) : 0;
 
   /* ---------- legg til ---------- */
+  const studioRef = useRef<HTMLDivElement>(null);
+  /** På mobil ligger knappene under studioet – vis dekselet rolig når noe legges til, i stedet for at siden hopper. */
+  function visStudio() {
+    const el = studioRef.current;
+    if (!el || window.matchMedia('(min-width: 1024px)').matches) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < -40 || r.top > window.innerHeight * 0.4) {
+      window.setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
+    }
+  }
   function leggTilLag(l: Lag) {
     setTre(false);
     merke();
@@ -232,6 +256,7 @@ export function DekselGenerator({
       const el = new window.Image();
       el.onload = () => {
         setFeil('');
+        visStudio();
         const forhold = el.naturalHeight / el.naturalWidth;
         leggTilLag({
           id: nyId(), type: 'bilde', el, url, navn: f.name,
@@ -247,15 +272,18 @@ export function DekselGenerator({
   function leggTilTekst() {
     if (!boks) return;
     FONTER.forEach((f) => lastFont(f.id));
+    visStudio();
     leggTilLag({
       id: nyId(), type: 'tekst', tekst: 'Din tekst', font: 'inter', farge: startFarge(),
       u: boks.cu, v: boks.cv, hoyde: Math.round(Math.min(14, boks.b / 6)), rot: 0,
     });
-    window.setTimeout(() => { tekstFelt.current?.focus(); tekstFelt.current?.select(); }, 60);
+    // på mobil: ikke åpne tastaturet automatisk (det flytter siden) – trykk i feltet når du vil skrive
+    if (!erBeroring()) window.setTimeout(() => { tekstFelt.current?.focus({ preventScroll: true }); tekstFelt.current?.select(); }, 60);
   }
 
   function leggTilSymbol(id: string) {
     if (!boks) return;
+    visStudio();
     leggTilLag({
       id: nyId(), type: 'symbol', symbol: id, farge: startFarge(),
       u: boks.cu, v: boks.cv, bredde: Math.round(Math.min(30, boks.b * 0.45)), rot: 0,
@@ -265,31 +293,23 @@ export function DekselGenerator({
 
   /* ---------- tegning ---------- */
   const tegneLag = useRef<string | null>(null);
-  function strekStart(u: number, v: number) {
+  const visk = modus === 'visk';
+  const pennVis = { hex: visk ? dekselFil.hex : hex(pennFarge), bredde: visk ? Math.max(3, penn.bredde * 1.5) : penn.bredde };
+  /** En hel strek kommer fra lerretet når fingeren løftes – ett angre-punkt per strek. */
+  function leggTilStrek(punkter: [number, number][]) {
+    if (!punkter.length) return;
     merke();
-    const visk = modus === 'visk';
-    const strek = { farge: visk ? dekselId : pennFarge, bredde: visk ? Math.max(3, penn.bredde * 1.5) : penn.bredde, visk, punkter: [[u, v]] as [number, number][] };
+    const strek = { farge: visk ? dekselId : pennFarge, bredde: pennVis.bredde, visk };
     const eksisterende = tegneLag.current ? lagRef.current.find((l) => l.id === tegneLag.current && l.type === 'tegning') as TegningLag | undefined : undefined;
     if (eksisterende) {
-      const p: [number, number] = [u - eksisterende.du, v - eksisterende.dv];
-      endreLag({ ...eksisterende, streker: [...eksisterende.streker, { ...strek, punkter: [p] }] });
+      const pts = punkter.map(([u, v]) => [u - eksisterende.du, v - eksisterende.dv] as [number, number]);
+      endreLag({ ...eksisterende, streker: [...eksisterende.streker, { ...strek, punkter: pts }] });
     } else {
-      const ny: TegningLag = { id: nyId(), type: 'tegning', du: 0, dv: 0, streker: [strek] };
+      const ny: TegningLag = { id: nyId(), type: 'tegning', du: 0, dv: 0, streker: [{ ...strek, punkter }] };
       tegneLag.current = ny.id;
       setLag((ls) => [...ls, ny]);
     }
     setLagtTil(false);
-  }
-  function strekPunkt(u: number, v: number) {
-    const l = lagRef.current.find((x) => x.id === tegneLag.current) as TegningLag | undefined;
-    if (!l || !l.streker.length) return;
-    const s = l.streker[l.streker.length - 1];
-    const p: [number, number] = [u - l.du, v - l.dv];
-    const sist = s.punkter[s.punkter.length - 1];
-    if (sist && Math.hypot(p[0] - sist[0], p[1] - sist[1]) < 0.25) return;
-    const streker = [...l.streker];
-    streker[streker.length - 1] = { ...s, punkter: [...s.punkter, p] };
-    endreLag({ ...l, streker });
   }
   function velgModus(m: Modus) {
     setModus(m);
@@ -373,10 +393,39 @@ export function DekselGenerator({
   const [print, setPrint] = useState<{ bilde: string; nokkel: string; pal: Filament[]; brukt: number[] }>({ bilde: '', nokkel: '', pal: [], brukt: [] });
   const [regner, setRegner] = useState(false);
 
+  // fargeberegningen kjører i en egen tråd (Web Worker) så siden ikke hakker
+  const arbeider = useRef<{ w: Worker | null; opptatt: boolean; jobb: number }>({ w: null, opptatt: false, jobb: 0 });
+  useEffect(() => () => arbeider.current.w?.terminate(), []);
+  function posteriserIBakgrunnen(rgba: Uint8ClampedArray, maske: Uint8Array, hexer: string[]): Promise<Uint8Array> {
+    const s = arbeider.current;
+    const id = ++s.jobb;
+    try {
+      if (s.w && s.opptatt) { s.w.terminate(); s.w = null; } // gammel jobb er utdatert – start på nytt
+      if (!s.w) s.w = new Worker(new URL('../lib/deksel/print.worker.ts', import.meta.url));
+    } catch {
+      return Promise.resolve(posteriser(rgba, W, H, hexer, maske, SKALA)); // nettleseren støtter ikke worker
+    }
+    const w = s.w;
+    s.opptatt = true;
+    return new Promise((ok, feil) => {
+      w.onmessage = (e: MessageEvent<{ id: number; kart: Uint8Array }>) => {
+        if (e.data.id !== s.jobb) return;
+        s.opptatt = false;
+        ok(e.data.kart);
+      };
+      w.onerror = () => { s.opptatt = false; s.w = null; feil(new Error('worker')); };
+      w.postMessage({ id, rgba, W, H, hex: hexer, maske, skala: SKALA }, [rgba.buffer, maske.buffer]);
+    });
+  }
+
   useEffect(() => {
     if (!a || !r || !lag.length) { setPrint({ bilde: '', nokkel, pal: [], brukt: [] }); return; }
     setRegner(true);
-    const t = window.setTimeout(() => {
+    let t = 0;
+    let avbrutt = false;
+    const beregn = async () => {
+      // ikke frys skjermen midt i et dra – prøv igjen litt senere
+      if (aktivRef.current) { t = window.setTimeout(beregn, 200); return; }
       const c = document.createElement('canvas');
       c.width = W; c.height = H;
       const ctx = c.getContext('2d', { willReadFrequently: true })!;
@@ -409,7 +458,13 @@ export function DekselGenerator({
       }
       if (ider.join() !== motivIder.join()) setMotivIder(ider);
       const pal = [dekselFil, ...ider.map(fil)];
-      const kart = posteriser(rgba, W, H, pal.map((f) => f.hex), maske, SKALA);
+      let kart: Uint8Array;
+      try {
+        kart = await posteriserIBakgrunnen(new Uint8ClampedArray(rgba), maske.slice(), pal.map((f) => f.hex));
+      } catch {
+        kart = posteriser(rgba, W, H, pal.map((f) => f.hex), maske, SKALA);
+      }
+      if (avbrutt) return;
       const brukt = new Set<number>();
       for (let i = 0; i < kart.length; i++) brukt.add(kart[i]);
 
@@ -426,8 +481,9 @@ export function DekselGenerator({
       oc.putImageData(img, 0, 0);
       setPrint({ bilde: ut.toDataURL('image/png'), nokkel, pal, brukt: [...brukt].sort((x, y) => x - y) });
       setRegner(false);
-    }, 160);
-    return () => window.clearTimeout(t);
+    };
+    t = window.setTimeout(beregn, erBeroring() ? 300 : 160);
+    return () => { avbrutt = true; window.clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nokkel, W, H]);
 
@@ -470,9 +526,9 @@ export function DekselGenerator({
   const motivFil = motivIder.map(fil);
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start [touch-action:manipulation]">
       {/* ================= Studioet ================= */}
-      <div className="lg:sticky lg:top-24">
+      <div className="lg:sticky lg:top-24" ref={studioRef} style={{ scrollMarginTop: 72 }}>
         <div className="studio px-3 pb-4 pt-12 sm:px-6">
           <div className="studio-rutenett" />
           <span className="studio-hjorne left-3 top-3 border-l border-t" />
@@ -491,7 +547,7 @@ export function DekselGenerator({
 
           <div className="relative">
             {!a && (
-              <div className="grid min-h-[420px] place-items-center text-center">
+              <div className="grid h-[60vh] max-h-[620px] min-h-[380px] place-items-center text-center supports-[height:100svh]:h-[60svh]">
                 <p className="studio-hud !normal-case !tracking-normal">
                   {hentFeil || <>Henter <b>{modell?.navn}</b> …</>}
                 </p>
@@ -528,24 +584,22 @@ export function DekselGenerator({
                 onSlett={slett}
                 onDobbel={(id) => {
                   const l = lag.find((x) => x.id === id);
-                  if (l?.type === 'tekst') window.setTimeout(() => tekstFelt.current?.focus(), 30);
+                  if (l?.type === 'tekst') window.setTimeout(() => tekstFelt.current?.focus({ preventScroll: true }), 30);
                 }}
-                onStrekStart={strekStart}
-                onStrekPunkt={strekPunkt}
-                onStrekSlutt={() => undefined}
+                penn={pennVis}
+                onStrek={leggTilStrek}
+                onAktiv={(b) => { aktivRef.current = b; }}
               />
             )}
           </div>
 
-          {!tre && valgtLag && modus === 'flytt' && (
-            <p className="studio-hud pointer-events-none mt-2 text-center">
-              {valgtLag.type !== 'tegning' ? (
+          <p className="studio-hud pointer-events-none mt-2 h-4 text-center" aria-hidden={!(valgtLag && modus === 'flytt' && !tre)}>
+            {!tre && valgtLag && modus === 'flytt' && (valgtLag.type !== 'tegning' ? (
                 <>x <b>{fmt(valgtLag.u)}</b> · y <b>{fmt(valgtLag.v)}</b> · {valgtLag.type === 'tekst' ? 'h' : 'b'} <b>{fmt(valgtLag.type === 'tekst' ? valgtLag.hoyde : valgtLag.bredde)} mm</b> · rot <b>{valgtLag.rot}°</b></>
               ) : (
                 <>tegning · <b>{valgtLag.streker.length}</b> {valgtLag.streker.length === 1 ? 'strek' : 'streker'}</>
-              )}
-            </p>
-          )}
+              ))}
+          </p>
 
           {/* verktøylinje */}
           <div className="relative mt-3 flex flex-wrap items-center justify-center gap-2">
@@ -620,7 +674,7 @@ export function DekselGenerator({
                 maksFarger={maksFarger}
                 tekstRef={tekstFelt}
                 boks={boks}
-                onEndre={(l, kontinuerlig) => { merke(!kontinuerlig); endreLag(l); }}
+                onEndre={(l, kontinuerlig) => { merke(!kontinuerlig); if (kontinuerlig) endreLagRolig(l); else endreLag(l); }}
                 onSlett={() => slett(valgtLag.id)}
                 onDupliser={() => dupliser(valgtLag.id)}
                 onFrem={() => flyttIStabel(valgtLag.id, 1)}
@@ -677,7 +731,7 @@ export function DekselGenerator({
             <button type="button" className={`verktoy-knapp ${visSymboler ? 'aktiv' : ''}`} onClick={() => setVisSymboler((v) => !v)}>
               <Ikon navn="stjerne" stor /> Symbol
             </button>
-            <button type="button" className={`verktoy-knapp ${modus === 'tegn' ? 'aktiv' : ''}`} onClick={() => velgModus(modus === 'tegn' ? 'flytt' : 'tegn')}>
+            <button type="button" className={`verktoy-knapp ${modus === 'tegn' ? 'aktiv' : ''}`} onClick={() => { if (modus !== 'tegn') visStudio(); velgModus(modus === 'tegn' ? 'flytt' : 'tegn'); }}>
               <Ikon navn="blyant" stor /> Tegn
             </button>
           </div>
@@ -859,3 +913,8 @@ function FargeListe({
 }
 
 export type { Ring };
+
+/** Telefon/nettbrett (finger i stedet for mus). */
+function erBeroring() {
+  return typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+}
