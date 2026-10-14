@@ -166,7 +166,7 @@ function jevnAvstand(p: Pkt[], lukket: boolean, steg: number): Pkt[] {
  * «Glatt ut»: gjør hele tegningen jevnere uten at den krymper (Taubin-glatting).
  * Endene på en åpen form står stille. Kan trykkes flere ganger.
  */
-export function glattUt(form: Form, styrke = 18): Form {
+export function glattUt(form: Form, styrke = 54): Form {
   if (form.punkter.length < 3) return form;
   const lengden = lengde(form.punkter) + (form.lukket ? avst(form.punkter[0], form.punkter[form.punkter.length - 1]) : 0);
   const steg = Math.max(1.5, lengden / 300);
