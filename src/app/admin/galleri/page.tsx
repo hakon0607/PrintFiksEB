@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAdmin } from '@/components/admin/AdminProvider';
 import { AiNokkel } from '@/components/admin/AiNokkel';
+import { NyhetVelger } from '@/components/admin/NyhetVelger';
 import { Importer } from '@/components/admin/Importer';
 import { TableEditor, type Felt } from '@/components/admin/TableEditor';
 import { VersjonEditor } from '@/components/admin/VersjonEditor';
@@ -141,6 +142,8 @@ export default function GalleriAdmin() {
           trykke angre.
         </p>
       </div>
+
+      <NyhetVelger />
 
       <AiNokkel />
 

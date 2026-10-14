@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getSiteFor } from '@/lib/data';
 import { text } from '@/lib/settings';
+import { finnNyhet } from '@/lib/nyhet';
+import { NyhetBanner } from '@/components/NyhetBanner';
 import { GalleryGrid } from '@/components/GalleryGrid';
 import { Reveal } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
@@ -29,6 +31,7 @@ export default async function GalleriSide({
     if (deksel) produkter = [...produkter, deksel];
   }
   const kategori = typeof searchParams?.kategori === 'string' ? searchParams.kategori : undefined;
+  const nyhet = finnNyhet(site.settings, produkter);
   // Måneden i Norge – bestemmer hvilket sesongtema som kommer øverst
   const maaned = Number(
     new Date().toLocaleString('en-US', { timeZone: 'Europe/Oslo', month: 'numeric' })
@@ -50,12 +53,17 @@ export default async function GalleriSide({
           </p>
         </Reveal>
 
+        {nyhet?.type === 'produkt' && !kategori && (
+          <NyhetBanner nyhet={nyhet} currency={valuta} iContainer={false} className="mt-10" />
+        )}
+
         <div className="mt-10">
           <GalleryGrid
             products={produkter}
             currency={valuta}
             startKategori={kategori}
             maaned={maaned}
+            fremhevTema={nyhet?.type === 'tema' ? nyhet.tema.id : null}
           />
         </div>
 

@@ -449,3 +449,13 @@ body:has(.site) { background: #F3F6FD; background-image: none; }
 .verktoy-knapp.aktiv { border-color: #22d3ee; background: linear-gradient(180deg, #ecfeff, #cffafe); box-shadow: 0 0 0 3px rgba(34, 211, 238, .2); }
 .steg-nr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 @media (prefers-reduced-motion: reduce) { .studio-prikk.opptatt { animation: none; } }
+
+/* ================= Nyhet ================= */
+.nyhet-ramme {
+  background: conic-gradient(from var(--nyhet-vinkel, 0deg), #2559c7, #22d3ee, #a78bfa, #2559c7);
+  animation: nyhet-snurr 6s linear infinite;
+  box-shadow: 0 30px 70px -35px rgba(37, 89, 199, .55);
+}
+@property --nyhet-vinkel { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes nyhet-snurr { to { --nyhet-vinkel: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .nyhet-ramme { animation: none; } }

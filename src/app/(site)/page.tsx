@@ -6,6 +6,8 @@ import { Blobs } from '@/components/Blobs';
 import { PrinterAnimation } from '@/components/PrinterAnimation';
 import { ProductCard } from '@/components/ProductCard';
 import { temaFor } from '@/lib/temaer';
+import { finnNyhet } from '@/lib/nyhet';
+import { NyhetBanner } from '@/components/NyhetBanner';
 import { Anmeldelser } from '@/components/Anmeldelser';
 import { SplitText } from '@/components/glass/SplitText';
 import { CountUp } from '@/components/glass/CountUp';
@@ -42,6 +44,7 @@ export default async function Hjem({
   const hjemlevering =
     site.deliveryOptions.find((d) => Number(d.price) > 0) ?? { name: 'Hjemlevering', price: 50 };
   const visAnmeldelser = bool(s, 'anmeldelser_pa', true) && site.reviews.length > 0;
+  const nyhet = finnNyhet(s, site.products);
   const utvalgte = site.products.filter((p) => p.featured).slice(0, 3);
   const nyeste = (utvalgte.length ? utvalgte : site.products).slice(0, 3);
 
@@ -143,6 +146,9 @@ export default async function Hjem({
           </div>
         </div>
       </section>
+
+      {/* ---------------- NYHET ---------------- */}
+      {nyhet && <NyhetBanner nyhet={nyhet} currency={valuta} className="-mt-6 pb-6 sm:-mt-8" />}
 
       {/* ---------------- TJENESTER ---------------- */}
       <section className="relative py-16 sm:py-20">

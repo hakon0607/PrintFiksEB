@@ -34,6 +34,7 @@ export function GalleryGrid({
   currency = 'kr',
   startKategori,
   maaned,
+  fremhevTema,
 }: {
   products: Product[];
   currency?: string;
@@ -41,6 +42,8 @@ export function GalleryGrid({
   startKategori?: string;
   /** Måneden nå (1–12), regnet ut på serveren så alle ser det samme. */
   maaned: number;
+  /** Tema satt som «Nyhet» i admin – kommer helt øverst. */
+  fremhevTema?: string | null;
 }) {
   /* ---------- Grupper modellene etter kategori ---------- */
   const grupper = useMemo<Gruppe[]>(() => {
@@ -61,11 +64,12 @@ export function GalleryGrid({
       kart.get(verdi)!.produkter.push(p);
     }
     // Rekkefølge: tema i sesong → andre tema → vanlige (alfabetisk) → «Annet» sist
-    const rang = (g: Gruppe) => (g.sesong ? 0 : g.tema ? 1 : g.verdi === ANNET ? 3 : 2);
+    const rang = (g: Gruppe) =>
+      fremhevTema && g.tema?.id === fremhevTema ? -1 : g.sesong ? 0 : g.tema ? 1 : g.verdi === ANNET ? 3 : 2;
     return [...kart.values()].sort(
       (a, b) => rang(a) - rang(b) || a.navn.localeCompare(b.navn, 'nb')
     );
-  }, [products, maaned]);
+  }, [products, maaned, fremhevTema]);
 
   const valg: KategoriValg[] = useMemo(
     () => [
