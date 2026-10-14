@@ -181,6 +181,8 @@ export default function GalleriAdmin() {
           active: true,
         }}
         felter={felter}
+        // dekselet redigeres under «Deksler»
+        filter={(rad) => String(rad.code ?? '').trim().toLowerCase() !== 'deksel'}
       />
     </div>
   );

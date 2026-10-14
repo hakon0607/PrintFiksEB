@@ -2,6 +2,7 @@ import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 import { getPublicServerClient } from './supabase/server';
 import { DEFAULT_SITE, DEFAULT_SETTINGS } from './defaults';
+import { dekselFraPris, erDekselProdukt } from './deksel/produkt';
 import type {
   SiteData,
   Material,
@@ -133,7 +134,19 @@ async function hentAlt(): Promise<SiteData> {
       weightRanges,
       extras: extras.map(normalizeNumbers('price')),
       deliveryOptions: deliveryOptions.map(normalizeNumbers('price')),
-      products: products.map(normalizeNumbers('price')),
+      products: products.map(normalizeNumbers('price')).map((p) =>
+        // dekselproduktet: prisen kommer fra dekselprisene, og kortet lenker til generatoren
+        erDekselProdukt(p)
+          ? {
+              ...p,
+              spesial: 'deksel' as const,
+              price: dekselFraPris(
+                Number(settings.deksel_grunnpris ?? 59) || 59,
+                Number(settings.deksel_pris_per_farge ?? 10) || 0
+              ),
+            }
+          : p
+      ),
       team,
       faq,
       examples,

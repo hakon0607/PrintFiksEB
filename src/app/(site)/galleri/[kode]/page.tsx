@@ -8,6 +8,10 @@ import { ProductCard } from '@/components/ProductCard';
 import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
 import { temaFor } from '@/lib/temaer';
+import { DekselGenerator } from '@/components/DekselGenerator';
+import { erDekselProdukt } from '@/lib/deksel/produkt';
+import { hentDekselModeller } from '@/lib/deksel/server';
+import { lesFilamenter } from '@/lib/deksel/farger';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,14 +72,60 @@ export default async function ModellSide({
           Tilbake til galleriet
         </Link>
 
-        <div className="mt-6">
-          <ProductDetail
-            product={product}
-            currency={valuta}
-            daysMin={num(site.settings, 'levering_dager_min', 2)}
-            daysMax={num(site.settings, 'levering_dager_maks', 4)}
-          />
-        </div>
+        {erDekselProdukt(product) ? (
+          <div className="mt-6">
+            <h1 className="text-balance text-3xl font-bold sm:text-4xl">{product.name}</h1>
+            {product.tagline && (
+              <p className="mt-2 text-balance text-lg leading-snug text-ink-500">{product.tagline}</p>
+            )}
+            {product.description && (
+              <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-700">{product.description}</p>
+            )}
+            <div className="mt-8">
+              <DekselGenerator
+                produktNavn={product.name}
+                modeller={await hentDekselModeller()}
+                filamenter={lesFilamenter(text(site.settings, 'deksel_farger', ''))}
+                grunnpris={num(site.settings, 'deksel_grunnpris', 59)}
+                perFarge={num(site.settings, 'deksel_pris_per_farge', 10)}
+                maksFarger={Math.max(1, Math.min(6, num(site.settings, 'deksel_maks_farger', 3)))}
+              />
+            </div>
+            {(product.details || (product.highlights?.length ?? 0) > 0) && (
+              <div className="mt-12 grid gap-8 rounded-3xl border border-ink-100 bg-white/70 p-6 sm:p-8 lg:grid-cols-2">
+                {product.details && (
+                  <div className="space-y-3 text-[15px] leading-relaxed text-ink-600">
+                    {product.details
+                      .split(/\n{2,}/)
+                      .filter((a) => a.trim())
+                      .map((avsnitt, i) => (
+                        <p key={i}>{avsnitt.trim()}</p>
+                      ))}
+                  </div>
+                )}
+                {(product.highlights?.length ?? 0) > 0 && (
+                  <ul className="space-y-2.5">
+                    {product.highlights!.map((h, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-[15px] text-ink-700">
+                        <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-500" />
+                        {h}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="mt-6">
+            <ProductDetail
+              product={product}
+              currency={valuta}
+              daysMin={num(site.settings, 'levering_dager_min', 2)}
+              daysMax={num(site.settings, 'levering_dager_maks', 4)}
+            />
+          </div>
+        )}
 
         {/* Kreditering – CC BY-lisenser krever at designeren nevnes */}
         {product.source_url && (

@@ -30,12 +30,14 @@ function tryggBoks(a: Analyse) {
 }
 
 export function DekselGenerator({
+  produktNavn = 'Mobildeksel med eget motiv',
   modeller,
   filamenter,
   grunnpris,
   perFarge,
   maksFarger,
 }: {
+  produktNavn?: string;
   modeller: DekselModell[];
   filamenter: Filament[];
   grunnpris: number;
@@ -244,7 +246,7 @@ export function DekselGenerator({
     add({
       kind: 'deksel',
       qty: 1,
-      title: `Deksel med eget motiv – ${modell.navn}`,
+      title: `${produktNavn} – ${modell.navn}`,
       price: dekselPris(grunnpris, perFarge, Math.max(1, bruktIdx.length)),
       modellId: modell.id,
       modellNavn: modell.navn,

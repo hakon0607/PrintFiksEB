@@ -60,6 +60,10 @@ type Props = {
   radInfo?: (rad: Record<string, unknown>) => ReactNode;
   /** Boks øverst når raden er åpen, f.eks. regnestykket for margin. */
   radPanel?: (rad: Record<string, unknown>) => ReactNode;
+  /** Vis bare noen av radene (f.eks. alt unntatt deksel-produktet). */
+  filter?: (rad: Record<string, unknown>) => boolean;
+  /** Skjul «Legg til»-knappen. */
+  skjulLeggTil?: boolean;
 };
 
 export function TableEditor({
@@ -76,7 +80,11 @@ export function TableEditor({
   finpuss = false,
   radInfo,
   radPanel,
+  filter,
+  skjulLeggTil = false,
 }: Props) {
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
   const { supabase, profile, user } = useAdmin();
   const [rader, setRader] = useState<Rad[]>([]);
   const [laster, setLaster] = useState(true);
@@ -98,7 +106,10 @@ export function TableEditor({
     q = harSortering ? q.order('sort') : q.order('created_at', { ascending: true });
     const { data, error } = await q;
     if (error) setFeil('Klarte ikke å hente data. Last siden på nytt.');
-    else setRader((data as Rad[]) ?? []);
+    else {
+      const alle = (data as Rad[]) ?? [];
+      setRader(filterRef.current ? alle.filter((r) => filterRef.current!(r)) : alle);
+    }
     setLaster(false);
   }, [supabase, table, harSortering]);
 
@@ -113,7 +124,7 @@ export function TableEditor({
       const id = String((ny?.id ?? gammel?.id) ?? '');
       if (!id) return;
 
-      if (type === 'DELETE') {
+      if (type === 'DELETE' || (ny && filterRef.current && !filterRef.current(ny as Rad))) {
         setRader((prev) => prev.filter((r) => r.id !== id));
         return;
       }
@@ -234,7 +245,7 @@ export function TableEditor({
           <h2 className="text-lg font-semibold">{tittel}</h2>
           {beskrivelse && <p className="mt-1.5 max-w-xl text-sm text-ink-500">{beskrivelse}</p>}
         </div>
-        <button type="button" onClick={leggTil} className="btn-primary btn-sm">
+        <button type="button" onClick={leggTil} className={`btn-primary btn-sm ${skjulLeggTil ? 'hidden' : ''}`}>
           + Legg til {enhetsnavn}
         </button>
       </div>

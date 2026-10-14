@@ -32,10 +32,11 @@ export function ProductCard({
   const smalest = tetthet === 3;
   const tema = temaId ? TEMAER.find((t) => t.id === temaId) ?? null : null;
   const spenn = prisspenn(product);
-  const harVersjoner = spenn.antall > 0;
+  const erDeksel = product.spesial === 'deksel';
+  const harVersjoner = spenn.antall > 0 || erDeksel;
   const lenke = product.code ? `/galleri/${product.code}` : '/galleri';
   const prisTekst =
-    harVersjoner && spenn.min !== spenn.maks
+    (harVersjoner && spenn.min !== spenn.maks) || erDeksel
       ? `fra ${kr(spenn.min, currency)}`
       : kr(spenn.min, currency);
 
@@ -86,7 +87,7 @@ export function ProductCard({
             </svg>
           </div>
         )}
-        {product.code && (
+        {product.code && !erDeksel && (
           <span
             className={`absolute bg-ink-900/85 font-bold text-white backdrop-blur ${
               smalest
@@ -110,7 +111,7 @@ export function ProductCard({
             </span>
           </span>
         )}
-        {harVersjoner && (
+        {spenn.antall > 0 && (
           <span
             className={`absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-ink-700 backdrop-blur ${
               smalest ? 'hidden sm:inline-block' : ''
@@ -222,7 +223,7 @@ export function ProductCard({
                 smal ? '!px-3.5 !py-2 !text-[13px] sm:!px-5 sm:!py-3 sm:!text-sm' : ''
               }`}
             >
-              Velg versjon
+              {erDeksel ? 'Lag ditt eget' : 'Velg versjon'}
             </Link>
           ) : (
             <button
