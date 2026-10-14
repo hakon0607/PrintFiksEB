@@ -5,21 +5,34 @@
  */
 import { cssFont } from './fonter';
 import { symbol } from './symboler';
+import { enfarget, OMRISS_MM } from './bildefarge';
+
+/** Fylt eller bare omriss (for tekst, symboler og bilder i én farge). */
+export type Stil = 'fyll' | 'omriss';
 
 export type BildeLag = {
   id: string; type: 'bilde';
   el: HTMLImageElement; url: string; navn: string;
   u: number; v: number; bredde: number; rot: number;
+  /** satt = «Én farge»: bildet blir en silhuett i denne filamentfargen */
+  farge?: string;
+  stil?: Stil;
+  /** 0–100: hvor mye av bildet som blir farget (tom = automatisk) */
+  mengde?: number;
+  /** bytt om lyst og mørkt */
+  snu?: boolean;
 };
 export type TekstLag = {
   id: string; type: 'tekst';
   tekst: string; font: string; farge: string;
   u: number; v: number; hoyde: number; rot: number;
+  stil?: Stil;
 };
 export type SymbolLag = {
   id: string; type: 'symbol';
   symbol: string; farge: string;
   u: number; v: number; bredde: number; rot: number;
+  stil?: Stil;
 };
 export type Strek = { farge: string; bredde: number; visk: boolean; punkter: [number, number][] };
 export type TegningLag = { id: string; type: 'tegning'; du: number; dv: number; streker: Strek[] };
@@ -58,9 +71,15 @@ export function medStorrelse<T extends Lag>(l: T, s: number): T {
   return l;
 }
 
-/** Fargene (filament-id) laget bruker – bilder har ingen faste farger. */
+/** Strektykkelse (mm) når tekst vises som omriss. */
+export function tekstOmriss(hoyde: number) {
+  return Math.max(0.6, Math.min(1.4, hoyde * 0.07));
+}
+
+/** Fargene (filament-id) laget bruker – bilder i full farge har ingen faste farger. */
 export function fargerI(l: Lag): string[] {
   if (l.type === 'tekst' || l.type === 'symbol') return [l.farge];
+  if (l.type === 'bilde') return l.farge ? [l.farge] : [];
   if (l.type === 'tegning') return l.streker.filter((s) => !s.visk).map((s) => s.farge);
   return [];
 }
@@ -119,13 +138,21 @@ export function tegnLag(ctx: CanvasRenderingContext2D, lag: Lag[], hex: (id: str
     if (l.type === 'bilde') {
       const h = l.bredde * (l.el.naturalHeight / l.el.naturalWidth);
       ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(l.el, -l.bredde / 2, -h / 2, l.bredde, h);
+      ctx.drawImage(l.farge ? enfarget(l, hex(l.farge)) : l.el, -l.bredde / 2, -h / 2, l.bredde, h);
     } else if (l.type === 'symbol') {
       const s = symbol(l.symbol);
-      ctx.scale(l.bredde / 24, l.bredde / 24);
+      const k = l.bredde / 24;
+      ctx.scale(k, k);
       ctx.translate(-12, -12);
-      ctx.fillStyle = hex(l.farge);
-      ctx.fill(new Path2D(s.d), s.regel);
+      if (l.stil === 'omriss') {
+        ctx.strokeStyle = hex(l.farge);
+        ctx.lineWidth = OMRISS_MM / k;
+        ctx.lineJoin = 'round';
+        ctx.stroke(new Path2D(s.d));
+      } else {
+        ctx.fillStyle = hex(l.farge);
+        ctx.fill(new Path2D(s.d), s.regel);
+      }
     } else if (l.type === 'tekst') {
       // tegn i 10× størrelse – noen nettlesere runder av veldig små fonter
       ctx.scale(0.1, 0.1);
@@ -133,9 +160,17 @@ export function tegnLag(ctx: CanvasRenderingContext2D, lag: Lag[], hex: (id: str
       ctx.font = cssFont(l.font, h);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = hex(l.farge);
       const linjer = l.tekst.split('\n');
-      linjer.forEach((t, i) => ctx.fillText(t, 0, (i - (linjer.length - 1) / 2) * LINJEAVSTAND * h));
+      const y = (i: number) => (i - (linjer.length - 1) / 2) * LINJEAVSTAND * h;
+      if (l.stil === 'omriss') {
+        ctx.strokeStyle = hex(l.farge);
+        ctx.lineWidth = tekstOmriss(l.hoyde) * 10;
+        ctx.lineJoin = 'round';
+        linjer.forEach((t, i) => ctx.strokeText(t, 0, y(i)));
+      } else {
+        ctx.fillStyle = hex(l.farge);
+        linjer.forEach((t, i) => ctx.fillText(t, 0, y(i)));
+      }
     }
     ctx.restore();
   }

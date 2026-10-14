@@ -14,8 +14,10 @@ import type { Rammer } from '@/lib/deksel/svg';
 import { sti } from '@/lib/deksel/svg';
 import { font } from '@/lib/deksel/fonter';
 import { symbol } from '@/lib/deksel/symboler';
+import { enfargetUrl, OMRISS_MM } from '@/lib/deksel/bildefarge';
 import {
   LINJEAVSTAND,
+  tekstOmriss,
   flyttet,
   medStorrelse,
   storrelse,
@@ -329,7 +331,7 @@ export function Lerret({
         const h = l.bredde * (l.el.naturalHeight / l.el.naturalWidth);
         return treff
           ? <rect x={-l.bredde / 2} y={-h / 2} width={l.bredde} height={h} fill="#000" />
-          : <image href={l.url} x={-l.bredde / 2} y={-h / 2} width={l.bredde} height={h} preserveAspectRatio="none" />;
+          : <image href={l.farge ? enfargetUrl(l, hex(l.farge)) : l.url} x={-l.bredde / 2} y={-h / 2} width={l.bredde} height={h} preserveAspectRatio="none" />;
       }
       case 'symbol': {
         const s = symbol(l.symbol);
@@ -337,7 +339,9 @@ export function Lerret({
         return (
           <g transform={`scale(${k}) translate(-12 -12)`}>
             {treff && <rect x={1} y={1} width={22} height={22} fill="#000" />}
-            <path d={s.d} fillRule={s.regel} fill={hex(l.farge)} />
+            {l.stil === 'omriss' && !treff
+              ? <path d={s.d} fill="none" stroke={hex(l.farge)} strokeWidth={OMRISS_MM / k} strokeLinejoin="round" />
+              : <path d={s.d} fillRule={s.regel} fill={hex(l.farge)} />}
           </g>
         );
       }
@@ -353,7 +357,10 @@ export function Lerret({
               fontFamily={`"${ft.familie}", system-ui, sans-serif`}
               fontWeight={ft.vekt}
               fontSize={l.hoyde}
-              fill={hex(l.farge)}
+              fill={l.stil === 'omriss' && !treff ? 'none' : hex(l.farge)}
+              stroke={l.stil === 'omriss' && !treff ? hex(l.farge) : undefined}
+              strokeWidth={l.stil === 'omriss' && !treff ? tekstOmriss(l.hoyde) : undefined}
+              strokeLinejoin="round"
               textAnchor="middle"
               dominantBaseline="middle"
               style={{ whiteSpace: 'pre' }}

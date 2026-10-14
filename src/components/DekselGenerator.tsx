@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { enfargetUrl } from '@/lib/deksel/bildefarge';
 import { grupperEtterMerke, merkeFor, type Merke } from '@/lib/deksel/modellnavn';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCart } from '@/lib/cart';
@@ -185,7 +186,8 @@ export function DekselGenerator({
   const [antall, setAntall] = useState(Math.min(2, maksFarger));
   const [motivIder, setMotivIder] = useState<string[]>([]);
   const [manuelt, setManuelt] = useState(false);
-  const harBilde = lag.some((l) => l.type === 'bilde');
+  /** bilder i full farge (ikke «Én farge») – da velges motivfargene automatisk fra bildet */
+  const harBilde = lag.some((l) => l.type === 'bilde' && !l.farge);
   const faste = useMemo(() => unik(lag.flatMap(fargerI)).filter((id) => id !== dekselId), [lag, dekselId]);
 
   /** Kan dette laget (eller pennen) få denne fargen uten å gå over maks? */
@@ -345,7 +347,7 @@ export function DekselGenerator({
     merke();
     setLag((ls) =>
       ls.map((l) => {
-        if (l.type === 'tekst' || l.type === 'symbol') return l.farge === fra ? { ...l, farge: til } : l;
+        if (l.type === 'tekst' || l.type === 'symbol' || l.type === 'bilde') return l.farge === fra ? { ...l, farge: til } : l;
         if (l.type === 'tegning') return { ...l, streker: l.streker.map((s) => (!s.visk && s.farge === fra ? { ...s, farge: til } : s)) };
         return l;
       })
@@ -766,8 +768,8 @@ export function DekselGenerator({
             </ul>
           )}
           <p className="mt-3 rounded-xl bg-brand-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-brand-900">
-            <span className="font-semibold">Tips:</span> Trykk på noe på dekselet for å velge det. Dra for å flytte,
-            bruk håndtakene for størrelse og rotasjon. Tekst, symboler og tegninger blir helt skarpe.
+            <span className="font-semibold">Tips:</span> Trykk på noe for å velge det, og dra for å flytte. Velg «Én farge» på
+            et bilde for et rent motiv – fylt eller som omriss.
           </p>
         </Steg>
 
@@ -876,7 +878,10 @@ function Steg({ nr, tittel, children }: { nr: number; tittel: string; children: 
 
 function LagMerke({ l, hex }: { l: Lag; hex: (id: string) => string }) {
   const boks = 'grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-100 bg-ink-50';
-  if (l.type === 'bilde') return <span className={boks}><img src={(l as BildeLag).url} alt="" className="h-full w-full object-cover" /></span>;
+  if (l.type === 'bilde') {
+    const b = l as BildeLag;
+    return <span className={boks}><img src={b.farge ? enfargetUrl(b, hex(b.farge)) : b.url} alt="" className={`h-full w-full ${b.farge ? 'object-contain p-0.5' : 'object-cover'}`} /></span>;
+  }
   if (l.type === 'symbol') {
     const s = SYMBOLER.find((x) => x.id === l.symbol)!;
     return <span className={boks}><svg viewBox="0 0 24 24" className="h-5 w-5"><path d={s.d} fillRule={s.regel} fill={hex(l.farge)} /></svg></span>;
