@@ -15,10 +15,14 @@ export function innebygdeModeller(): DekselModell[] {
   }));
 }
 
+/** Innstillingen i admin: «av» skjuler alle mobilene fra GitHub-filene. */
+export const GITHUB_NOKKEL = 'deksel_github_modeller';
+
 /** Databasens mobiler + filene fra repoet. Finnes samme navn begge steder, vinner databasen. */
-function slaaSammen(fraDb: DekselModell[]): DekselModell[] {
+function slaaSammen(fraDb: DekselModell[], medGithub = true): DekselModell[] {
   const navn = new Set(fraDb.map((m) => m.navn.trim().toLowerCase()));
-  const alle = [...fraDb, ...innebygdeModeller().filter((m) => !navn.has(m.navn.trim().toLowerCase()))];
+  const fraFiler = medGithub ? innebygdeModeller().filter((m) => !navn.has(m.navn.trim().toLowerCase())) : [];
+  const alle = [...fraDb, ...fraFiler];
   return alle
     .map((m, i) => ({ m, i, r: rangering(m.navn) }))
     .sort((a, b) => a.r - b.r || a.i - b.i)
@@ -54,6 +58,8 @@ export async function hentDekselModellerMedFeil(): Promise<{ modeller: DekselMod
     return { modeller: fil, feil: fil.length ? null : 'Nettsiden mangler Supabase-nøklene (miljøvariabler i Vercel).', uten: [] };
   }
   try {
+    const { data: innst } = await sb.from('settings').select('value').eq('key', GITHUB_NOKKEL).maybeSingle();
+    const medGithub = String((innst as { value?: string } | null)?.value ?? 'på').trim().toLowerCase() !== 'av';
     const { data, error } = await sb
       .from('deksel_modeller')
       .select('id,navn,fil_url,fil_navn,analyse:bakside')
@@ -62,12 +68,12 @@ export async function hentDekselModellerMedFeil(): Promise<{ modeller: DekselMod
       .order('navn');
     if (error) {
       console.error('[deksel] klarte ikke å hente mobilene:', error.message);
-      const fil = slaaSammen([]);
+      const fil = slaaSammen([], medGithub);
       return { modeller: fil, feil: fil.length ? null : error.message, uten: [] };
     }
     const alle = (data ?? []) as unknown as DekselModell[];
     const ok = alle.filter((m) => m.analyse && Array.isArray(m.analyse.trygg));
-    return { modeller: slaaSammen(ok), feil: null, uten: alle.filter((m) => !ok.includes(m)).map((m) => m.navn) };
+    return { modeller: slaaSammen(ok, medGithub), feil: null, uten: alle.filter((m) => !ok.includes(m)).map((m) => m.navn) };
   } catch (e) {
     const fil = slaaSammen([]);
     return { modeller: fil, feil: fil.length ? null : e instanceof Error ? e.message : 'Ukjent feil', uten: [] };

@@ -144,7 +144,7 @@ export function DekselModeller() {
   return (
     <div className="space-y-6">
       {/* ---------- Fra GitHub ---------- */}
-      <FraGithub iDb={modeller.map((m) => m.navn)} />
+      <FraGithub iDb={modeller.map((m) => m.navn)} supabase={supabase} />
 
       {/* ---------- Mange på en gang ---------- */}
       <DekselMasseopplasting supabase={supabase} eksisterende={modeller} ferdig={hent} />
@@ -260,14 +260,54 @@ function tall(n: number) {
 }
 
 /** Mobilene som kommer fra dekselfilene i GitHub-repoet (samles automatisk ved hver publisering). */
-function FraGithub({ iDb }: { iDb: string[] }) {
+function FraGithub({ iDb, supabase }: { iDb: string[]; supabase: ReturnType<typeof useAdmin>['supabase'] }) {
   const liste = innebygde as { id: string; navn: string; fil_navn: string }[];
   const db = new Set(iDb.map((n) => n.trim().toLowerCase()));
+  const [pa, setPa] = useState(true);
+  const [status, setStatus] = useState<'' | 'lagrer' | 'lagret' | 'feil'>('');
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.from('settings').select('value').eq('key', 'deksel_github_modeller').maybeSingle()
+      .then(({ data }) => setPa(String((data as { value?: string } | null)?.value ?? 'på').trim().toLowerCase() !== 'av'));
+  }, [supabase]);
+  async function bytt() {
+    if (!supabase) return;
+    const ny = !pa;
+    setPa(ny);
+    setStatus('lagrer');
+    const value = ny ? 'på' : 'av';
+    const { data, error } = await supabase.from('settings').update({ value, updated_at: new Date().toISOString() }).eq('key', 'deksel_github_modeller').select('key');
+    let e = error;
+    if (!e && (!data || data.length === 0)) {
+      e = (await supabase.from('settings').insert({
+        key: 'deksel_github_modeller', value, label: 'Deksel: mobiler fra GitHub', help: 'på eller av', type: 'text', gruppe: 'Deksel', sort: 95,
+      })).error;
+    }
+    if (e) { setPa(!ny); setStatus('feil'); return; }
+    setStatus('lagret');
+    window.setTimeout(() => setStatus(''), 1600);
+  }
   return (
     <section className="rounded-3xl border border-ink-100 bg-white p-6 shadow-soft">
-      <h2 className="text-lg font-bold">
-        Fra GitHub <span className="ml-1 text-sm font-semibold text-ink-400">{liste.length}</span>
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">
+          Fra GitHub <span className="ml-1 text-sm font-semibold text-ink-400">{liste.length}</span>
+        </h2>
+        <div className="flex items-center gap-3">
+          {status && (
+            <span className={`text-xs font-semibold ${status === 'feil' ? 'text-red-600' : 'text-ink-400'}`}>
+              {status === 'lagrer' ? 'Lagrer …' : status === 'lagret' ? 'Lagret ✓' : 'Klarte ikke å lagre'}
+            </span>
+          )}
+          <button type="button" role="switch" aria-checked={pa} onClick={bytt} disabled={!supabase || status === 'lagrer'}
+            className={`flex items-center gap-2.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${pa ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-ink-200 bg-ink-50 text-ink-500'}`}>
+            <span className={`relative h-5 w-9 rounded-full transition-colors ${pa ? 'bg-emerald-500' : 'bg-ink-300'}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${pa ? 'left-[18px]' : 'left-0.5'}`} />
+            </span>
+            {pa ? 'Vises for kunder' : 'Skjult for kunder'}
+          </button>
+        </div>
+      </div>
       {liste.length === 0 ? (
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
           Ingen dekselfiler funnet i repoet ennå. Last opp filer som <span className="font-mono text-xs">iphone-16-pro.stl</span> eller{' '}
@@ -280,7 +320,12 @@ function FraGithub({ iDb }: { iDb: string[] }) {
             Disse hentes automatisk fra dekselfilene i GitHub, med navn og rekkefølge fra filnavnet. Nye filer kommer med ved neste
             publisering. Har en mobil samme navn i databasen under, brukes den i stedet.
           </p>
-          <div className="mt-4 flex flex-wrap gap-1.5">
+          {!pa && (
+            <p className="mt-3 rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm font-semibold text-amber-900">
+              Skrudd av – kundene ser bare mobilene du har lagt inn i lista under. Bestillinger som alt er lagt inn, virker som før.
+            </p>
+          )}
+          <div className={`mt-4 flex flex-wrap gap-1.5 ${pa ? '' : 'opacity-40'}`}>
             {liste.map((m) => (
               <span key={m.id} title={m.fil_navn}
                 className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${db.has(m.navn.trim().toLowerCase()) ? 'border-ink-200 text-ink-400 line-through' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
