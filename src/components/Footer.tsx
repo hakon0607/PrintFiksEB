@@ -9,6 +9,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
   const skole = text(settings, 'bedrift_skole', 'Skranevatnet skole');
   const sted = text(settings, 'bedrift_sted', 'Sandsli, Bergen');
   const instagram = text(settings, 'sosial_instagram');
+  const facebook = text(settings, 'sosial_facebook');
   const snapchat = text(settings, 'sosial_snapchat');
   const vippsNr = text(settings, 'vipps_nummer', telefon);
   const ringetid = text(settings, 'kontakt_ringetid');
@@ -81,8 +82,13 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
               </li>
             )}
             <li>{sted}</li>
-            {(instagram || snapchat) && (
+            {(facebook || instagram || snapchat) && (
               <li className="flex flex-wrap gap-3 pt-1">
+                {facebook && (
+                  <a href={facebook} className="link-underline hover:text-white" rel="me noreferrer">
+                    Facebook
+                  </a>
+                )}
                 {instagram && (
                   <a href={instagram} className="link-underline hover:text-white" rel="noreferrer">
                     Instagram

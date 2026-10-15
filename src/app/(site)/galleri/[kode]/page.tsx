@@ -10,6 +10,9 @@ import { Blobs } from '@/components/Blobs';
 import { temaFor } from '@/lib/temaer';
 import { DEKSEL_KODE, erDekselProdukt } from '@/lib/deksel/produkt';
 import { hentDekselProdukt } from '@/lib/deksel/server';
+import { JsonLd } from '@/components/JsonLd';
+import { produktLd } from '@/lib/strukturert';
+import { SIDE_URL } from '@/lib/side-url';
 import { erPepperkakeProdukt, krTekst, oppsettFra, pepperkakePris, PEPPERKAKE_KODE, prisForklaring } from '@/lib/pepperkake/pris';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +30,7 @@ export async function generateMetadata({
   return {
     title: p.name,
     description: p.description || `${p.name} – 3D-printet av PrintFiksEB.`,
+    alternates: { canonical: `/galleri/${p.code ?? params.kode}` },
     openGraph: {
       title: p.name,
       description: p.description || '',
@@ -57,6 +61,7 @@ export default async function ModellSide({
 
   return (
     <div className="relative pb-24 pt-8 sm:pt-12">
+      <JsonLd data={produktLd(product, SIDE_URL, site.settings)} />
       <Blobs variant="soft" />
       <div className="container-x">
         <Link

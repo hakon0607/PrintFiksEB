@@ -7,11 +7,14 @@ import { Reveal, Stagger, StaggerItem } from '@/components/Reveal';
 import { Blobs } from '@/components/Blobs';
 import { FaqList } from '@/components/Faq';
 import { TeamCard } from '@/components/TeamCard';
+import { JsonLd } from '@/components/JsonLd';
+import { faqLd } from '@/lib/strukturert';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Om oss',
+  alternates: { canonical: '/om-oss' },
   description:
     'PrintFiksEB er en elevbedrift på Skranevatnet skole. Her kan du lese om oss, hvordan du bestiller, hva det koster og hvordan du betaler.',
 };
@@ -38,6 +41,7 @@ export default async function OmOssSide({
 
   return (
     <div className="relative pb-24 pt-12 sm:pt-16">
+      <JsonLd data={faqLd(site.faq)} />
       <Blobs variant="soft" />
       <div className="container-x">
         {/* Intro */}

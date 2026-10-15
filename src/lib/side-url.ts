@@ -10,4 +10,4 @@
  * knekker før dere har byttet navn i Vercel.
  */
 export const SIDE_URL =
-  process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://printfiks.org';
+  process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.printfiks.org';

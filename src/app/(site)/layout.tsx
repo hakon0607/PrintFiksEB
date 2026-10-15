@@ -7,6 +7,9 @@ import { GlassBackdrop } from '@/components/glass/GlassBackdrop';
 import { GlassFx } from '@/components/glass/GlassFx';
 import { getSiteData } from '@/lib/data';
 import { text } from '@/lib/settings';
+import { JsonLd } from '@/components/JsonLd';
+import { bedriftLd, nettstedLd } from '@/lib/strukturert';
+import { SIDE_URL } from '@/lib/side-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +17,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const site = await getSiteData();
   return (
     <div className="site">
+      <JsonLd data={bedriftLd(site.settings, SIDE_URL)} />
+      <JsonLd data={nettstedLd(site.settings, SIDE_URL)} />
       <GlassBackdrop />
       <GlassFx />
       <a
