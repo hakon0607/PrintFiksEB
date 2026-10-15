@@ -9,6 +9,9 @@ import { useCart } from '@/lib/cart';
 import { kr } from '@/lib/settings';
 import type { Product } from '@/lib/types';
 import { versjonerFor } from '@/lib/versjoner';
+import dynamic from 'next/dynamic';
+
+const Produkt3D = dynamic(() => import('./Produkt3D').then((m) => m.Produkt3D), { ssr: false });
 
 export function ProductDetail({
   product,
@@ -35,6 +38,8 @@ export function ProductDetail({
     ? [...versjon.bilder, ...felles.filter((b) => !versjon.bilder.includes(b))]
     : felles;
   const [valgt, setValgt] = useState(0);
+  const har3d = Boolean(product.vis_3d && product.modell_3d);
+  const [vis3d, setVis3d] = useState(false);
   const [antall, setAntall] = useState(1);
   const [lagtTil, setLagtTil] = useState(false);
 
@@ -44,6 +49,7 @@ export function ProductDetail({
   function velgVersjon(id: string) {
     setVersjonId(id);
     setValgt(0);
+    setVis3d(false);
   }
 
   function leggTil() {
@@ -68,7 +74,11 @@ export function ProductDetail({
       <div>
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl border border-ink-100 bg-gradient-to-br from-brand-50 to-brand-100">
           <AnimatePresence mode="wait">
-            {bilder.length > 0 ? (
+            {vis3d && har3d ? (
+              <motion.div key="3d" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="absolute inset-0">
+                <Produkt3D url={product.modell_3d!} farge={product.modell_3d_farge} navn={product.name} />
+              </motion.div>
+            ) : bilder.length > 0 ? (
               <motion.div
                 key={`${versjonId}-${valgt}`}
                 initial={{ opacity: 0, scale: 1.02 }}
@@ -100,10 +110,35 @@ export function ProductDetail({
             )}
           </AnimatePresence>
 
-          {product.code && !design && (
+          {product.code && !design && !vis3d && (
             <span className="absolute left-4 top-4 rounded-full bg-ink-900/85 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
               ID {product.code}
             </span>
+          )}
+
+          {har3d && (
+            <button
+              type="button"
+              onClick={() => setVis3d((v) => !v)}
+              className="absolute right-4 top-4 z-[2] inline-flex items-center gap-1.5 rounded-full bg-ink-900/85 px-3.5 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-ink-900"
+            >
+              {vis3d ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
+                    <path d="M3 16l5-5 4 4 3-3 6 6" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  </svg>
+                  Vis bilder
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M12 2.8 20 7v10l-8 4.2L4 17V7z M12 12l8-5m-8 5-8-5m8 5v9.2" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  </svg>
+                  Se i 3D
+                </>
+              )}
+            </button>
           )}
         </div>
 
@@ -113,7 +148,7 @@ export function ProductDetail({
               <button
                 key={b + i}
                 type="button"
-                onClick={() => setValgt(i)}
+                onClick={() => { setValgt(i); setVis3d(false); }}
                 className={`relative h-20 w-24 shrink-0 overflow-hidden rounded-2xl border-2 transition-all ${
                   i === valgt
                     ? 'border-brand-500 ring-4 ring-brand-100'

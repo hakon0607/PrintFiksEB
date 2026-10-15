@@ -71,6 +71,11 @@ export type Product = {
   /** Versjoner (størrelser o.l.). Tom liste = bare én versjon. Se lib/versjoner.ts */
   variants?: unknown;
   featured: boolean;
+  /** 3D-fil (STL/3MF) lastet opp i admin, og om «Se i 3D» skal vises */
+  modell_3d?: string | null;
+  vis_3d?: boolean | null;
+  /** Fargen modellen vises i */
+  modell_3d_farge?: string | null;
   /** Huket av i admin: kortet får merket «Design din egen!» */
   design_din_egen?: boolean | null;
   active: boolean;

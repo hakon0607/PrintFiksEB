@@ -7,6 +7,7 @@ import { NyhetVelger } from '@/components/admin/NyhetVelger';
 import { Importer } from '@/components/admin/Importer';
 import { TableEditor, type Felt } from '@/components/admin/TableEditor';
 import { VersjonEditor } from '@/components/admin/VersjonEditor';
+import { Modell3dOpplaster } from '@/components/admin/Modell3dOpplaster';
 import { regnMargin } from '@/lib/margin';
 import { kr } from '@/lib/settings';
 import type { Material } from '@/lib/types';
@@ -122,6 +123,24 @@ export default function GalleriAdmin() {
       label: 'Design din egen!',
       type: 'bool',
       help: 'Huk av på produkter kunden kan designe selv (f.eks. pepperkakeformen). Kortet i galleriet får et merke som lokker flere kunder inn.',
+    },
+    {
+      key: 'modell_3d',
+      label: '3D-fil',
+      type: 'egen',
+      egen: ({ verdi, rad, onEndre }) => <Modell3dOpplaster verdi={verdi} rad={rad} onEndre={onEndre} />,
+    },
+    {
+      key: 'vis_3d',
+      label: 'Vis «Se i 3D» på produktsiden',
+      type: 'bool',
+      help: 'Når den er på og det er lastet opp en 3D-fil, får kunden en «Se i 3D»-knapp på bildet.',
+    },
+    {
+      key: 'modell_3d_farge',
+      label: 'Farge i 3D',
+      type: 'color',
+      help: 'Fargen modellen vises i når kunden ser den i 3D.',
     },
   ];
 
