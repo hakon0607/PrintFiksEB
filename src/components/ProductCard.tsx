@@ -122,6 +122,20 @@ export function ProductCard({
             </span>
           </span>
         )}
+        {product.vis_3d && product.modell_3d && (
+          <span
+            className={`absolute right-3 z-[1] inline-flex items-center gap-1 rounded-full bg-brand-600 px-2.5 py-1 text-[11px] font-bold text-white shadow ${
+              (product.images?.length ?? 0) > 0 ? 'bottom-11' : 'bottom-3'
+            } ${
+              smalest ? 'hidden sm:inline-flex' : ''
+            }`}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 2.8 20 7v10l-8 4.2L4 17V7z M12 12l8-5m-8 5-8-5m8 5v9.2" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
+            </svg>
+            Se i 3D
+          </span>
+        )}
         {spenn.antall > 0 && (
           <span
             className={`absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-ink-700 backdrop-blur ${

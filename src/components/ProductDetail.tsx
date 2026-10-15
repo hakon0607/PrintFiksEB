@@ -116,31 +116,45 @@ export function ProductDetail({
             </span>
           )}
 
-          {har3d && (
+          {har3d && !vis3d && (
             <button
               type="button"
-              onClick={() => setVis3d((v) => !v)}
-              className="absolute right-4 top-4 z-[2] inline-flex items-center gap-1.5 rounded-full bg-ink-900/85 px-3.5 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-ink-900"
+              onClick={() => setVis3d(true)}
+              className="group absolute bottom-4 right-4 z-[2] inline-flex items-center gap-2 rounded-full bg-brand-600 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-[0_10px_30px_-8px_rgba(37,89,199,.8)] ring-4 ring-white/70 transition hover:scale-[1.04] hover:bg-brand-700"
             >
-              {vis3d ? (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
-                    <path d="M3 16l5-5 4 4 3-3 6 6" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                  </svg>
-                  Vis bilder
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M12 2.8 20 7v10l-8 4.2L4 17V7z M12 12l8-5m-8 5-8-5m8 5v9.2" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                  </svg>
-                  Se i 3D
-                </>
-              )}
+              <Terning />
+              Se i 3D
             </button>
           )}
         </div>
+
+        {har3d && (
+          <button
+            type="button"
+            onClick={() => setVis3d((v) => !v)}
+            className={`mt-3 flex w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-base font-bold transition ${
+              vis3d
+                ? 'border border-ink-200 bg-white text-ink-700 hover:bg-ink-50'
+                : 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white shadow-[0_14px_34px_-12px_rgba(37,89,199,.75)] hover:brightness-110'
+            }`}
+          >
+            {vis3d ? (
+              <>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
+                  <path d="M3 16l5-5 4 4 3-3 6 6" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                </svg>
+                Tilbake til bildene
+              </>
+            ) : (
+              <>
+                <Terning stor />
+                Se modellen i 3D
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">snu og zoom</span>
+              </>
+            )}
+          </button>
+        )}
 
         {bilder.length > 1 && (
           <div className="no-scrollbar mt-3 flex gap-2.5 overflow-x-auto pb-1">
@@ -335,5 +349,15 @@ function Spec({ navn, verdi }: { navn: string; verdi: string }) {
       <dt className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-400">{navn}</dt>
       <dd className="mt-0.5 font-semibold text-ink-900">{verdi}</dd>
     </div>
+  );
+}
+
+/** Terning-ikon for «Se i 3D». */
+function Terning({ stor }: { stor?: boolean }) {
+  const st = stor ? 20 : 16;
+  return (
+    <svg width={st} height={st} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 2.8 20 7v10l-8 4.2L4 17V7z M12 12l8-5m-8 5-8-5m8 5v9.2" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
   );
 }
