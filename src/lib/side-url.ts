@@ -8,6 +8,11 @@
  *
  * NEXT_PUBLIC_SITE_URL leses fortsatt som reserve, så ingenting
  * knekker før dere har byttet navn i Vercel.
+ *
+ * printfiks.org sender alle videre til www.printfiks.org. Google vil ha
+ * den adressen sidene faktisk ligger på, så vi bruker alltid www – også
+ * om SITE_URL i Vercel står uten.
  */
-export const SIDE_URL =
-  process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.printfiks.org';
+const raa = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.printfiks.org').trim().replace(/\/+$/, '');
+
+export const SIDE_URL = raa.replace(/^https?:\/\/printfiks\.org$/i, 'https://www.printfiks.org');
