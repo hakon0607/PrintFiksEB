@@ -3,7 +3,7 @@
 import { DesignMerke } from './DesignMerke';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCart } from '@/lib/cart';
 import { kr } from '@/lib/settings';
@@ -40,6 +40,14 @@ export function ProductDetail({
   const [valgt, setValgt] = useState(0);
   const har3d = Boolean(product.vis_3d && product.modell_3d);
   const [vis3d, setVis3d] = useState(false);
+  const bildeRef = useRef<HTMLDivElement>(null);
+  /** Åpner 3D – på mobil rulles bildet inn i synet først. */
+  function apne3d() {
+    setVis3d(true);
+    const el = bildeRef.current;
+    if (el && el.getBoundingClientRect().top < 60) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else if (el && el.getBoundingClientRect().bottom > window.innerHeight) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
   const [antall, setAntall] = useState(1);
   const [lagtTil, setLagtTil] = useState(false);
 
@@ -72,7 +80,7 @@ export function ProductDetail({
     <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
       {/* Bilder */}
       <div>
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl border border-ink-100 bg-gradient-to-br from-brand-50 to-brand-100">
+        <div ref={bildeRef} style={{ scrollMarginTop: 90 }} className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl border border-ink-100 bg-gradient-to-br from-brand-50 to-brand-100">
           <AnimatePresence mode="wait">
             {vis3d && har3d ? (
               <motion.div key="3d" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="absolute inset-0">
@@ -119,10 +127,11 @@ export function ProductDetail({
           {har3d && !vis3d && (
             <button
               type="button"
-              onClick={() => setVis3d(true)}
-              className="group absolute bottom-4 right-4 z-[2] inline-flex items-center gap-2 rounded-full bg-brand-600 py-2.5 pl-3 pr-4 text-sm font-bold text-white shadow-[0_10px_30px_-8px_rgba(37,89,199,.8)] ring-4 ring-white/70 transition hover:scale-[1.04] hover:bg-brand-700"
+              onClick={apne3d}
+              className="absolute bottom-4 left-1/2 z-[2] inline-flex -translate-x-1/2 items-center gap-2.5 whitespace-nowrap rounded-full bg-gradient-to-r from-brand-600 to-indigo-600 px-6 py-3 text-base font-extrabold text-white shadow-[0_12px_32px_-8px_rgba(37,89,199,.9)] ring-4 ring-white transition hover:scale-105 sm:px-7 sm:py-3.5 sm:text-lg"
             >
-              <Terning />
+              <span className="pointer-events-none absolute -inset-2 -z-10 animate-pulse rounded-full bg-brand-500/30 blur-md" aria-hidden />
+              <Terning stor />
               Se i 3D
             </button>
           )}
@@ -131,8 +140,8 @@ export function ProductDetail({
         {har3d && (
           <button
             type="button"
-            onClick={() => setVis3d((v) => !v)}
-            className={`mt-3 flex w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-base font-bold transition ${
+            onClick={() => (vis3d ? setVis3d(false) : apne3d())}
+            className={`mt-3 flex w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-4 text-lg font-extrabold transition ${
               vis3d
                 ? 'border border-ink-200 bg-white text-ink-700 hover:bg-ink-50'
                 : 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white shadow-[0_14px_34px_-12px_rgba(37,89,199,.75)] hover:brightness-110'
@@ -184,6 +193,23 @@ export function ProductDetail({
 
         {product.tagline && (
           <p className="mt-2 text-balance text-lg leading-snug text-ink-500">{product.tagline}</p>
+        )}
+
+        {har3d && !vis3d && (
+          <button
+            type="button"
+            onClick={apne3d}
+            className="group mt-5 hidden w-full items-center gap-4 rounded-2xl border-2 border-brand-200 lg:flex bg-gradient-to-r from-brand-50 to-indigo-50 p-4 text-left transition hover:border-brand-400 hover:shadow-lift"
+          >
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-indigo-600 text-white shadow-[0_8px_20px_-8px_rgba(37,89,199,.9)] transition group-hover:scale-110">
+              <Terning stor />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-extrabold text-ink-900">Se modellen i 3D</span>
+              <span className="block text-sm text-ink-500">Snu og zoom på den før du bestiller</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-brand-600 px-4 py-2 text-sm font-bold text-white transition group-hover:bg-brand-700">Åpne 3D</span>
+          </button>
         )}
 
         {versjoner.length > 0 && (

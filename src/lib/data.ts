@@ -31,10 +31,17 @@ async function safe<T>(promise: PromiseLike<{ data: T[] | null; error: unknown }
 const PRODUKTFELT =
   'id,code,name,description,details,tagline,highlights,price,image_url,images,material,weight_g,category,featured,active,sort,created_at';
 
+/** Nyere kolonner – finnes bare når SQL-en for dem er kjørt. */
+const EKSTRA_FELT = {
+  versjoner: 'variants',
+  designMerke: 'design_din_egen',
+  tre: 'modell_3d,vis_3d,modell_3d_farge',
+};
+
 /**
- * Modellene. Prøver først med versjonene (variants). Er ikke SQL-en for
- * versjoner kjørt ennå, finnes ikke kolonnen – da henter vi uten, så
- * galleriet aldri blir tomt.
+ * Modellene, med alle nyere felt (versjoner, «Design din egen!», 3D-fil).
+ * Er SQL-en for et av dem ikke kjørt ennå, finnes ikke kolonnen – da prøver vi
+ * uten den, så galleriet aldri blir tomt.
  */
 async function hentProdukter(sb: NonNullable<ReturnType<typeof getPublicServerClient>>): Promise<Product[]> {
   const sporring = (felt: string) =>
@@ -44,13 +51,21 @@ async function hentProdukter(sb: NonNullable<ReturnType<typeof getPublicServerCl
       .eq('active', true)
       .order('sort')
       .order('created_at', { ascending: false });
-  try {
-    const med = await sporring(`${PRODUKTFELT},variants`);
-    if (!med.error && med.data) return med.data as unknown as Product[];
-    const uten = await sporring(PRODUKTFELT);
-    if (!uten.error && uten.data) return uten.data as unknown as Product[];
-  } catch {
-    /* faller tilbake under */
+  const { versjoner, designMerke, tre } = EKSTRA_FELT;
+  const forsok = [
+    [versjoner, designMerke, tre],
+    [versjoner, tre],
+    [versjoner, designMerke],
+    [versjoner],
+    [],
+  ];
+  for (const ekstra of forsok) {
+    try {
+      const r = await sporring([PRODUKTFELT, ...ekstra].join(','));
+      if (!r.error && r.data) return r.data as unknown as Product[];
+    } catch {
+      /* prøv neste */
+    }
   }
   return [];
 }
