@@ -9,15 +9,20 @@ import { FaqList } from '@/components/Faq';
 import { TeamCard } from '@/components/TeamCard';
 import { JsonLd } from '@/components/JsonLd';
 import { faqLd } from '@/lib/strukturert';
+import { medSti } from '@/lib/team';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'Om oss',
-  alternates: { canonical: '/om-oss' },
-  description:
-    'PrintFiksEB er en elevbedrift på Skranevatnet skole. Her kan du lese om oss, hvordan du bestiller, hva det koster og hvordan du betaler.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getSiteFor();
+  const navn = site.team.map((m) => m.name).filter(Boolean);
+  const team = navn.length ? ` Møt teamet: ${navn.join(', ')}.` : '';
+  return {
+    title: 'Om oss',
+    alternates: { canonical: '/om-oss' },
+    description: `PrintFiksEB er en elevbedrift på Skranevatnet skole. Her kan du lese om oss, hvordan du bestiller, hva det koster og hvordan du betaler.${team}`.slice(0, 300),
+  };
+}
 
 export default async function OmOssSide({
   searchParams,
@@ -95,9 +100,9 @@ export default async function OmOssSide({
               <h2 className="mt-4 text-balance text-3xl font-bold sm:text-4xl">Menneskene bak</h2>
             </Reveal>
             <Stagger className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {site.team.map((m) => (
+              {medSti(site.team).map((m) => (
                 <StaggerItem key={m.id} className="h-full">
-                  <TeamCard member={m} />
+                  <TeamCard member={m} href={`/om-oss/${m.sti}`} />
                 </StaggerItem>
               ))}
             </Stagger>

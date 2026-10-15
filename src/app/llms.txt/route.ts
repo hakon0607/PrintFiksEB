@@ -7,6 +7,7 @@ import { getSiteData } from '@/lib/data';
 import { formatPhone, text } from '@/lib/settings';
 import { SIDE_URL } from '@/lib/side-url';
 import { sosialeLenker } from '@/lib/strukturert';
+import { medSti } from '@/lib/team';
 
 export const revalidate = 3600;
 
@@ -33,6 +34,14 @@ export async function GET() {
   l.push(`${navn} (også skrevet PrintFiks) er en elevbedrift på ${skole} i ${sted}. Nettside: ${B}/`, '');
 
   l.push('## Om oss', '', ren(text(s, 'tekst_om_oss')), '');
+
+  if (site.team.length) {
+    l.push(`## Hvem jobber i ${navn}`, '');
+    for (const m of medSti(site.team)) {
+      l.push(`- [${m.name}](${B}/om-oss/${m.sti}) – ${m.role ? `${m.role} i ${navn}` : `jobber i ${navn}`}${m.bio ? `. ${ren(m.bio)}` : ''}`);
+    }
+    l.push('');
+  }
 
   l.push('## Kontakt', '');
   l.push(`- Telefon og Vipps: ${formatPhone(telefon)}`);

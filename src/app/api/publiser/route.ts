@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import { getServiceClient } from '@/lib/supabase/server';
 import { SITE_TAG } from '@/lib/data';
+import { varsleSokemotorer } from '@/lib/indexnow';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,5 +67,8 @@ export async function POST(request: Request) {
 
   revalidateTag(SITE_TAG);
 
-  return NextResponse.json({ ok: true, sist_publisert: naa });
+  // Si fra til Bing/ChatGPT-søk/Copilot med en gang at nettsiden er oppdatert
+  const varslet = await varsleSokemotorer();
+
+  return NextResponse.json({ ok: true, sist_publisert: naa, sokemotorer_varslet: varslet });
 }

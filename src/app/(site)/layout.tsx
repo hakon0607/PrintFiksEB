@@ -17,7 +17,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const site = await getSiteData();
   return (
     <div className="site">
-      <JsonLd data={bedriftLd(site.settings, SIDE_URL)} />
+      <JsonLd data={bedriftLd(site.settings, SIDE_URL, site.team)} />
       <JsonLd data={nettstedLd(site.settings, SIDE_URL)} />
       <GlassBackdrop />
       <GlassFx />

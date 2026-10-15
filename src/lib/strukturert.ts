@@ -3,7 +3,8 @@
  * og andre søkemotorer og AI-er leser for å forstå hvem vi er, hva vi selger
  * og hva det koster. Alt hentes fra innholdet i admin.
  */
-import type { Faq, Product } from './types';
+import type { Faq, Product, TeamMember } from './types';
+import { medSti } from './team';
 import { text } from './settings';
 
 type Innst = Record<string, string>;
@@ -23,8 +24,37 @@ export function telefonIntl(tlf: string) {
   return d.length === 8 ? `+47${d}` : d ? `+${d}` : undefined;
 }
 
+/** Én person i teamet. */
+export function personLd(m: TeamMember & { sti: string }, base: string, s: Innst) {
+  const navn = text(s, 'bedrift_navn', 'PrintFiksEB');
+  return {
+    '@type': 'Person',
+    '@id': url(base, `/om-oss/${m.sti}#person`),
+    name: m.name,
+    jobTitle: m.role ? `${m.role} i ${navn}` : `Jobber i ${navn}`,
+    description: m.bio || `${m.name} jobber i ${navn}, en elevbedrift som 3D-printer, reparerer og designer.`,
+    image: abs(base, m.avatar_url),
+    url: url(base, `/om-oss/${m.sti}`),
+    worksFor: { '@id': url(base, '/#bedrift'), '@type': 'LocalBusiness', name: navn, url: url(base, '/') },
+    memberOf: { '@id': url(base, '/#bedrift') },
+  };
+}
+
+/** Profilsiden til én person. */
+export function profilLd(m: TeamMember & { sti: string }, base: string, s: Innst) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    url: url(base, `/om-oss/${m.sti}`),
+    name: `${m.name} – ${text(s, 'bedrift_navn', 'PrintFiksEB')}`,
+    inLanguage: 'nb-NO',
+    isPartOf: { '@id': url(base, '/#nettsted') },
+    mainEntity: personLd(m, base, s),
+  };
+}
+
 /** Bedriften – vises på alle sider. */
-export function bedriftLd(s: Innst, base: string) {
+export function bedriftLd(s: Innst, base: string, team: TeamMember[] = []) {
   const navn = text(s, 'bedrift_navn', 'PrintFiksEB');
   const sted = text(s, 'bedrift_sted', 'Sandsli, Bergen');
   const [bydel, by] = sted.includes(',') ? sted.split(',').map((x) => x.trim()) : ['', sted];
@@ -57,6 +87,9 @@ export function bedriftLd(s: Innst, base: string) {
     currenciesAccepted: 'NOK',
     priceRange: 'kr',
     sameAs: sosialeLenker(s).length ? sosialeLenker(s) : undefined,
+    employee: team.length
+      ? medSti(team).map((m) => ({ '@type': 'Person', '@id': url(base, `/om-oss/${m.sti}#person`), name: m.name, jobTitle: m.role || undefined, url: url(base, `/om-oss/${m.sti}`) }))
+      : undefined,
   };
 }
 

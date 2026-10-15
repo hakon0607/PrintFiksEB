@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { SIDE_URL as BASE } from '@/lib/side-url';
 import { getSiteData } from '@/lib/data';
+import { medSti } from '@/lib/team';
 
 export const revalidate = 3600;
 
@@ -32,7 +33,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const studioer: MetadataRoute.Sitemap = site.products
       .filter((p) => p.spesial === 'deksel' || p.spesial === 'pepperkake')
       .map((p) => ({ url: `${BASE}/galleri/${p.code}/lag`, lastModified: na, changeFrequency: 'monthly' as const, priority: 0.6 }));
-    return [...faste, ...modeller, ...studioer];
+    const personer: MetadataRoute.Sitemap = medSti(site.team).map((m) => ({
+      url: `${BASE}/om-oss/${m.sti}`, lastModified: na, changeFrequency: 'monthly' as const, priority: 0.5,
+    }));
+    return [...faste, ...personer, ...modeller, ...studioer];
   } catch {
     return faste;
   }
