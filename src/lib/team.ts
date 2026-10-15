@@ -20,3 +20,11 @@ export function medSti(team: TeamMember[]): (TeamMember & { sti: string })[] {
     return { ...m, sti: n === 1 ? grunn : `${grunn}-${n}` };
   });
 }
+
+/** «William S. Vinkler» → «William Vinkler» (det folk ofte søker på). */
+export function kortNavn(navn: string): string | null {
+  const d = navn.trim().split(/\s+/).filter(Boolean);
+  if (d.length < 3) return null;
+  const kort = `${d[0]} ${d[d.length - 1]}`;
+  return kort !== navn.trim() ? kort : null;
+}

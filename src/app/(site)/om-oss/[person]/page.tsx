@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getSiteFor } from '@/lib/data';
 import { text } from '@/lib/settings';
-import { medSti } from '@/lib/team';
+import { kortNavn, medSti } from '@/lib/team';
 import { profilLd } from '@/lib/strukturert';
 import { SIDE_URL } from '@/lib/side-url';
 import { JsonLd } from '@/components/JsonLd';
@@ -26,7 +26,8 @@ export async function generateMetadata({ params }: { params: { person: string } 
   const skole = text(site.settings, 'bedrift_skole', 'Skranevatnet skole');
   const sted = text(site.settings, 'bedrift_sted', 'Sandsli, Bergen');
   const rolle = m.role ? `${m.role} i ${bedrift}` : `Jobber i ${bedrift}`;
-  const beskrivelse = `${m.name} er ${m.role ? m.role.toLowerCase() : 'med'} i ${bedrift}, elevbedriften på ${skole} i ${sted} som 3D-printer, reparerer og designer.`;
+  const kort = kortNavn(m.name);
+  const beskrivelse = `Hvem er ${m.name}? ${m.name}${kort ? ` (${kort})` : ''} er ${m.role ? m.role.toLowerCase() : 'med'} i ${bedrift}, elevbedriften på ${skole} i ${sted} som 3D-printer, reparerer og designer.`;
   return {
     title: { absolute: `${m.name} – ${rolle}` },
     description: beskrivelse,
@@ -87,6 +88,12 @@ export default async function PersonSide({
               3D-printer, reparerer og designer ting i plast for folk i nærmiljøet.
             </p>
             {m.bio && <p className="mt-4 text-[17px] leading-relaxed text-ink-700">{m.bio}</p>}
+            <h2 className="mt-7 text-xl font-bold text-ink-900">Hvem er {m.name}?</h2>
+            <p className="mt-2 text-[17px] leading-relaxed text-ink-700">
+              {m.name}{kortNavn(m.name) ? ` (${kortNavn(m.name)})` : ''} er {m.role ? `${m.role.toLowerCase()} i` : 'med i'} {bedrift} – en elevbedrift drevet av
+              elever på {skole} i {sted}. {bedrift} lager 3D-printede modeller, reservedeler, mobildeksler med eget motiv og
+              pepperkakeformer kundene tegner selv. Les mer om bedriften på <Link href="/om-oss" className="font-semibold text-brand-700 underline underline-offset-4">om oss</Link>.
+            </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/galleri" className="btn-primary">Se hva vi lager</Link>
               <Link href="/bestill" className="btn-ghost">Bestill</Link>

@@ -36,7 +36,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         phone={text(site.settings, 'kontakt_telefon', '41381608')}
       />
       <main id="innhold">{children}</main>
-      <Footer settings={site.settings} />
+      <Footer settings={site.settings} team={site.team} />
     </div>
   );
 }

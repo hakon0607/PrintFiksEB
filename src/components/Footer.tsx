@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPhone, telHref, text } from '@/lib/settings';
+import { medSti } from '@/lib/team';
+import type { TeamMember } from '@/lib/types';
 
-export function Footer({ settings }: { settings: Record<string, string> }) {
+export function Footer({ settings, team = [] }: { settings: Record<string, string>; team?: TeamMember[] }) {
   const navn = text(settings, 'bedrift_navn', 'PrintFiksEB');
   const telefon = text(settings, 'kontakt_telefon', '41381608');
   const epost = text(settings, 'kontakt_epost');
@@ -38,6 +40,20 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
           <p className="mt-3 text-xs uppercase tracking-[0.16em] text-brand-300">
             Ideer blir virkelighet
           </p>
+          {team.length > 0 && (
+            <div className="mt-5">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">Teamet</h3>
+              <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                {medSti(team).map((m) => (
+                  <li key={m.id}>
+                    <Link href={`/om-oss/${m.sti}`} className="link-underline text-ink-300 hover:text-white">
+                      {m.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="glass-smoke">

@@ -4,7 +4,7 @@
  * og hva det koster. Alt hentes fra innholdet i admin.
  */
 import type { Faq, Product, TeamMember } from './types';
-import { medSti } from './team';
+import { kortNavn, medSti } from './team';
 import { text } from './settings';
 
 type Innst = Record<string, string>;
@@ -31,6 +31,7 @@ export function personLd(m: TeamMember & { sti: string }, base: string, s: Innst
     '@type': 'Person',
     '@id': url(base, `/om-oss/${m.sti}#person`),
     name: m.name,
+    alternateName: kortNavn(m.name) ?? undefined,
     jobTitle: m.role ? `${m.role} i ${navn}` : `Jobber i ${navn}`,
     description: m.bio || `${m.name} jobber i ${navn}, en elevbedrift som 3D-printer, reparerer og designer.`,
     image: abs(base, m.avatar_url),
