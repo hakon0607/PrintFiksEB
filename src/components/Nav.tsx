@@ -8,15 +8,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCart } from '@/lib/cart';
 import { formatPhone, telHref } from '@/lib/settings';
 
-/** Jul-siden vises i menyen fra oktober til og med desember. */
-const julTid = () => [10, 11, 12].includes(new Date().getMonth() + 1);
-
-type Lenke = { href: string; label: string; jul?: boolean; live?: boolean };
+type Lenke = { href: string; label: string; live?: boolean };
 
 const alleLenker: Lenke[] = [
   { href: '/', label: 'Hjem' },
   { href: '/bestill', label: 'Bestill' },
-  { href: '/jul', label: 'Jul', jul: true },
   { href: '/galleri', label: 'Galleri' },
   { href: '/3d-printing', label: 'Hva vi kan fikse' },
   { href: '/om-oss', label: 'Om oss' },
@@ -48,7 +44,7 @@ export function Nav({
   const { count, ready } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const links: Lenke[] = alleLenker.filter((l) => !l.jul || julTid());
+  const links: Lenke[] = [...alleLenker];
   if (kamera) {
     // legges rett før «Om oss»
     const i = links.findIndex((l) => l.href === '/om-oss');
