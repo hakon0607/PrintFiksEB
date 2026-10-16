@@ -8,19 +8,54 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCart } from '@/lib/cart';
 import { formatPhone, telHref } from '@/lib/settings';
 
-const links = [
+/** Jul-siden vises i menyen fra oktober til og med desember. */
+const julTid = () => [10, 11, 12].includes(new Date().getMonth() + 1);
+
+type Lenke = { href: string; label: string; jul?: boolean; live?: boolean };
+
+const alleLenker: Lenke[] = [
   { href: '/', label: 'Hjem' },
   { href: '/bestill', label: 'Bestill' },
+  { href: '/jul', label: 'Jul', jul: true },
   { href: '/galleri', label: 'Galleri' },
   { href: '/3d-printing', label: 'Hva vi kan fikse' },
   { href: '/om-oss', label: 'Om oss' },
 ];
 
-export function Nav({ businessName, phone }: { businessName: string; phone: string }) {
+/** Live kamera-fanen (styres i admin → Live kamera). */
+export type KameraFane = { label: string; live: boolean } | null;
+
+/** Rød, pulserende prikk når kameraet sender live. */
+function LivePrikk() {
+  return (
+    <span className="relative ml-1.5 inline-flex h-2 w-2 align-middle" aria-label="sender live nå">
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-70" />
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+    </span>
+  );
+}
+
+export function Nav({
+  businessName,
+  phone,
+  kamera = null,
+}: {
+  businessName: string;
+  phone: string;
+  kamera?: KameraFane;
+}) {
   const pathname = usePathname();
   const { count, ready } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const links: Lenke[] = alleLenker.filter((l) => !l.jul || julTid());
+  if (kamera) {
+    // legges rett før «Om oss»
+    const i = links.findIndex((l) => l.href === '/om-oss');
+    links.splice(i < 0 ? links.length : i, 0, { href: '/live', label: kamera.label, live: kamera.live });
+  }
+  // Med mange faner får ikke alle plass på mellomstore skjermer – da brukes menyknappen litt lenger
+  const mange = links.length > 6;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -66,7 +101,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
           <span className="text-base font-bold tracking-tight max-[379px]:hidden sm:hidden">{businessName}</span>
         </Link>
 
-        <div className="hidden items-center gap-1 md:flex">
+        <div className={`hidden items-center gap-1 ${mange ? 'xl:flex' : 'md:flex'}`}>
           {links.map((link) => {
             const active = pathname === link.href;
             return (
@@ -84,7 +119,10 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
                     transition={{ type: 'spring', stiffness: 420, damping: 24, mass: 0.8 }}
                   />
                 )}
-                <span className="relative">{link.label}</span>
+                <span className="relative whitespace-nowrap">
+                  {link.label}
+                  {link.live && <LivePrikk />}
+                </span>
               </Link>
             );
           })}
@@ -142,7 +180,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="btn-ghost btn-sm max-sm:!px-3 md:hidden"
+            className={`btn-ghost btn-sm max-sm:!px-3 ${mange ? 'xl:hidden' : 'md:hidden'}`}
             aria-label="Meny"
             aria-expanded={open}
           >
@@ -165,7 +203,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="glass mx-auto mt-2 max-w-6xl overflow-hidden rounded-3xl md:hidden"
+            className={`glass mx-auto mt-2 max-w-6xl overflow-hidden rounded-3xl ${mange ? 'xl:hidden' : 'md:hidden'}`}
           >
             <div className="flex flex-col gap-1 p-3">
               {links.map((link) => (
@@ -179,6 +217,7 @@ export function Nav({ businessName, phone }: { businessName: string; phone: stri
                   }`}
                 >
                   {link.label}
+                  {link.live && <LivePrikk />}
                 </Link>
               ))}
               <a

@@ -10,11 +10,13 @@ import { text } from '@/lib/settings';
 import { JsonLd } from '@/components/JsonLd';
 import { bedriftLd, nettstedLd } from '@/lib/strukturert';
 import { SIDE_URL } from '@/lib/side-url';
+import { hentKameraMeny } from '@/lib/kamera-server';
+import { visIMeny } from '@/lib/kamera';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const site = await getSiteData();
+  const [site, kamera] = await Promise.all([getSiteData(), hentKameraMeny()]);
   return (
     <div className="site">
       <JsonLd data={bedriftLd(site.settings, SIDE_URL, site.team)} />
@@ -34,6 +36,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <Nav
         businessName={text(site.settings, 'bedrift_navn', 'PrintFiksEB')}
         phone={text(site.settings, 'kontakt_telefon', '41381608')}
+        kamera={visIMeny(kamera) ? { label: kamera.innst.fanenavn, live: kamera.live } : null}
       />
       <main id="innhold">{children}</main>
       <Footer settings={site.settings} team={site.team} />

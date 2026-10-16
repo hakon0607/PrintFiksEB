@@ -1,0 +1,34 @@
+LIVE KAMERA – slik legger du det inn
+====================================
+
+1) Last opp filene til GitHub (samme mapper som i zip-fila).
+   NYE filer:
+     src/lib/kamera.ts
+     src/lib/kamera-server.ts
+     src/app/(site)/live/page.tsx
+     src/app/admin/kamera/page.tsx
+     src/app/api/kamera/admin/route.ts
+     src/app/api/kamera/enhet/route.ts
+     src/components/live/LiveKamera.tsx
+     src/components/live/PrinterTegning.tsx
+     src/components/admin/kamera/KameraAdmin.tsx
+     src/components/admin/kamera/KameraStatus.tsx
+     src/components/admin/kamera/Kontroller.tsx
+     src/components/admin/kamera/PiOppsett.tsx
+     src/components/admin/kamera/Timelapser.tsx
+     public/kamera-pi/printfiks_kamera.py
+     public/kamera-pi/installer.sh
+     supabase/live-kamera.sql
+   ENDREDE filer:
+     src/components/Nav.tsx
+     src/components/admin/AdminShell.tsx
+     src/app/(site)/layout.tsx
+     src/app/sitemap.ts
+
+2) Kjør supabase/live-kamera.sql i Supabase → SQL Editor → Run.
+   Rett etterpå står fanen «Live kamera» som «Kommer snart».
+
+3) Admin → Live kamera: velg Skjult / Kommer snart / Demo / På.
+   Endringer gjelder med en gang (ingen Publiser).
+
+4) Når du er hjemme: følg «Koble til Raspberry Pi» nederst på admin-siden.

@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import { SIDE_URL as BASE } from '@/lib/side-url';
 import { getSiteData } from '@/lib/data';
 import { medSti } from '@/lib/team';
+import { hentKameraMeny } from '@/lib/kamera-server';
 
 export const revalidate = 3600;
 
@@ -12,6 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/`, lastModified: na, changeFrequency: 'weekly', priority: 1 },
     { url: `${BASE}/galleri`, lastModified: na, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${BASE}/om-oss`, lastModified: na, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE}/jul`, lastModified: na, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${BASE}/bestill`, lastModified: na, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE}/3d-printing`, lastModified: na, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE}/llms.txt`, lastModified: na, changeFrequency: 'weekly', priority: 0.3 },
@@ -36,7 +38,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const personer: MetadataRoute.Sitemap = medSti(site.team).map((m) => ({
       url: `${BASE}/om-oss/${m.sti}`, lastModified: na, changeFrequency: 'monthly' as const, priority: 0.5,
     }));
-    return [...faste, ...personer, ...modeller, ...studioer];
+    // live kamera tas med når den er åpen for besøkende (Demo eller På i admin)
+    const kamera = await hentKameraMeny();
+    const live: MetadataRoute.Sitemap =
+      kamera.modus === 'demo' || kamera.modus === 'pa'
+        ? [{ url: `${BASE}/live`, lastModified: na, changeFrequency: 'daily' as const, priority: 0.6 }]
+        : [];
+    return [...faste, ...live, ...personer, ...modeller, ...studioer];
   } catch {
     return faste;
   }
